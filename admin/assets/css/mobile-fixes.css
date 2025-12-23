@@ -1,0 +1,267 @@
+/* Correções para Mobile - Sidebar e Tabelas */
+
+/* ========================================
+   NAVBAR MOBILE - Ajustes para caber tudo
+   ======================================== */
+@media (max-width: 991px) {
+    /* Reduzir padding e gaps do navbar */
+    .navbar-header {
+        padding: 8px 12px !important;
+    }
+    
+    .navbar-header .row {
+        margin: 0 !important;
+    }
+    
+    /* Reduzir tamanho dos botões e ícones */
+    .navbar-header .w-40-px,
+    .navbar-header .h-40-px {
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        min-height: 32px !important;
+    }
+    
+    /* Reduzir tamanho dos ícones */
+    .navbar-header iconify-icon {
+        font-size: 18px !important;
+    }
+    
+    /* Reduzir gaps entre elementos */
+    .navbar-header .gap-4 {
+        gap: 8px !important;
+    }
+    
+    .navbar-header .gap-3 {
+        gap: 6px !important;
+    }
+    
+    .navbar-header .gap-2 {
+        gap: 4px !important;
+    }
+    
+    /* Reduzir tamanho dos toggles */
+    .navbar-header .form-switch {
+        transform: scale(0.85);
+    }
+    
+    /* Reduzir tamanho do logo do usuário */
+    .navbar-header img.w-40-px {
+        width: 32px !important;
+        height: 32px !important;
+    }
+    
+    /* Ajustar margens dos toggles */
+    .navbar-header .me-2 {
+        margin-right: 4px !important;
+    }
+    
+    .navbar-header .me-3 {
+        margin-right: 6px !important;
+    }
+    
+    /* Permitir quebra de linha se necessário */
+    .navbar-header .d-flex.flex-wrap {
+        flex-wrap: wrap !important;
+    }
+    
+    /* Reduzir tamanho do texto nos toggles (se houver) */
+    .navbar-header .text-xl {
+        font-size: 16px !important;
+    }
+    
+    /* Tamanho dos ícones dos toggles */
+    .navbar-header .toggle-icon-mobile {
+        font-size: 18px !important;
+    }
+}
+
+/* Desktop - tamanho normal dos ícones dos toggles */
+@media (min-width: 992px) {
+    .navbar-header .toggle-icon-mobile {
+        font-size: 20px !important;
+    }
+}
+
+/* Ajustes ainda mais específicos para telas muito pequenas */
+@media (max-width: 576px) {
+    .navbar-header {
+        padding: 6px 8px !important;
+    }
+    
+    .navbar-header .w-40-px,
+    .navbar-header .h-40-px {
+        width: 28px !important;
+        height: 28px !important;
+        min-width: 28px !important;
+        min-height: 28px !important;
+    }
+    
+    .navbar-header iconify-icon {
+        font-size: 16px !important;
+    }
+    
+    .navbar-header .gap-4 {
+        gap: 6px !important;
+    }
+    
+    .navbar-header .gap-3 {
+        gap: 4px !important;
+    }
+    
+    .navbar-header .form-switch {
+        transform: scale(0.75);
+    }
+    
+    .navbar-header img.w-40-px {
+        width: 28px !important;
+        height: 28px !important;
+    }
+    
+    .navbar-header .toggle-icon-mobile {
+        font-size: 16px !important;
+    }
+}
+
+/* ========================================
+   BOTÕES PEDIDOS - Ajustes Mobile
+   ======================================== */
+@media (max-width: 991px) {
+    /* Garantir que botões não quebrem */
+    .btn-sm {
+        white-space: nowrap !important;
+        font-size: 0.875rem !important;
+        padding: 0.375rem 0.75rem !important;
+    }
+    
+    /* Botões com ícone e texto - reduzir padding no mobile */
+    .btn-sm iconify-icon + span {
+        margin-left: 4px;
+    }
+    
+    /* Container de botões - permitir quebra */
+    .d-flex.flex-wrap {
+        flex-wrap: wrap !important;
+    }
+    
+    /* Botões em linha - garantir que caibam */
+    .d-flex.gap-2 {
+        gap: 0.5rem !important;
+    }
+}
+
+/* Telas muito pequenas */
+@media (max-width: 576px) {
+    .btn-sm {
+        font-size: 0.75rem !important;
+        padding: 0.25rem 0.5rem !important;
+    }
+    
+    /* Botões com flex-fill no mobile */
+    .btn.flex-fill {
+        min-width: calc(50% - 0.25rem);
+    }
+}
+
+/* ========================================
+   SIDEBAR - Rolagem Completa no Mobile
+   ======================================== */
+@media (max-width: 991px) {
+    .sidebar {
+        height: 100vh !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    
+    .sidebar-menu-area {
+        max-height: calc(100vh - 120px) !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding-bottom: 20px !important;
+    }
+}
+
+/* ========================================
+   TABELAS - Rolagem Horizontal no Mobile
+   ======================================== */
+
+/* Wrapper para todas as tabelas */
+.table-responsive {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: 8px;
+}
+
+/* No mobile, força scroll horizontal */
+@media (max-width: 991px) {
+    .table-responsive {
+        display: block !important;
+        width: 100% !important;
+        overflow-x: auto !important;
+    }
+    
+    /* Tabela mantém largura mínima */
+    .table-responsive table {
+        min-width: 800px !important;
+    }
+    
+    /* DataTables wrapper */
+    .dataTables_wrapper {
+        overflow-x: auto !important;
+    }
+    
+    .dataTables_wrapper table {
+        min-width: 800px !important;
+    }
+}
+
+/* Tabelas muito grandes */
+@media (max-width: 767px) {
+    .table-responsive table {
+        min-width: 600px !important;
+    }
+    
+    .dataTables_wrapper table {
+        min-width: 600px !important;
+    }
+}
+
+/* Indicador visual de scroll */
+.table-responsive::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 30px;
+    background: linear-gradient(to left, rgba(0,0,0,0.05), transparent);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+@media (max-width: 991px) {
+    .table-responsive::after {
+        opacity: 1;
+    }
+}
+
+/* Scroll suave */
+.table-responsive::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

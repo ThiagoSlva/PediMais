@@ -1,0 +1,35 @@
+/* Estilos para atualizações em tempo real */
+[data-pedido-id].updated {
+    animation: highlightUpdate 1s ease-in-out;
+    border-left: 3px solid #4caf50;
+}
+
+@keyframes highlightUpdate {
+    0% {
+        background-color: rgba(76, 175, 80, 0.1);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+.status-badge {
+    transition: all 0.3s ease;
+}
+
+.status-badge.updated {
+    animation: pulse 0.5s ease-in-out;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+
+
+

@@ -1,0 +1,791 @@
+/* ==========================================
+   TEMA SHIOKI - CardapiX
+   Um tema claro, moderno e elegante
+   Inspirado em apps de delivery premium
+   ========================================== */
+
+/* ========== VARIÁVEIS DO TEMA ========== */
+:root {
+    --shioki-bg: #FFF8F0;
+    --shioki-bg-secondary: #FFF5E6;
+    --shioki-card: #FFFFFF;
+    --shioki-primary: #E76F51;
+    --shioki-primary-dark: #D35F44;
+    --shioki-primary-light: rgba(231, 111, 81, 0.1);
+    --shioki-secondary: #F4A261;
+    --shioki-accent: #2A9D8F;
+    --shioki-text: #2D3436;
+    --shioki-text-secondary: #636E72;
+    --shioki-text-muted: #9CA3AF;
+    --shioki-border: rgba(0, 0, 0, 0.08);
+    --shioki-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    --shioki-shadow-hover: 0 8px 25px rgba(0, 0, 0, 0.12);
+    --shioki-radius: 20px;
+    --shioki-radius-sm: 12px;
+}
+
+/* ========== RESET E BASE ========== */
+body.tema-shioki {
+    background: var(--shioki-bg) !important;
+    color: var(--shioki-text) !important;
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+    padding-bottom: 120px !important;
+    /* Espaço para carrinho flutuante */
+}
+
+body.tema-shioki * {
+    box-sizing: border-box;
+}
+
+/* ========== HEADER / CAPA ========== */
+body.tema-shioki header {
+    background: linear-gradient(135deg, var(--shioki-primary) 0%, var(--shioki-secondary) 100%);
+    border-radius: 0 0 30px 30px;
+    overflow: visible !important;
+    /* Permitir que o logo apareça completo */
+    position: relative;
+    margin-bottom: 60px;
+    /* Espaço para o logo que sai do header */
+}
+
+body.tema-shioki header img.bg {
+    opacity: 0.3;
+    filter: brightness(100%) !important;
+    border-radius: 0 0 30px 30px;
+    /* Manter bordas arredondadas na imagem */
+}
+
+body.tema-shioki header .logo {
+    border: 4px solid white;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    z-index: 10;
+    /* Garantir que o logo fique acima */
+}
+
+body.tema-shioki header h1 {
+    color: white;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    font-weight: 700;
+}
+
+/* ========== STATUS ABERTO/FECHADO ========== */
+body.tema-shioki .status {
+    margin-top: 10px !important;
+    /* Reduzir margin pois header já tem margin-bottom */
+}
+
+body.tema-shioki .status span {
+    border-radius: 30px;
+    padding: 10px 24px;
+    font-weight: 600;
+    box-shadow: var(--shioki-shadow);
+}
+
+body.tema-shioki .status.aberto span {
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+    color: white;
+}
+
+body.tema-shioki .status.fechado span {
+    background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%) !important;
+    color: white;
+}
+
+/* ========== BOTÕES DE AÇÃO (HEADER) ========== */
+body.tema-shioki .header-actions {
+    padding: 10px 0;
+}
+
+body.tema-shioki .action-btn {
+    background: var(--shioki-card) !important;
+    border: 2px solid var(--shioki-border) !important;
+    box-shadow: var(--shioki-shadow);
+    transition: all 0.3s ease;
+}
+
+body.tema-shioki .action-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shioki-shadow-hover);
+}
+
+body.tema-shioki .btn-user {
+    color: var(--shioki-primary) !important;
+}
+
+body.tema-shioki .btn-promo {
+    color: var(--shioki-secondary) !important;
+}
+
+body.tema-shioki .btn-whatsapp {
+    color: #25D366 !important;
+}
+
+body.tema-shioki .btn-theme {
+    color: var(--shioki-accent) !important;
+}
+
+/* Instagram com gradiente colorido */
+body.tema-shioki .btn-instagram {
+    background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%) !important;
+    color: white !important;
+    border: none !important;
+}
+
+/* Facebook azul */
+body.tema-shioki .btn-facebook {
+    background: var(--shioki-card) !important;
+    color: #1877F2 !important;
+}
+
+body.tema-shioki .badge-count {
+    background: var(--shioki-primary) !important;
+    color: white !important;
+    border-color: var(--shioki-card) !important;
+}
+
+/* ========== LOCALIZAÇÃO ========== */
+body.tema-shioki .location {
+    color: var(--shioki-text-secondary);
+    background: var(--shioki-card);
+    margin: 15px 20px;
+    padding: 12px 20px;
+    border-radius: var(--shioki-radius-sm);
+    box-shadow: var(--shioki-shadow);
+    font-size: 0.9rem;
+}
+
+body.tema-shioki .location i {
+    color: var(--shioki-primary);
+}
+
+/* ========== CATEGORIAS SLIDER ========== */
+body.tema-shioki .categories-wrapper {
+    background: transparent;
+    padding: 20px 0;
+}
+
+body.tema-shioki .categories {
+    padding: 0 20px;
+}
+
+body.tema-shioki .category {
+    background: var(--shioki-card);
+    padding: 15px;
+    border-radius: var(--shioki-radius);
+    box-shadow: var(--shioki-shadow);
+    transition: all 0.3s ease;
+    min-width: 100px;
+}
+
+body.tema-shioki .category:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shioki-shadow-hover);
+}
+
+body.tema-shioki .category img {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 3px solid var(--shioki-bg-secondary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+body.tema-shioki .category.active {
+    background: var(--shioki-primary-light);
+}
+
+body.tema-shioki .category.active img {
+    border-color: var(--shioki-primary) !important;
+    transform: scale(1.1);
+}
+
+body.tema-shioki .category-name {
+    color: var(--shioki-text);
+    font-weight: 600;
+    font-size: 0.8rem;
+    margin-top: 8px;
+}
+
+/* ========== ACCORDION (CATEGORIAS DE PRODUTOS) ========== */
+body.tema-shioki .accordion {
+    padding: 0 15px;
+}
+
+body.tema-shioki .accordion-item {
+    background: var(--shioki-card);
+    border-radius: var(--shioki-radius);
+    margin-bottom: 15px;
+    box-shadow: var(--shioki-shadow);
+    border: none;
+    overflow: hidden;
+}
+
+body.tema-shioki .accordion-header {
+    background: transparent;
+    border-bottom: 1px solid var(--shioki-border);
+    color: var(--shioki-text);
+    padding: 18px 20px;
+}
+
+body.tema-shioki .accordion-header span {
+    color: var(--shioki-text);
+    font-weight: 700;
+}
+
+body.tema-shioki .accordion-header i {
+    color: var(--shioki-primary);
+    transition: transform 0.3s ease;
+}
+
+body.tema-shioki .accordion-content {
+    background: var(--shioki-bg-secondary);
+    padding: 15px;
+}
+
+body.tema-shioki .accordion-content.active {
+    display: block;
+}
+
+/* ========== CARDS DE PRODUTO ========== */
+body.tema-shioki .product-card {
+    background: var(--shioki-card);
+    border-radius: var(--shioki-radius);
+    border: none;
+    box-shadow: var(--shioki-shadow);
+    padding: 15px;
+    margin-bottom: 12px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+body.tema-shioki .product-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--shioki-primary) 0%, var(--shioki-secondary) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+body.tema-shioki .product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shioki-shadow-hover);
+}
+
+body.tema-shioki .product-card:hover::before {
+    opacity: 1;
+}
+
+body.tema-shioki .product-info h4 {
+    color: var(--shioki-text);
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 6px;
+}
+
+body.tema-shioki .product-info .description {
+    color: var(--shioki-text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+body.tema-shioki .product-info .price {
+    color: var(--shioki-primary) !important;
+    font-weight: 800;
+    font-size: 1.15rem;
+}
+
+body.tema-shioki .product-card>img {
+    width: 90px;
+    height: 90px;
+    border-radius: var(--shioki-radius-sm);
+    object-fit: cover;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilo decorativo para imagem (bordas onduladas) */
+body.tema-shioki .product-card>img {
+    border: 3px solid var(--shioki-secondary);
+    position: relative;
+}
+
+/* ========== RATING DE PRODUTOS ========== */
+body.tema-shioki .product-rating span {
+    color: #FFC107 !important;
+}
+
+/* ========== MODAL DE PRODUTO ========== */
+body.tema-shioki .produto-modal-content {
+    background: var(--shioki-card) !important;
+    color: var(--shioki-text) !important;
+    border-radius: 30px 30px 0 0 !important;
+    border-top: none !important;
+}
+
+body.tema-shioki .produto-modal-overlay {
+    background: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(5px);
+}
+
+body.tema-shioki #produto-modal button[onclick*="fecharModal"] {
+    background: var(--shioki-bg-secondary) !important;
+    color: var(--shioki-text) !important;
+    border: none !important;
+}
+
+body.tema-shioki #modal-produto-nome {
+    color: var(--shioki-text) !important;
+    font-weight: 800;
+}
+
+body.tema-shioki #modal-produto-descricao {
+    color: var(--shioki-text-secondary) !important;
+}
+
+body.tema-shioki #produto-detalhes>div[style*="background:#1e2433"],
+body.tema-shioki #produto-detalhes div[style*="background:#1e2433"] {
+    background: var(--shioki-bg-secondary) !important;
+    border-color: var(--shioki-border) !important;
+}
+
+body.tema-shioki #modal-produto-preco {
+    color: var(--shioki-primary) !important;
+}
+
+body.tema-shioki #adicionais-section h4,
+body.tema-shioki #retirar-section h4,
+body.tema-shioki #segundo-sabor-section h4 {
+    color: var(--shioki-text) !important;
+}
+
+/* Badge "Extras" e "Obrigatório" */
+body.tema-shioki #adicionais-section span[style*="background"],
+body.tema-shioki #adicionais-lista span[style*="background"],
+body.tema-shioki .badge-extras,
+body.tema-shioki .badge-obrigatorio,
+body.tema-shioki #produto-detalhes span[style*="background:#"],
+body.tema-shioki #produto-detalhes span[style*="background: #"] {
+    background: var(--shioki-primary) !important;
+    color: white !important;
+}
+
+/* Cards de adicionais */
+body.tema-shioki #adicionais-lista>div,
+body.tema-shioki #adicionais-lista label,
+body.tema-shioki .adicional-item,
+body.tema-shioki #adicionais-lista div[style*="background"],
+body.tema-shioki #adicionais-lista [style*="#1e"],
+body.tema-shioki #adicionais-lista [style*="#2d"] {
+    background: var(--shioki-card) !important;
+    border: 2px solid var(--shioki-border) !important;
+    color: var(--shioki-text) !important;
+    border-radius: 12px !important;
+}
+
+body.tema-shioki #adicionais-lista .adicional-item.selected,
+body.tema-shioki #adicionais-lista label.selected,
+body.tema-shioki #adicionais-lista input:checked+label,
+body.tema-shioki #adicionais-lista div.selected {
+    background: var(--shioki-primary-light) !important;
+    border-color: var(--shioki-primary) !important;
+}
+
+body.tema-shioki #adicionais-lista span,
+body.tema-shioki #adicionais-lista .adicional-nome {
+    color: var(--shioki-text) !important;
+}
+
+body.tema-shioki #adicionais-lista .adicional-preco,
+body.tema-shioki #adicionais-lista span[style*="color"] {
+    color: var(--shioki-primary) !important;
+}
+
+/* Seção de Retirar do Pedido */
+body.tema-shioki #retirar-section p {
+    color: var(--shioki-text-secondary) !important;
+}
+
+body.tema-shioki #retirar-lista label,
+body.tema-shioki #retirar-lista span {
+    background: var(--shioki-bg-secondary) !important;
+    color: var(--shioki-text) !important;
+    border: 2px solid var(--shioki-border) !important;
+    border-radius: 25px !important;
+    padding: 8px 16px !important;
+}
+
+body.tema-shioki #retirar-lista input[type="checkbox"]:checked+span,
+body.tema-shioki #retirar-lista label.selected {
+    background: var(--shioki-primary-light) !important;
+    border-color: var(--shioki-primary) !important;
+}
+
+/* Botões Meio a Meio / Pizza Inteira */
+body.tema-shioki #segundo-sabor-section button,
+body.tema-shioki [onclick*="toggleMeioAMeio"],
+body.tema-shioki .sabor-btn {
+    background: var(--shioki-bg-secondary) !important;
+    color: var(--shioki-text) !important;
+    border: 2px solid var(--shioki-border) !important;
+}
+
+body.tema-shioki #segundo-sabor-section button.active,
+body.tema-shioki [onclick*="toggleMeioAMeio"].active,
+body.tema-shioki .sabor-btn.active {
+    background: var(--shioki-primary) !important;
+    color: white !important;
+    border-color: var(--shioki-primary) !important;
+}
+
+/* Cards de seleção de sabor (segundo sabor) - FORÇAR tema claro */
+body.tema-shioki #segundo-sabor-lista>div,
+body.tema-shioki #segundo-sabor-lista div,
+body.tema-shioki .sabor-card,
+body.tema-shioki .segundo-sabor-item,
+body.tema-shioki #segundo-sabor-lista [style*="background"],
+body.tema-shioki #segundo-sabor-lista div[style*="#"],
+body.tema-shioki #segundo-sabor-lista div[style*="1e"],
+body.tema-shioki #segundo-sabor-lista div[style*="2d"] {
+    background: var(--shioki-card) !important;
+    border: 2px solid var(--shioki-border) !important;
+    color: var(--shioki-text) !important;
+    border-radius: 16px !important;
+}
+
+body.tema-shioki #segundo-sabor-lista>div.selected,
+body.tema-shioki #segundo-sabor-lista div.selected,
+body.tema-shioki .sabor-card.selected,
+body.tema-shioki .segundo-sabor-item.selected {
+    background: var(--shioki-primary-light) !important;
+    border-color: var(--shioki-primary) !important;
+}
+
+body.tema-shioki #segundo-sabor-lista img {
+    border-radius: 12px !important;
+}
+
+body.tema-shioki #segundo-sabor-lista strong,
+body.tema-shioki #segundo-sabor-lista .nome-produto,
+body.tema-shioki #segundo-sabor-lista div strong {
+    color: var(--shioki-text) !important;
+}
+
+body.tema-shioki #segundo-sabor-lista .preco,
+body.tema-shioki #segundo-sabor-lista span[style*="color"],
+body.tema-shioki #segundo-sabor-lista div span {
+    color: var(--shioki-primary) !important;
+}
+
+/* Dica do segundo sabor */
+body.tema-shioki #segundo-sabor-section>p,
+body.tema-shioki .dica-segundo-sabor {
+    color: var(--shioki-text-secondary) !important;
+}
+
+body.tema-shioki #produto-obs {
+    background: var(--shioki-bg-secondary) !important;
+    border-color: var(--shioki-border) !important;
+    color: var(--shioki-text) !important;
+}
+
+body.tema-shioki #produto-obs::placeholder {
+    color: var(--shioki-text-muted) !important;
+}
+
+/* Footer do Modal */
+body.tema-shioki .modal-footer-fixed {
+    background: var(--shioki-card) !important;
+    border-top: 1px solid var(--shioki-border) !important;
+}
+
+/* Botões de quantidade no footer - sobrescrever estilos inline */
+body.tema-shioki .modal-footer-fixed div[style*="background:#1e2433"],
+body.tema-shioki .modal-footer-fixed div[style*="background: #1e2433"],
+body.tema-shioki .modal-footer-fixed>div>div:first-child,
+body.tema-shioki .modal-footer-fixed div[style*="#1e2433"] {
+    background: var(--shioki-bg-secondary) !important;
+    border: 2px solid var(--shioki-border) !important;
+    border-color: var(--shioki-border) !important;
+}
+
+body.tema-shioki .modal-footer-fixed button[onclick*="alterarQuantidade"] {
+    color: var(--shioki-text) !important;
+    background: transparent !important;
+}
+
+body.tema-shioki #quantidade-valor {
+    color: var(--shioki-text) !important;
+}
+
+body.tema-shioki .modal-footer-fixed button[onclick*="adicionarAoCarrinho"] {
+    background: linear-gradient(135deg, var(--shioki-primary) 0%, var(--shioki-primary-dark) 100%) !important;
+    box-shadow: 0 4px 15px rgba(231, 111, 81, 0.35) !important;
+}
+
+/* Sobrescrever TODOS os backgrounds escuros no modal do produto */
+body.tema-shioki #produto-modal div[style*="background:#0f131a"],
+body.tema-shioki #produto-modal div[style*="background: #0f131a"],
+body.tema-shioki #produto-modal div[style*="background:#1e2433"],
+body.tema-shioki #produto-modal div[style*="background: #1e2433"],
+body.tema-shioki #produto-modal div[style*="background:#151922"],
+body.tema-shioki #produto-modal div[style*="background: #151922"],
+body.tema-shioki #produto-modal [style*="background:#2d3446"],
+body.tema-shioki #produto-modal [style*="background: #2d3446"] {
+    background: var(--shioki-bg-secondary) !important;
+    border-color: var(--shioki-border) !important;
+}
+
+/* Sobrescrever cores de texto branco para escuro */
+body.tema-shioki #produto-modal [style*="color:white"],
+body.tema-shioki #produto-modal [style*="color: white"],
+body.tema-shioki #produto-modal button[style*="color:white"] {
+    color: var(--shioki-text) !important;
+}
+
+/* Botões no modal - estilo claro */
+body.tema-shioki #produto-modal button[style*="background:#2d3446"],
+body.tema-shioki #produto-modal button[style*="background: #2d3446"] {
+    background: var(--shioki-bg-secondary) !important;
+    color: var(--shioki-text) !important;
+}
+
+/* Ícones no modal */
+body.tema-shioki #produto-modal i[style*="color:#4a66f9"],
+body.tema-shioki #produto-modal [style*="color:#4a66f9"] {
+    color: var(--shioki-primary) !important;
+}
+
+/* Textarea de observações */
+body.tema-shioki #produto-modal textarea,
+body.tema-shioki #produto-obs {
+    background: var(--shioki-bg-secondary) !important;
+    border-color: var(--shioki-border) !important;
+    color: var(--shioki-text) !important;
+}
+
+/* Labels no modal */
+body.tema-shioki #produto-modal label[style*="color:#e2e8f0"],
+body.tema-shioki #produto-modal [style*="color:#e2e8f0"] {
+    color: var(--shioki-text) !important;
+}
+
+/* ==========  OVERRIDE ULTRA AGRESSIVO PARA TEMA CLARO ========== */
+/* Capturar TODOS os backgrounds escuros restantes no modal */
+body.tema-shioki #produto-detalhes div[style*="background"],
+body.tema-shioki #produto-detalhes [style*="background:#1"],
+body.tema-shioki #produto-detalhes [style*="background:#2"],
+body.tema-shioki #produto-detalhes [style*="background:#3"],
+body.tema-shioki #produto-detalhes [style*="background: #1"],
+body.tema-shioki #produto-detalhes [style*="background: #2"],
+body.tema-shioki #produto-detalhes [style*="background: #3"],
+body.tema-shioki #produto-modal .produto-modal-content div[style*="background:#"],
+body.tema-shioki #produto-modal .produto-modal-content div[style*="background: #"] {
+    background: var(--shioki-bg-secondary) !important;
+    border-color: var(--shioki-border) !important;
+}
+
+/* Todos os textos brancos → escuros */
+body.tema-shioki #produto-detalhes [style*="color:white"],
+body.tema-shioki #produto-detalhes [style*="color: white"],
+body.tema-shioki #produto-detalhes [style*="color:#fff"],
+body.tema-shioki #produto-detalhes [style*="color: #fff"],
+body.tema-shioki #produto-detalhes [style*="color:#e"],
+body.tema-shioki #produto-detalhes [style*="color: #e"],
+body.tema-shioki #produto-detalhes strong {
+    color: var(--shioki-text) !important;
+}
+
+/* Preços sempre laranja */
+body.tema-shioki #produto-detalhes [style*="R$"],
+body.tema-shioki #produto-detalhes span:not([style*="background"]) {
+    color: var(--shioki-primary) !important;
+}
+
+/* ========== CARRINHO FLUTUANTE ========== */
+body.tema-shioki .carrinho-flutuante {
+    background: var(--shioki-card);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+    border-radius: 20px 20px 0 0;
+}
+
+body.tema-shioki .carrinho-header {
+    background: linear-gradient(135deg, var(--shioki-primary) 0%, var(--shioki-primary-dark) 100%) !important;
+    border-radius: 20px 20px 0 0;
+}
+
+body.tema-shioki .carrinho-corpo {
+    background: var(--shioki-card);
+}
+
+body.tema-shioki .btn-finalizar {
+    background: linear-gradient(135deg, var(--shioki-primary) 0%, var(--shioki-primary-dark) 100%) !important;
+    border-radius: var(--shioki-radius-sm);
+    font-weight: 700;
+    box-shadow: 0 4px 15px rgba(231, 111, 81, 0.35);
+}
+
+/* Botão flutuante mobile */
+body.tema-shioki #carrinho-flutuante-mobile {
+    background: linear-gradient(135deg, var(--shioki-primary) 0%, var(--shioki-primary-dark) 100%) !important;
+    box-shadow: 0 4px 20px rgba(231, 111, 81, 0.4);
+    bottom: 90px !important;
+    /* Mover para cima para não sobrepor preços */
+}
+
+/* ========== MODAL CARRINHO MOBILE ========== */
+body.tema-shioki #modal-carrinho-mobile {
+    background: var(--shioki-card) !important;
+    border-radius: 25px 25px 0 0;
+}
+
+/* ========== SEÇÃO DE AVALIAÇÕES ========== */
+body.tema-shioki .reviews-section h3 {
+    color: var(--shioki-text) !important;
+}
+
+body.tema-shioki .review-card {
+    background: var(--shioki-card) !important;
+    border-radius: var(--shioki-radius) !important;
+    box-shadow: var(--shioki-shadow) !important;
+}
+
+body.tema-shioki .review-card div[style*="background: linear-gradient"] {
+    background: linear-gradient(135deg, var(--shioki-primary) 0%, var(--shioki-secondary) 100%) !important;
+}
+
+body.tema-shioki .review-card strong {
+    color: var(--shioki-text) !important;
+}
+
+body.tema-shioki .review-card p {
+    color: var(--shioki-text-secondary) !important;
+}
+
+/* ========== FORMULÁRIOS ========== */
+body.tema-shioki .form-group input,
+body.tema-shioki .form-group select,
+body.tema-shioki .form-group textarea {
+    background: var(--shioki-card) !important;
+    border: 2px solid var(--shioki-border) !important;
+    color: var(--shioki-text) !important;
+    border-radius: var(--shioki-radius-sm);
+}
+
+body.tema-shioki .form-group input:focus,
+body.tema-shioki .form-group select:focus {
+    border-color: var(--shioki-primary) !important;
+    box-shadow: 0 0 0 3px var(--shioki-primary-light);
+}
+
+body.tema-shioki .form-group label {
+    color: var(--shioki-text);
+    font-weight: 600;
+}
+
+/* Tipo Entrega e Forma Pagamento */
+body.tema-shioki .tipo-entrega-item,
+body.tema-shioki .forma-pagamento-item {
+    background: var(--shioki-card);
+    border: 2px solid var(--shioki-border);
+    border-radius: var(--shioki-radius-sm);
+    color: var(--shioki-text);
+    transition: all 0.3s ease;
+}
+
+body.tema-shioki .tipo-entrega-item.selected,
+body.tema-shioki .forma-pagamento-item.selected {
+    border-color: var(--shioki-primary) !important;
+    background: var(--shioki-primary-light) !important;
+    color: var(--shioki-primary);
+}
+
+/* ========== LOADING ========== */
+body.tema-shioki #produto-loading p {
+    color: var(--shioki-text-secondary) !important;
+}
+
+body.tema-shioki #produto-loading i {
+    color: var(--shioki-primary) !important;
+}
+
+/* ========== ADICIONAL ITEMS ========== */
+body.tema-shioki .adicional-item,
+body.tema-shioki [class*="adicional"] {
+    background: var(--shioki-bg-secondary) !important;
+    border-color: var(--shioki-border) !important;
+    color: var(--shioki-text) !important;
+}
+
+body.tema-shioki .adicional-item.selected,
+body.tema-shioki [class*="adicional"].selected {
+    border-color: var(--shioki-primary) !important;
+    background: var(--shioki-primary-light) !important;
+}
+
+/* ========== SCROLLBAR CUSTOMIZADA ========== */
+body.tema-shioki ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+body.tema-shioki ::-webkit-scrollbar-track {
+    background: var(--shioki-bg-secondary);
+    border-radius: 10px;
+}
+
+body.tema-shioki ::-webkit-scrollbar-thumb {
+    background: var(--shioki-primary);
+    border-radius: 10px;
+}
+
+body.tema-shioki ::-webkit-scrollbar-thumb:hover {
+    background: var(--shioki-primary-dark);
+}
+
+/* ========== ANIMAÇÕES ========== */
+@keyframes shioki-fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+body.tema-shioki .product-card {
+    animation: shioki-fadeIn 0.4s ease-out;
+}
+
+/* ========== RESPONSIVO ========== */
+@media (max-width: 768px) {
+    body.tema-shioki header {
+        border-radius: 0 0 25px 25px;
+    }
+
+    body.tema-shioki .location {
+        margin: 10px 15px;
+    }
+
+    body.tema-shioki .accordion {
+        padding: 0 10px;
+    }
+
+    body.tema-shioki .product-card {
+        padding: 12px;
+    }
+
+    body.tema-shioki .product-card>img {
+        width: 80px;
+        height: 80px;
+    }
+}
+
+/* ========== FIM DO TEMA SHIOKI ========== */

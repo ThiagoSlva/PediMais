@@ -1,0 +1,71 @@
+═══════════════════════════════════════════════════════════
+  CONFIGURAÇÃO DE PERMISSÕES - PASTA DE UPLOADS
+═══════════════════════════════════════════════════════════
+
+📂 ESTRUTURA DE PASTAS:
+admin/uploads/
+├── config/     → Logo, Favicon, Imagem de Capa
+└── qrcodes/    → QR Codes das mesas
+
+═══════════════════════════════════════════════════════════
+
+🔧 COMANDOS PARA SERVIDOR LINUX/UNIX:
+
+1. Navegue até a pasta admin:
+   cd /caminho/completo/para/admin
+
+2. Configure as permissões:
+   chmod 755 uploads
+   chmod 755 uploads/config
+   chmod 755 uploads/qrcodes
+
+3. Configure o proprietário (substitua www-data pelo seu usuário web):
+   chown -R www-data:www-data uploads
+
+4. OU permissões totais (menos seguro, mas funciona):
+   chmod 777 uploads/config
+   chmod 777 uploads/qrcodes
+
+═══════════════════════════════════════════════════════════
+
+🪟 PARA SERVIDORES WINDOWS:
+
+1. Clique com botão direito na pasta "uploads"
+2. Propriedades → Segurança
+3. Editar → Adicionar → "IUSR" e "IIS_IUSRS"
+4. Marque: "Controle Total"
+5. Aplicar → OK
+
+═══════════════════════════════════════════════════════════
+
+🐛 PROBLEMAS COMUNS:
+
+ERRO: "Failed to open stream: No such file or directory"
+SOLUÇÃO: Certifique-se que as pastas existem e têm permissão 755
+
+ERRO: "Permission denied"
+SOLUÇÃO: Execute: chmod 777 uploads/config
+
+ERRO: "Unable to move"
+SOLUÇÃO: Verifique se o usuário PHP tem permissão de escrita
+
+═══════════════════════════════════════════════════════════
+
+✅ VERIFICAÇÃO:
+
+Execute este PHP para testar:
+<?php
+$dir = __DIR__ . '/config';
+echo is_writable($dir) ? 'OK: Pasta tem permissão de escrita' : 'ERRO: Sem permissão';
+?>
+
+═══════════════════════════════════════════════════════════
+
+📞 SUPORTE:
+
+Se os problemas persistirem:
+1. Verifique os logs de erro do PHP
+2. Contate seu provedor de hospedagem
+3. Peça para configurar permissões em admin/uploads/
+
+═══════════════════════════════════════════════════════════

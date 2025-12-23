@@ -1,0 +1,20 @@
+﻿--- Column 'status' Type ---
+Array
+(
+    [Field] => status
+    [Type] => enum('pendente','em_andamento','pronto','saiu_entrega','concluido','cancelado')
+    [Null] => NO
+    [Key] => 
+    [Default] => pendente
+    [Extra] => 
+)
+
+Current Status (#27): ''
+
+--- Attempting Update to 'em_preparo' ---
+Execute OK. Rows Affected: 0
+New Status (#27): ''
+
+--- Attempting Update to 'Em Preparo' ---
+Execute OK. Rows Affected: 0
+New Status (#27): ''

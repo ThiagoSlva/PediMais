@@ -1,0 +1,16 @@
+﻿Debugging Order: 9BBDCC64
+Order Found: ID 27
+Status: 
+Pagamento Online: 1
+Forma Pagamento ID: 4
+Mercado Pago Entries: 1
+ - Payment ID: 137147226438, Status: approved
+ID: 27
+Status: ''
+Online: 1
+MP Rows: 1
+MP[0][pedido_id]: 27
+MP[0][status]: 'approved'
+JOIN Result Count: 0
+Why 0?
+ - Status '' != 'pendente'

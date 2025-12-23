@@ -1,0 +1,165 @@
+/**
+ * Estilos para Sistema de Atualização em Tempo Real
+ */
+
+/* Animação de pulse para cards atualizados */
+@keyframes pulse-once {
+    0% {
+        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
+        transform: scale(1.02);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+        transform: scale(1);
+    }
+}
+
+.animate-pulse-once {
+    animation: pulse-once 1s ease-out;
+}
+
+/* Hover effect para cards */
+.hover-scale-102 {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-scale-102:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Transição suave */
+.transition-all {
+    transition: all 0.3s ease;
+}
+
+/* Badge de status com transição */
+[data-pedido-status] {
+    transition: all 0.3s ease;
+}
+
+/* Indicador de atualização */
+#last-update {
+    font-size: 0.875rem;
+    color: #64748b;
+    font-weight: 400;
+}
+
+#last-update::before {
+    content: "🔄 ";
+}
+
+/* Animação de fade in para novos elementos */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Notificação de novo pedido */
+.new-order-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    animation: slideInRight 0.5s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Loading state para cards */
+.card-loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+.card-loading::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 30px;
+    height: 30px;
+    margin: -15px 0 0 -15px;
+    border: 3px solid #f3f4f6;
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Status badges com cores vibrantes */
+.bg-warning-focus {
+    background-color: #fef3c7;
+}
+
+.text-warning-600 {
+    color: #d97706;
+}
+
+.bg-info-focus {
+    background-color: #dbeafe;
+}
+
+.text-info-600 {
+    color: #2563eb;
+}
+
+.bg-success-focus {
+    background-color: #d1fae5;
+}
+
+.text-success-600 {
+    color: #059669;
+}
+
+.bg-danger-focus {
+    background-color: #fee2e2;
+}
+
+.text-danger-600 {
+    color: #dc2626;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .new-order-notification {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        font-size: 0.875rem;
+    }
+}
