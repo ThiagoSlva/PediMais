@@ -46,6 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .btn { width: 100%; padding: 10px; background: #9C27B0; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
         .btn:hover { background: #7B1FA2; }
         .error { color: red; margin-bottom: 15px; font-size: 14px; }
+        .forgot-link { display: block; margin-top: 15px; color: #666; text-decoration: none; font-size: 14px; }
+        .forgot-link:hover { color: #9C27B0; }
     </style>
 </head>
 <body>
@@ -65,6 +67,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             <button type="submit" class="btn">Entrar</button>
         </form>
+        <a href="esqueci_senha.php" class="forgot-link">
+            <i class="fa-solid fa-key"></i> Esqueci minha senha
+        </a>
     </div>
 </body>
 </html>

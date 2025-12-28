@@ -121,6 +121,11 @@ try {
         $pdo->prepare($sql)->execute([$status, $em_preparo, $saiu_entrega, $entregue, $pedido_id]);
     }
 
+    // Adicionar ponto de fidelidade quando entra em preparo
+    if ($em_preparo == 1 && $old_status === 'pendente') {
+        adicionarPontoFidelidade($pdo, $pedido_id);
+    }
+
     // Enviar notificação WhatsApp se o status mudou
     $whatsapp_result = ['success' => false, 'error' => 'Status não mudou'];
     if ($status !== $old_status) {
@@ -152,5 +157,48 @@ try {
 
 } catch (Exception $e) {
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+}
+
+/**
+ * Adiciona ponto de fidelidade para o cliente quando o pedido entra em preparo
+ */
+function adicionarPontoFidelidade($pdo, $pedido_id) {
+    try {
+        // Verificar se fidelidade está ativa
+        $stmt = $pdo->query("SELECT ativo FROM fidelidade_config WHERE id = 1");
+        $config = $stmt->fetch();
+        if (!$config || !$config['ativo']) {
+            return false;
+        }
+        
+        // Buscar dados do pedido
+        $stmt = $pdo->prepare("SELECT cliente_id FROM pedidos WHERE id = ?");
+        $stmt->execute([$pedido_id]);
+        $pedido = $stmt->fetch();
+        
+        if (!$pedido || !$pedido['cliente_id']) {
+            return false;
+        }
+        
+        // Verificar se já existe ponto para este pedido
+        $stmt = $pdo->prepare("SELECT id FROM fidelidade_pontos WHERE pedido_id = ?");
+        $stmt->execute([$pedido_id]);
+        if ($stmt->fetch()) {
+            return false; // Já existe ponto para este pedido
+        }
+        
+        // Inserir novo ponto
+        $stmt = $pdo->prepare("
+            INSERT INTO fidelidade_pontos (cliente_id, pedido_id, status)
+            VALUES (?, ?, 'ativo')
+        ");
+        $stmt->execute([$pedido['cliente_id'], $pedido_id]);
+        
+        return true;
+    } catch (Exception $e) {
+        // Silently fail - não deve impedir a atualização do pedido
+        error_log("Erro ao adicionar ponto de fidelidade: " . $e->getMessage());
+        return false;
+    }
 }
 ?>

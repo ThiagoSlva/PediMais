@@ -2,13 +2,16 @@
 // Definir timezone para Brasil (Brasília)
 date_default_timezone_set('America/Sao_Paulo');
 
+// Carregar variáveis de ambiente
+require_once __DIR__ . '/env_loader.php';
+
 // Guard para evitar redefinição
 if (!defined('DB_HOST')) {
-    // Configurações do Banco de Dados
-    define('DB_HOST', '104.225.130.177');
-    define('DB_NAME', 'xfxpanel_cardapix');
-    define('DB_USER', 'xfxpanel_cardapix');
-    define('DB_PASS', '72734108Thi@go');
+    // Configurações do Banco de Dados (via .env ou fallback)
+    define('DB_HOST', env('DB_HOST', 'localhost'));
+    define('DB_NAME', env('DB_NAME', 'cardapix'));
+    define('DB_USER', env('DB_USER', 'root'));
+    define('DB_PASS', env('DB_PASS', ''));
 
     // Configurações do Sistema
     // Detectar IP local dinamicamente para acesso via rede (LAN)

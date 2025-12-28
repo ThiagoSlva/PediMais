@@ -93,12 +93,43 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 }
 
-// Sync Logic (Basic implementation)
+// Sync Logic (Add points for orders in preparation that don't have points)
 if (isset($_GET['sync']) && $_GET['sync'] == 1) {
-    // Here you would implement logic to recalculate points based on order history
-    // For now, we'll just show a success message as a placeholder for the complex logic
-    $msg = 'Sincronização realizada com sucesso! (Simulação)';
-    $msg_tipo = 'info';
+    try {
+        // Find orders that are in preparation or beyond but don't have fidelity points
+        $stmt = $pdo->query("
+            SELECT p.id, p.cliente_id, p.codigo_pedido
+            FROM pedidos p
+            WHERE p.cliente_id IS NOT NULL
+            AND p.em_preparo = 1
+            AND p.status NOT IN ('cancelado')
+            AND NOT EXISTS (
+                SELECT 1 FROM fidelidade_pontos fp WHERE fp.pedido_id = p.id
+            )
+        ");
+        $pedidos_sem_pontos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        $pontos_adicionados = 0;
+        foreach ($pedidos_sem_pontos as $pedido) {
+            $stmt = $pdo->prepare("
+                INSERT INTO fidelidade_pontos (cliente_id, pedido_id, status)
+                VALUES (?, ?, 'ativo')
+            ");
+            $stmt->execute([$pedido['cliente_id'], $pedido['id']]);
+            $pontos_adicionados++;
+        }
+        
+        if ($pontos_adicionados > 0) {
+            $msg = "Sincronização concluída! $pontos_adicionados ponto(s) adicionado(s).";
+            $msg_tipo = 'success';
+        } else {
+            $msg = "Nenhum pedido pendente de sincronização encontrado.";
+            $msg_tipo = 'info';
+        }
+    } catch (PDOException $e) {
+        $msg = 'Erro na sincronização: ' . $e->getMessage();
+        $msg_tipo = 'danger';
+    }
 }
 
 // Fetch Data
@@ -309,11 +340,31 @@ include 'includes/header.php';
     </div>
     
     <!-- Gerenciamento de Clientes -->
+    <?php
+    // Get clients with points
+    $stmt_clientes = $pdo->query("
+        SELECT 
+            c.id,
+            c.nome,
+            c.telefone,
+            COUNT(CASE WHEN fp.status = 'ativo' THEN 1 END) as pontos_ativos,
+            COUNT(CASE WHEN fp.status = 'resgatado' THEN 1 END) as pontos_resgatados,
+            COUNT(fp.id) as total_pontos,
+            (SELECT COUNT(*) FROM fidelidade_resgates fr WHERE fr.cliente_id = c.id) as total_resgates
+        FROM clientes c
+        LEFT JOIN fidelidade_pontos fp ON c.id = fp.cliente_id
+        GROUP BY c.id
+        HAVING total_pontos > 0
+        ORDER BY pontos_ativos DESC, total_pontos DESC
+        LIMIT 50
+    ");
+    $clientes_fidelidade = $stmt_clientes->fetchAll(PDO::FETCH_ASSOC);
+    ?>
     <div class="card mb-4 radius-12">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-semibold d-flex align-items-center gap-2">
                 <iconify-icon icon="solar:users-group-rounded-outline"></iconify-icon>
-                Clientes e Contagens
+                Clientes e Contagens (<?php echo count($clientes_fidelidade); ?>)
             </h6>
             <div class="d-flex gap-2">
                 <a href="?sync=1" 
@@ -325,13 +376,62 @@ include 'includes/header.php';
             </div>
         </div>
         <div class="card-body p-24">
-            <div class="text-center py-5">
-                <iconify-icon icon="solar:users-group-rounded-outline" class="text-secondary-light" style="font-size: 60px;"></iconify-icon>
-                <p class="text-secondary-light mt-3">Nenhum cliente com pontos de fidelidade ainda.</p>
-                <p class="text-secondary-light">
-                    <small>Os pontos aparecerão aqui quando pedidos forem para "Em Preparo".</small>
-                </p>
-            </div>
+            <?php if (empty($clientes_fidelidade)): ?>
+                <div class="text-center py-5">
+                    <iconify-icon icon="solar:users-group-rounded-outline" class="text-secondary-light" style="font-size: 60px;"></iconify-icon>
+                    <p class="text-secondary-light mt-3">Nenhum cliente com pontos de fidelidade ainda.</p>
+                    <p class="text-secondary-light">
+                        <small>Os pontos aparecerão aqui quando pedidos forem para "Em Preparo".</small>
+                    </p>
+                </div>
+            <?php else: ?>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Telefone</th>
+                                <th class="text-center">Pontos Ativos</th>
+                                <th class="text-center">Resgatados</th>
+                                <th class="text-center">Total Resgates</th>
+                                <th class="text-center">Progresso</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($clientes_fidelidade as $cf): 
+                                $progresso = ($cf['pontos_ativos'] / $config['quantidade_pedidos']) * 100;
+                                $pode_resgatar = $cf['pontos_ativos'] >= $config['quantidade_pedidos'];
+                            ?>
+                            <tr>
+                                <td>
+                                    <strong><?php echo htmlspecialchars($cf['nome']); ?></strong>
+                                </td>
+                                <td><?php echo htmlspecialchars($cf['telefone']); ?></td>
+                                <td class="text-center">
+                                    <span class="badge <?php echo $pode_resgatar ? 'bg-success-600' : 'bg-primary-600'; ?> px-3">
+                                        <?php echo $cf['pontos_ativos']; ?>
+                                    </span>
+                                </td>
+                                <td class="text-center"><?php echo $cf['pontos_resgatados']; ?></td>
+                                <td class="text-center"><?php echo $cf['total_resgates']; ?></td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="progress w-100" style="height: 8px;">
+                                            <div class="progress-bar <?php echo $pode_resgatar ? 'bg-success-600' : 'bg-primary-600'; ?>" 
+                                                 style="width: <?php echo min(100, $progresso); ?>%"></div>
+                                        </div>
+                                        <small><?php echo $cf['pontos_ativos']; ?>/<?php echo $config['quantidade_pedidos']; ?></small>
+                                    </div>
+                                    <?php if ($pode_resgatar): ?>
+                                        <small class="text-success-600">⭐ Pode resgatar!</small>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>

@@ -1,0 +1,36 @@
+# PediMais - Arquivos ignorados pelo Git
+
+# Arquivo de ambiente com credenciais sensíveis
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Cache e arquivos temporários
+*.tmp
+*.temp
+.cache/
+
+# IDE e editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Uploads (opcional - remover se quiser versionar)
+# uploads/
+
+# Debug
+Debug/
+
+# Dependências (se usar composer)
+vendor/
+composer.lock

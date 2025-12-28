@@ -52,6 +52,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if ($field === 'em_preparo' && $new_value == 1) {
                 $pdo->prepare("UPDATE pedidos SET status = 'em_andamento' WHERE id = ?")->execute([$pedido_id]);
                 $status_para_whatsapp = 'em_andamento';
+                
+                // Adicionar ponto de fidelidade se ainda não existe
+                adicionarPontoFidelidade($pdo, $pedido_id);
             }
             
             // Enviar notificação WhatsApp se mudou status
@@ -174,5 +177,48 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 } else {
     echo json_encode(['success' => false, 'error' => 'Método inválido']);
+}
+
+/**
+ * Adiciona ponto de fidelidade para o cliente quando o pedido entra em preparo
+ */
+function adicionarPontoFidelidade($pdo, $pedido_id) {
+    try {
+        // Verificar se fidelidade está ativa
+        $stmt = $pdo->query("SELECT ativo FROM fidelidade_config WHERE id = 1");
+        $config = $stmt->fetch();
+        if (!$config || !$config['ativo']) {
+            return false;
+        }
+        
+        // Buscar dados do pedido
+        $stmt = $pdo->prepare("SELECT cliente_id FROM pedidos WHERE id = ?");
+        $stmt->execute([$pedido_id]);
+        $pedido = $stmt->fetch();
+        
+        if (!$pedido || !$pedido['cliente_id']) {
+            return false;
+        }
+        
+        // Verificar se já existe ponto para este pedido
+        $stmt = $pdo->prepare("SELECT id FROM fidelidade_pontos WHERE pedido_id = ?");
+        $stmt->execute([$pedido_id]);
+        if ($stmt->fetch()) {
+            return false; // Já existe ponto para este pedido
+        }
+        
+        // Inserir novo ponto
+        $stmt = $pdo->prepare("
+            INSERT INTO fidelidade_pontos (cliente_id, pedido_id, status)
+            VALUES (?, ?, 'ativo')
+        ");
+        $stmt->execute([$pedido['cliente_id'], $pedido_id]);
+        
+        return true;
+    } catch (Exception $e) {
+        // Silently fail - não deve impedir a atualização do pedido
+        error_log("Erro ao adicionar ponto de fidelidade: " . $e->getMessage());
+        return false;
+    }
 }
 ?>

@@ -1,51 +1,70 @@
 <?php
-// cliente/includes/header.php - Recreated
+// cliente/includes/header.php - Premium Dashboard
 if (!isset($_SESSION)) {
     session_start();
 }
+
+// Get client data if available
+$cliente_foto = null;
+$cliente_nome = 'Cliente';
+if (isset($_SESSION['cliente_id'])) {
+    global $pdo;
+    if (isset($pdo)) {
+        $stmt = $pdo->prepare("SELECT nome, foto_perfil FROM clientes WHERE id = ?");
+        $stmt->execute([$_SESSION['cliente_id']]);
+        $cliente_data = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($cliente_data) {
+            $cliente_nome = $cliente_data['nome'];
+            $cliente_foto = $cliente_data['foto_perfil'];
+        }
+    }
+}
+
+// Get user's theme preference
+$theme = isset($_COOKIE['theme']) ? $_COOKIE['theme'] : 'light';
 ?>
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="<?php echo htmlspecialchars($theme); ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo isset($page_title) ? $page_title : 'Área do Cliente'; ?></title>
+    <title><?php echo isset($page_title) ? htmlspecialchars($page_title) . ' - PediMais' : 'Área do Cliente - PediMais'; ?></title>
     
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     
-    <!-- FontAwesome -->
+    <!-- FontAwesome 6 -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
-    <!-- Google Fonts -->
+    <!-- Google Fonts - Poppins -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
+    <!-- Premium Dashboard CSS -->
+    <link href="assets/css/dashboard.css" rel="stylesheet">
+    
+    <!-- SweetAlert2 -->
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    
     <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            background-color: #f8f9fa;
+        /* Page-specific overrides */
+        .container-dashboard {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.5rem;
         }
-        .navbar {
-            background-color: #fff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .card {
-            border: none;
-            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
-            border-radius: 10px;
-        }
-        .btn-primary {
-            background-color: #6f42c1;
-            border-color: #6f42c1;
-        }
-        .btn-primary:hover {
-            background-color: #59359a;
-            border-color: #59359a;
+        
+        @media (max-width: 768px) {
+            .container-dashboard {
+                padding: 1rem;
+            }
         }
     </style>
 </head>
-<body>
+<body class="<?php echo $theme === 'dark' ? 'dark-mode' : ''; ?>">
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
 
 <?php include __DIR__ . '/navbar.php'; ?>
 
-<main>
+<main class="container-dashboard">
