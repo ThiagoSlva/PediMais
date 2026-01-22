@@ -160,6 +160,11 @@ function get_menu_items() {
             ['href' => 'avaliacoes.php', 'icon' => 'solar:star-bold-duotone', 'label' => 'Avaliações', 'color' => '#fbbf24']
         ];
         
+        $menu['Inteligência Artificial'] = [
+            ['href' => 'importar_cardapio.php', 'icon' => 'ri:gemini-fill', 'label' => 'Importar Cardápio IA', 'color' => '#8b5cf6'],
+            ['href' => 'gemini_config.php', 'icon' => 'solar:settings-minimalistic-bold-duotone', 'label' => 'Configurar IA', 'color' => '#4285f4']
+        ];
+        
     } elseif ($nivel === 'cozinha') {
         // Menu for kitchen staff
         $menu['Principal'] = [
