@@ -14,13 +14,23 @@ if (basename($_SERVER['PHP_SELF']) != 'login.php') {
 }
 
 $usuario = get_usuario_atual();
+
+// Carregar configurações do site (nome dinâmico)
+$site_config = [];
+try {
+    $stmt = $pdo->query("SELECT * FROM configuracoes WHERE id = 1");
+    $site_config = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+} catch (PDOException $e) {
+    // Tabela pode não existir ainda
+}
+$nome_site = $site_config['nome_site'] ?? 'PedeMais';
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Administrativo - CardapiX</title>
+    <title>Painel Administrativo - <?php echo htmlspecialchars($nome_site); ?></title>
     <link rel="icon" type="image/png" href="<?php echo SITE_URL; ?>/uploads/config/favicon.png" sizes="16x16">
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.php">
@@ -28,7 +38,7 @@ $usuario = get_usuario_atual();
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="CardapiX">
+    <meta name="apple-mobile-web-app-title" content="<?php echo htmlspecialchars($nome_site); ?>">
     <link rel="apple-touch-icon" href="<?php echo SITE_URL; ?>/uploads/config/logo.png">
     
     <!-- remix icon font css  -->
@@ -62,8 +72,8 @@ $usuario = get_usuario_atual();
     </button>
     <div>
         <a href="index.php" class="sidebar-logo d-flex align-items-center justify-content-center gap-2 p-3">
-            <img src="<?php echo SITE_URL; ?>/uploads/config/logo.png" alt="CardapiX" style="max-height: 35px; display: block;">
-            <span class="fw-bold text-md">CardapiX</span>
+            <img src="<?php echo SITE_URL; ?>/uploads/config/logo.png" alt="<?php echo htmlspecialchars($nome_site); ?>" style="max-height: 35px; display: block;">
+            <span class="fw-bold text-md"><?php echo htmlspecialchars($nome_site); ?></span>
         </a>
     </div>
     <div class="sidebar-menu-area">

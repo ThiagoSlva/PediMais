@@ -256,6 +256,33 @@ $taxa_entrega = isset($pedido['taxa_entrega']) ? $pedido['taxa_entrega'] : 0;
                             <span class="text-secondary-light">Método:</span>
                             <span class="fw-medium text-heading"><?php echo htmlspecialchars($pedido['forma_pagamento_nome']); ?></span>
                         </li>
+                        
+                        <!-- Status de Pagamento -->
+                        <li class="d-flex justify-content-between align-items-center">
+                            <span class="text-secondary-light">Status Pagamento:</span>
+                            <?php if (!empty($pedido['pagamento_online'])): ?>
+                                <?php if (!empty($pedido['pago'])): ?>
+                                    <span class="badge bg-success-focus text-success-main px-16 py-8 rounded-pill fw-semibold">
+                                        💰 PIX Confirmado
+                                    </span>
+                                <?php else: ?>
+                                    <span class="badge bg-warning-focus text-warning-main px-16 py-8 rounded-pill fw-semibold">
+                                        ⏳ Aguardando PIX
+                                    </span>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <?php if (!empty($pedido['pago'])): ?>
+                                    <span class="badge bg-success-focus text-success-main px-16 py-8 rounded-pill fw-semibold">
+                                        ✅ Pago
+                                    </span>
+                                <?php else: ?>
+                                    <span class="badge bg-info-focus text-info-main px-16 py-8 rounded-pill fw-semibold">
+                                        💵 Pagamento na Entrega
+                                    </span>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </li>
+                        
                         <?php if ($pedido['troco_para']): ?>
                         <li class="d-flex justify-content-between align-items-center">
                             <span class="text-secondary-light">Troco para:</span>

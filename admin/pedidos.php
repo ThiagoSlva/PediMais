@@ -278,6 +278,7 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <th scope="col">Endereço</th>
                             <th scope="col">Frete</th>
                             <th scope="col">Total</th>
+                            <th scope="col">Pagamento</th>
                             <th scope="col">Data</th>
                             <th scope="col">Status</th>
                             <th scope="col" class="text-center" style="min-width: 350px;">Ações</th>
@@ -286,7 +287,7 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <tbody>
                         <?php if (empty($pedidos)): ?>
                             <tr>
-                                <td colspan="10" class="text-center py-4">
+                                <td colspan="11" class="text-center py-4">
                                     Nenhum pedido encontrado.
                                 </td>
                             </tr>
@@ -322,6 +323,27 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 </td>
                                 <td class="fw-semibold text-primary-600">
                                     R$ <?php echo number_format($pedido['valor_total'], 2, ',', '.'); ?>
+                                </td>
+                                <td>
+                                    <?php if (!empty($pedido['pagamento_online'])): ?>
+                                        <?php if (!empty($pedido['pago'])): ?>
+                                            <span class="badge bg-success-focus text-success-main px-12 py-6 rounded-pill fw-medium text-xs">
+                                                💰 PIX Pago
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="badge bg-warning-focus text-warning-main px-12 py-6 rounded-pill fw-medium text-xs">
+                                                ⏳ Aguardando PIX
+                                            </span>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <?php if (!empty($pedido['pago'])): ?>
+                                            <span class="badge bg-success-focus text-success-main px-12 py-6 rounded-pill fw-medium text-xs">
+                                                ✅ Pago
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="text-secondary-light text-sm">Na entrega</span>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
                                 </td>
                                 <td><?php echo date('d/m/Y H:i', strtotime($pedido['data_pedido'])); ?></td>
                                 <td>
@@ -367,6 +389,21 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                            title="Imprimir Pedido">
                                             <iconify-icon icon="solar:printer-outline" class="text-lg"></iconify-icon>
                                         </a>
+                                        
+                                        <!-- Marcar como Pago -->
+                                        <?php if (empty($pedido['pago'])): ?>
+                                        <button type="button" onclick="marcarComoPago(<?php echo $pedido['id']; ?>, this)"
+                                           class="btn p-0 bg-success-focus text-success-600 bg-hover-success-200 fw-medium w-32-px h-32-px d-flex justify-content-center align-items-center rounded-circle border-0"
+                                           title="Marcar como Pago">
+                                            <iconify-icon icon="solar:dollar-outline" class="text-lg"></iconify-icon>
+                                        </button>
+                                        <?php else: ?>
+                                        <button type="button" onclick="desmarcarPago(<?php echo $pedido['id']; ?>, this)"
+                                           class="btn p-0 bg-neutral-200 text-neutral-600 bg-hover-neutral-300 fw-medium w-32-px h-32-px d-flex justify-content-center align-items-center rounded-circle border-0"
+                                           title="Desmarcar Pago">
+                                            <iconify-icon icon="solar:dollar-bold" class="text-lg"></iconify-icon>
+                                        </button>
+                                        <?php endif; ?>
                                         
                                         <!-- Em Preparo -->
                                         <?php if ($pedido['status'] !== 'em_andamento' && $pedido['status'] !== 'concluido' && $pedido['status'] !== 'cancelado'): ?>
@@ -501,6 +538,80 @@ async function atualizarStatus(pedidoId, novoStatus, btn) {
     } catch (error) {
         console.error('Erro:', error);
         mostrarToast('Erro ao atualizar status', 'danger');
+        btn.disabled = false;
+        btn.style.opacity = '1';
+    }
+}
+
+// Função para marcar como pago via AJAX
+async function marcarComoPago(pedidoId, btn) {
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    
+    try {
+        const response = await fetch('api/update_pedido_status.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                pedido_id: pedidoId,
+                field: 'pago',
+                value: 1,
+                token: csrfToken
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            mostrarToast('💰 Pedido marcado como pago!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            mostrarToast('Erro: ' + (data.error || 'Desconhecido'), 'danger');
+            btn.disabled = false;
+            btn.style.opacity = '1';
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        mostrarToast('Erro ao marcar como pago', 'danger');
+        btn.disabled = false;
+        btn.style.opacity = '1';
+    }
+}
+
+// Função para desmarcar pago via AJAX
+async function desmarcarPago(pedidoId, btn) {
+    if (!confirm('Deseja desmarcar este pedido como pago?')) {
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    
+    try {
+        const response = await fetch('api/update_pedido_status.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                pedido_id: pedidoId,
+                field: 'pago',
+                value: 0,
+                token: csrfToken
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            mostrarToast('Pagamento desmarcado', 'info');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            mostrarToast('Erro: ' + (data.error || 'Desconhecido'), 'danger');
+            btn.disabled = false;
+            btn.style.opacity = '1';
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        mostrarToast('Erro ao desmarcar pago', 'danger');
         btn.disabled = false;
         btn.style.opacity = '1';
     }

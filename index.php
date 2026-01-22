@@ -107,7 +107,7 @@ body {
   font-family: 'Poppins', sans-serif;
   background: var(--surface-body);
   color: var(--text-primary);
-  padding-bottom: 100px;
+  padding-bottom: 150px;
   min-height: 100vh;
 }
 
@@ -486,8 +486,8 @@ header h1 {
 /* Mobile Floating Button Premium */
 #carrinho-flutuante-mobile {
   position: fixed;
-  bottom: 25px;
-  right: 25px;
+  bottom: 90px;
+  right: 20px;
   width: 65px;
   height: 65px;
   background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));

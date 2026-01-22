@@ -3,7 +3,7 @@
     <footer class="d-footer">
         <div class="row align-items-center justify-content-between">
             <div class="col-auto">
-                <p class="mb-0">© <?php echo date('Y'); ?> CardapiX. Todos os direitos reservados.</p>
+                <p class="mb-0">© <?php echo date('Y'); ?> <?php echo htmlspecialchars($nome_site ?? 'PedeMais'); ?>. Todos os direitos reservados.</p>
             </div>
             <div class="col-auto">
                 <p class="mb-0">Feito com <span class="text-danger-600">❤</span> por <a href="#" class="text-primary-600">Thiago Silva</a></p>

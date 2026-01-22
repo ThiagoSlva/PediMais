@@ -912,7 +912,13 @@ function criarKanbanCard(pedido, laneId) {
     badgesContainer.className = 'kanban-card-badges';
 
     if (pedido.pago) {
-        criarBadge(badgesContainer, 'bg-success-focus text-success-main', '💰 Pago');
+        if (pedido.pagamento_online) {
+            criarBadge(badgesContainer, 'bg-success-focus text-success-main', '💰 PIX Pago');
+        } else {
+            criarBadge(badgesContainer, 'bg-success-focus text-success-main', '✅ Pago');
+        }
+    } else if (pedido.pagamento_online) {
+        criarBadge(badgesContainer, 'bg-warning-focus text-warning-main', '⏳ Aguardando PIX');
     }
     if (pedido.em_preparo) {
         criarBadge(badgesContainer, 'bg-warning-focus text-warning-main', '👨‍🍳 Preparo');
