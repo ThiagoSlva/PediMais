@@ -63,11 +63,23 @@ try {
     $forma_pagamento_id = $fp ? $fp['id'] : 1; 
 
     $pagamento_online = 0;
+    $gateway_ativo = 'none';
     if ($forma_pagamento == 'pix') {
-        // Verificar se PIX Online está ativo
-        $stmt_mp = $pdo->query("SELECT ativo FROM mercadopago_config LIMIT 1");
-        $mp_config = $stmt_mp->fetch();
-        if ($mp_config && $mp_config['ativo']) {
+        // Verificar qual gateway está ativo
+        try {
+            $stmt_gateway = $pdo->query("SELECT gateway_ativo FROM gateway_settings LIMIT 1");
+            $gateway_settings = $stmt_gateway->fetch();
+            $gateway_ativo = $gateway_settings['gateway_ativo'] ?? 'none';
+        } catch (PDOException $e) {
+            // Tabela pode não existir, verificar config antiga do MP
+            $stmt_mp = $pdo->query("SELECT ativo FROM mercadopago_config LIMIT 1");
+            $mp_config = $stmt_mp->fetch();
+            if ($mp_config && $mp_config['ativo']) {
+                $gateway_ativo = 'mercadopago';
+            }
+        }
+        
+        if ($gateway_ativo !== 'none') {
             $pagamento_online = 1;
         }
     }
@@ -110,41 +122,68 @@ try {
         }
     }
 
-    // 4. Processar Pagamento Online (Mercado Pago)
+    // 4. Processar Pagamento Online (Gateway dinâmico)
     $qr_code_data = null;
     if ($pagamento_online) {
-        $mpHelper = new MercadoPagoHelper($pdo);
         $descricao = "Pedido #$codigo_pedido - $cliente_nome";
         
-        $payment_result = $mpHelper->createPayment($pedido_id, $valor_total, $cliente_email, $cliente_nome, $descricao);
-        
-        if ($payment_result['success']) {
-            // Salvar dados do pagamento
-            $stmt_mp_log = $pdo->prepare("INSERT INTO mercadopago_pagamentos (pedido_id, payment_id, qr_code, qr_code_base64, ticket_url, status, valor, expiracao) VALUES (?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 MINUTE))");
-            $stmt_mp_log->execute([
-                $pedido_id,
-                $payment_result['payment_id'],
-                $payment_result['qr_code'],
-                $payment_result['qr_code_base64'],
-                $payment_result['ticket_url'],
-                $payment_result['status'],
-                $valor_total
-            ]);
+        if ($gateway_ativo === 'mercadopago') {
+            // Usar Mercado Pago
+            $mpHelper = new MercadoPagoHelper($pdo);
+            $payment_result = $mpHelper->createPayment($pedido_id, $valor_total, $cliente_email, $cliente_nome, $descricao);
+            
+            if ($payment_result['success']) {
+                $stmt_mp_log = $pdo->prepare("INSERT INTO mercadopago_pagamentos (pedido_id, payment_id, qr_code, qr_code_base64, ticket_url, status, valor, expiracao) VALUES (?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 MINUTE))");
+                $stmt_mp_log->execute([
+                    $pedido_id,
+                    $payment_result['payment_id'],
+                    $payment_result['qr_code'],
+                    $payment_result['qr_code_base64'],
+                    $payment_result['ticket_url'],
+                    $payment_result['status'],
+                    $valor_total
+                ]);
 
-            // Atualizar pedido com QR Code (opcional, mas útil)
-            $stmt_upd = $pdo->prepare("UPDATE pedidos SET qr_code_base64 = ? WHERE id = ?");
-            $stmt_upd->execute([$payment_result['qr_code_base64'], $pedido_id]);
+                $stmt_upd = $pdo->prepare("UPDATE pedidos SET qr_code_base64 = ? WHERE id = ?");
+                $stmt_upd->execute([$payment_result['qr_code_base64'], $pedido_id]);
 
-            $qr_code_data = [
-                'qr_code' => $payment_result['qr_code'],
-                'qr_code_base64' => $payment_result['qr_code_base64'],
-                'ticket_url' => $payment_result['ticket_url']
-            ];
-        } else {
-            // Se falhar o pagamento, mas o pedido foi criado, podemos retornar erro ou aviso.
-            // Vamos logar o erro mas manter o pedido como pendente (sem pagamento online)
-            // Ou lançar exceção para desfazer tudo? Melhor desfazer para o cliente tentar de novo.
-            throw new Exception("Erro ao gerar PIX: " . $payment_result['error']);
+                $qr_code_data = [
+                    'qr_code' => $payment_result['qr_code'],
+                    'qr_code_base64' => $payment_result['qr_code_base64'],
+                    'ticket_url' => $payment_result['ticket_url']
+                ];
+            } else {
+                throw new Exception("Erro ao gerar PIX Mercado Pago: " . $payment_result['error']);
+            }
+            
+        } elseif ($gateway_ativo === 'asaas') {
+            // Usar Asaas
+            require_once '../includes/asaas_helper.php';
+            $asaasHelper = new AsaasHelper($pdo);
+            $payment_result = $asaasHelper->createPixPayment($pedido_id, $valor_total, $descricao);
+            
+            if ($payment_result['success']) {
+                $stmt_asaas_log = $pdo->prepare("INSERT INTO asaas_pagamentos (pedido_id, payment_id, qr_code, qr_code_base64, status, valor, expiracao) VALUES (?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 MINUTE))");
+                $stmt_asaas_log->execute([
+                    $pedido_id,
+                    $payment_result['payment_id'],
+                    $payment_result['qr_code'],
+                    $payment_result['qr_code_base64'],
+                    $payment_result['status'],
+                    $valor_total
+                ]);
+
+                $stmt_upd = $pdo->prepare("UPDATE pedidos SET qr_code_base64 = ? WHERE id = ?");
+                $stmt_upd->execute([$payment_result['qr_code_base64'], $pedido_id]);
+
+                $qr_code_data = [
+                    'qr_code' => $payment_result['qr_code'],
+                    'qr_code_base64' => $payment_result['qr_code_base64'],
+                    'ticket_url' => null
+                ];
+            } else {
+                throw new Exception("Erro ao gerar PIX Asaas: " . $payment_result['error']);
+            }
         }
     }
 

@@ -243,19 +243,27 @@ try {
     $stmt->execute([$forma_pagamento_id]);
     $forma_pagamento = $stmt->fetch();
 
-    // Lógica Híbrida: Aceitar tipo 'mercadopago' OU tipo 'pix' (se config ativa)
+    // Verificar qual gateway está ativo
+    $gateway_ativo = 'none';
+    try {
+        $stmt_gateway = $pdo->query("SELECT gateway_ativo FROM gateway_settings LIMIT 1");
+        $gateway_settings = $stmt_gateway->fetch();
+        $gateway_ativo = $gateway_settings['gateway_ativo'] ?? 'none';
+    } catch (PDOException $e) {
+        // Tabela pode não existir ainda, verificar config antiga do MP
+        $stmt_mp_check = $pdo->query("SELECT ativo FROM mercadopago_config LIMIT 1");
+        $mp_cfg = $stmt_mp_check->fetch();
+        if ($mp_cfg && $mp_cfg['ativo']) {
+            $gateway_ativo = 'mercadopago';
+        }
+    }
+
+    // Lógica Híbrida: Aceitar tipo 'mercadopago' OU tipo 'pix' (se gateway ativo)
     $pagamento_online = 0;
     
-    if ($forma_pagamento) {
-        if ($forma_pagamento['tipo'] === 'mercadopago') {
+    if ($forma_pagamento && $gateway_ativo !== 'none') {
+        if ($forma_pagamento['tipo'] === 'mercadopago' || $forma_pagamento['tipo'] === 'pix') {
             $pagamento_online = 1;
-        } elseif ($forma_pagamento['tipo'] === 'pix') {
-            // Verificar se MP está ativo
-            $stmt_mp_check = $pdo->query("SELECT ativo FROM mercadopago_config LIMIT 1");
-            $mp_cfg = $stmt_mp_check->fetch();
-            if ($mp_cfg && $mp_cfg['ativo']) {
-                $pagamento_online = 1;
-            }
         }
     }
 
@@ -303,40 +311,80 @@ try {
         }
     }
 
-    // 4. Processar Pagamento Online (Mercado Pago)
+    // 4. Processar Pagamento Online (Gateway dinâmico)
     $qr_code_data = null;
     if ($pagamento_online) {
-        require_once '../includes/mercadopago_helper.php';
-        $mpHelper = new MercadoPagoHelper($pdo);
         $descricao = "Pedido #$codigo_pedido - $cliente_nome";
         
-        $payment_result = $mpHelper->createPayment($pedido_id, $valor_total, $cliente_email, $cliente_nome, $descricao);
-        
-        if ($payment_result['success']) {
-            // Salvar dados do pagamento
-            $stmt_mp_log = $pdo->prepare("INSERT INTO mercadopago_pagamentos (pedido_id, payment_id, qr_code, qr_code_base64, ticket_url, status, valor, expiracao) VALUES (?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 MINUTE))");
-            $stmt_mp_log->execute([
-                $pedido_id,
-                $payment_result['payment_id'],
-                $payment_result['qr_code'],
-                $payment_result['qr_code_base64'],
-                $payment_result['ticket_url'],
-                $payment_result['status'],
-                $valor_total
-            ]);
+        if ($gateway_ativo === 'mercadopago') {
+            // Usar Mercado Pago
+            require_once '../includes/mercadopago_helper.php';
+            $mpHelper = new MercadoPagoHelper($pdo);
+            
+            $payment_result = $mpHelper->createPayment($pedido_id, $valor_total, $cliente_email, $cliente_nome, $descricao);
+            
+            if ($payment_result['success']) {
+                // Salvar dados do pagamento
+                $stmt_mp_log = $pdo->prepare("INSERT INTO mercadopago_pagamentos (pedido_id, payment_id, qr_code, qr_code_base64, ticket_url, status, valor, expiracao) VALUES (?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 MINUTE))");
+                $stmt_mp_log->execute([
+                    $pedido_id,
+                    $payment_result['payment_id'],
+                    $payment_result['qr_code'],
+                    $payment_result['qr_code_base64'],
+                    $payment_result['ticket_url'],
+                    $payment_result['status'],
+                    $valor_total
+                ]);
 
-            // Atualizar pedido com QR Code
-            $stmt_upd = $pdo->prepare("UPDATE pedidos SET qr_code_base64 = ? WHERE id = ?");
-            $stmt_upd->execute([$payment_result['qr_code_base64'], $pedido_id]);
+                // Atualizar pedido com QR Code
+                $stmt_upd = $pdo->prepare("UPDATE pedidos SET qr_code_base64 = ? WHERE id = ?");
+                $stmt_upd->execute([$payment_result['qr_code_base64'], $pedido_id]);
 
-            $qr_code_data = [
-                'qr_code' => $payment_result['qr_code'],
-                'qr_code_base64' => $payment_result['qr_code_base64'],
-                'ticket_url' => $payment_result['ticket_url']
-            ];
-        } else {
-            // Se falhar o pagamento, logar mas não falhar o pedido imediatamente (ou pode falhar se preferir)
-            error_log("Erro ao gerar PIX para pedido $pedido_id: " . $payment_result['error']);
+                $qr_code_data = [
+                    'qr_code' => $payment_result['qr_code'],
+                    'qr_code_base64' => $payment_result['qr_code_base64'],
+                    'ticket_url' => $payment_result['ticket_url']
+                ];
+            } else {
+                error_log("Erro ao gerar PIX Mercado Pago para pedido $pedido_id: " . $payment_result['error']);
+            }
+            
+        } elseif ($gateway_ativo === 'asaas') {
+            // Usar Asaas
+            require_once '../includes/asaas_helper.php';
+            $asaasHelper = new AsaasHelper($pdo);
+            
+            $payment_result = $asaasHelper->createPixPayment($pedido_id, $valor_total, $descricao);
+            
+            if ($payment_result['success']) {
+                // Salvar dados do pagamento
+                $stmt_asaas_log = $pdo->prepare("INSERT INTO asaas_pagamentos (pedido_id, payment_id, qr_code, qr_code_base64, status, valor, expiracao) VALUES (?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 MINUTE))");
+                $stmt_asaas_log->execute([
+                    $pedido_id,
+                    $payment_result['payment_id'],
+                    $payment_result['qr_code'],
+                    $payment_result['qr_code_base64'],
+                    $payment_result['status'],
+                    $valor_total
+                ]);
+
+                // Atualizar pedido com QR Code
+                $stmt_upd = $pdo->prepare("UPDATE pedidos SET qr_code_base64 = ? WHERE id = ?");
+                $stmt_upd->execute([$payment_result['qr_code_base64'], $pedido_id]);
+
+                $qr_code_data = [
+                    'qr_code' => $payment_result['qr_code'],
+                    'qr_code_base64' => $payment_result['qr_code_base64'],
+                    'ticket_url' => null
+                ];
+                
+                error_log("✅ PIX Asaas gerado com sucesso para pedido $pedido_id");
+            } else {
+                error_log("❌ Erro ao gerar PIX Asaas para pedido $pedido_id: " . ($payment_result['error'] ?? 'Erro desconhecido'));
+                if (isset($payment_result['details'])) {
+                    error_log("📋 Detalhes do erro: " . json_encode($payment_result['details']));
+                }
+            }
         }
     }
 

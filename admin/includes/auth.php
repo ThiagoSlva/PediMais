@@ -142,8 +142,8 @@ function get_menu_items() {
             ['href' => 'whatsapp_mensagens.php', 'icon' => 'solar:chat-round-dots-bold-duotone', 'label' => 'Mensagens Editáveis', 'color' => '#3b82f6']
         ];
         
-        $menu['Pagamento Online'] = [
-            ['href' => 'mercadopago_config.php', 'icon' => 'solar:card-bold-duotone', 'label' => 'Mercado Pago', 'color' => '#00bcff'],
+        $menu['Gateways de Pagamento'] = [
+            ['href' => 'gateway_config.php', 'icon' => 'solar:card-bold-duotone', 'label' => 'Configuração', 'color' => '#00bcff'],
             ['href' => 'mercadopago_mensagens.php', 'icon' => 'solar:chat-line-bold-duotone', 'label' => 'Mensagens PIX', 'color' => '#32bcad']
         ];
         
