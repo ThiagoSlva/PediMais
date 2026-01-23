@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Tempo de geração: 23/12/2025 às 11:56
+-- Tempo de geração: 23/01/2026 às 10:26
 -- Versão do servidor: 10.6.23-MariaDB-cll-lve
 -- Versão do PHP: 8.4.16
 
@@ -24,6 +24,76 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
+-- Estrutura para tabela `ai_config`
+--
+
+CREATE TABLE `ai_config` (
+  `id` int(11) NOT NULL DEFAULT 1,
+  `provider` varchar(50) DEFAULT 'gemini',
+  `gemini_api_key` varchar(255) DEFAULT NULL,
+  `gemini_modelo` varchar(100) DEFAULT 'gemini-2.0-flash',
+  `openai_api_key` varchar(255) DEFAULT NULL,
+  `openai_modelo` varchar(100) DEFAULT 'gpt-4o-mini',
+  `ativo` tinyint(1) DEFAULT 1,
+  `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+  `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Despejando dados para a tabela `ai_config`
+--
+
+INSERT INTO `ai_config` (`id`, `provider`, `gemini_api_key`, `gemini_modelo`, `openai_api_key`, `openai_modelo`, `ativo`, `criado_em`, `atualizado_em`) VALUES
+(1, 'gemini', 'xxxxxxxxxxxxxxxxxxxxxxxxxx', 'gemini-2.0-flash', 'sk-proj-xxxxxxxxxx', 'gpt-4o-mini', 1, '2026-01-22 15:16:57', '2026-01-23 15:24:48');
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `asaas_config`
+--
+
+CREATE TABLE `asaas_config` (
+  `id` int(11) NOT NULL DEFAULT 1,
+  `ativo` tinyint(1) DEFAULT 0 COMMENT 'Ativar/Desativar pagamento online via Asaas',
+  `nome` varchar(100) DEFAULT 'PIX Asaas' COMMENT 'Nome exibido no checkout',
+  `sandbox_mode` tinyint(1) DEFAULT 1 COMMENT '1=Sandbox, 0=Produção',
+  `access_token` varchar(255) DEFAULT NULL COMMENT 'Access Token da API Asaas',
+  `address_key` varchar(255) DEFAULT NULL COMMENT 'Chave PIX cadastrada no Asaas',
+  `prazo_pagamento_minutos` int(11) DEFAULT 30 COMMENT 'Prazo em minutos para pagamento',
+  `criado_em` timestamp NULL DEFAULT current_timestamp(),
+  `atualizado_em` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Despejando dados para a tabela `asaas_config`
+--
+
+INSERT INTO `asaas_config` (`id`, `ativo`, `nome`, `sandbox_mode`, `access_token`, `address_key`, `prazo_pagamento_minutos`, `criado_em`, `atualizado_em`) VALUES
+(1, 1, 'PIX Asaas', 0, 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'xxxxxxxxxxxxxxxxxxxxxxx', 30, '2026-01-22 02:04:55', '2026-01-23 14:47:31');
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `asaas_pagamentos`
+--
+
+CREATE TABLE `asaas_pagamentos` (
+  `id` int(11) NOT NULL,
+  `pedido_id` int(11) NOT NULL,
+  `payment_id` varchar(100) DEFAULT NULL COMMENT 'ID do pagamento no Asaas',
+  `qr_code` text DEFAULT NULL COMMENT 'Código PIX copia e cola (payload)',
+  `qr_code_base64` longtext DEFAULT NULL COMMENT 'Imagem do QR Code em base64',
+  `status` varchar(50) DEFAULT 'pending',
+  `valor` decimal(10,2) NOT NULL,
+  `expiracao` datetime DEFAULT NULL,
+  `pago_em` datetime DEFAULT NULL,
+  `criado_em` timestamp NULL DEFAULT current_timestamp(),
+  `atualizado_em` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Estrutura para tabela `avaliacoes`
 --
 
@@ -39,18 +109,6 @@ CREATE TABLE `avaliacoes` (
   `cliente_nome` varchar(255) DEFAULT NULL,
   `token` varchar(64) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Avaliações dos clientes';
-
---
--- Despejando dados para a tabela `avaliacoes`
---
-
-INSERT INTO `avaliacoes` (`id`, `pedido_id`, `produto_id`, `nome`, `avaliacao`, `descricao`, `ativo`, `data_avaliacao`, `cliente_nome`, `token`) VALUES
-(4, 3, NULL, 'Thiago Barbosa da Silva de Oliveira Thiago', 0, NULL, 1, '2025-12-13 10:32:39', 'Thiago Barbosa da Silva de Oliveira Thiago', 'aa4777880c0a9d5b56f93984eccdeaaa'),
-(5, 3, NULL, 'Thiago Barbosa da Silva de Oliveira Thiago', 0, NULL, 1, '2025-12-13 10:33:20', 'Thiago Barbosa da Silva de Oliveira Thiago', 'd3bcc647dd0c058bae5d262a3260204f'),
-(6, 2, NULL, 'Thiago Barbosa da Silva de Oliveira Thiago', 1, 'ruim', 1, '2025-12-13 10:46:37', 'Thiago Barbosa da Silva de Oliveira Thiago', '109b050cdc75a886696314f7ca1a5773'),
-(7, 1, NULL, 'Thiago Barbosa da Silva de Oliveira Thiago', 5, 'top', 1, '2025-12-13 10:45:08', 'Thiago Barbosa da Silva de Oliveira Thiago', '77fac310484250dde9c675dc02a4551e'),
-(9, 4, 50, 'Thiago Barbosa da Silva de Oliveira Thiago', 5, 'muito agua', 1, '2025-12-13 11:54:59', 'Thiago Barbosa da Silva de Oliveira Thiago', NULL),
-(11, 10, 52, 'Thiago Barbosa da Silva de Oliveira Thiago', 5, 'gostei bastante do atendimento', 1, '2025-12-15 12:48:21', 'Thiago Barbosa da Silva de Oliveira Thiago', NULL);
 
 -- --------------------------------------------------------
 
@@ -97,14 +155,6 @@ CREATE TABLE `bairros_entrega` (
   `ativo` tinyint(1) NOT NULL DEFAULT 1,
   `ordem` int(11) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Despejando dados para a tabela `bairros_entrega`
---
-
-INSERT INTO `bairros_entrega` (`id`, `nome`, `cidade_id`, `valor_entrega`, `entrega_disponivel`, `tempo_estimado`, `gratis_acima_valor`, `ativo`, `ordem`) VALUES
-(5, 'Olivença', 2, 5.00, 1, NULL, NULL, 1, 0),
-(6, 'Estados', 3, 5.00, 1, NULL, NULL, 1, 0);
 
 -- --------------------------------------------------------
 
@@ -158,19 +208,6 @@ CREATE TABLE `categorias` (
   `permite_meio_a_meio` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Despejando dados para a tabela `categorias`
---
-
-INSERT INTO `categorias` (`id`, `nome`, `descricao`, `ordem`, `imagem`, `ativo`, `permite_meio_a_meio`) VALUES
-(12, 'Pizza', '', 2, 'admin/uploads/categorias/cat_1762601073_690f2871b13c0.jpg', 1, 1),
-(13, 'Hambúrguer', '', 1, 'admin/uploads/categorias/cat_1765244083.jpg', 1, 0),
-(14, 'Bebidas', '', 4, 'admin/uploads/categorias/cat_1762601175_690f28d7a4b05.jpg', 1, 0),
-(15, 'Batata Frita', '', 3, 'admin/uploads/categorias/cat_1762601222_690f2906bc086.jpg', 1, 0),
-(16, 'Bronwnie', '', 0, 'admin/uploads/categorias/cat_1765244055.jpg', 1, 0),
-(17, 'Pastéis', '', 6, 'admin/uploads/categorias/cat_1765244522.jpg', 1, 0),
-(18, 'Porções', '', 7, 'admin/uploads/categorias/cat_1765244536.jpg', 1, 0);
-
 -- --------------------------------------------------------
 
 --
@@ -207,14 +244,6 @@ CREATE TABLE `cidades_entrega` (
   `ordem` int(11) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Despejando dados para a tabela `cidades_entrega`
---
-
-INSERT INTO `cidades_entrega` (`id`, `nome`, `estado`, `ativo`, `ordem`) VALUES
-(2, 'Ilhéus', 'BA', 1, 0),
-(3, 'Fazenda Rio Grande', 'PR', 1, 0);
-
 -- --------------------------------------------------------
 
 --
@@ -226,6 +255,7 @@ CREATE TABLE `clientes` (
   `nome` varchar(255) NOT NULL,
   `telefone` varchar(20) NOT NULL,
   `email` varchar(255) DEFAULT NULL,
+  `cpf` varchar(14) DEFAULT NULL,
   `senha` varchar(255) DEFAULT NULL COMMENT 'Hash da senha para área do cliente',
   `foto_perfil` varchar(255) DEFAULT NULL COMMENT 'Caminho da foto de perfil',
   `endereco_principal` text DEFAULT NULL COMMENT 'Endereço completo formatado',
@@ -248,14 +278,6 @@ CREATE TABLE `clientes` (
   `token_sessao` varchar(255) DEFAULT NULL COMMENT 'Token de sessão único',
   `telefone_verificado` tinyint(1) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Clientes do sistema';
-
---
--- Despejando dados para a tabela `clientes`
---
-
-INSERT INTO `clientes` (`id`, `nome`, `telefone`, `email`, `senha`, `foto_perfil`, `endereco_principal`, `cep`, `rua`, `numero`, `complemento`, `bairro`, `cidade`, `estado`, `total_pedidos`, `valor_total_gasto`, `ultimo_pedido`, `ativo`, `observacoes`, `criado_em`, `atualizado_em`, `primeiro_acesso`, `ultimo_login`, `token_sessao`, `telefone_verificado`) VALUES
-(24, 'Thiago Barbosa da Silva de Oliveira Thiago', '11932261834', 'silvafamiliamz@gmail.com', NULL, NULL, 'Mauro De Oliveira Brito, 200 - 22, Centro - Pirapora do Bom Jesus/SP - CEP: 06550-000', '06550000', 'Mauro De Oliveira Brito', '200', '22', 'Centro', 'Pirapora do Bom Jesus', 'SP', 0, 0.00, NULL, 1, NULL, '2025-12-12 16:59:17', '2025-12-15 17:43:30', 1, NULL, NULL, 1),
-(25, 'Thiabolo', '11932261824', 'silvafa@gmail.com', '$2y$10$HmaiKLp2UA31ZKvx9hdOo.c.f76QICk9An8ePvOt1/vPRgNmwY6Ge', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0.00, NULL, 1, NULL, '2025-12-13 02:02:37', NULL, 1, NULL, NULL, 0);
 
 -- --------------------------------------------------------
 
@@ -292,21 +314,6 @@ CREATE TABLE `cliente_enderecos` (
   `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
   `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Despejando dados para a tabela `cliente_enderecos`
---
-
-INSERT INTO `cliente_enderecos` (`id`, `cliente_id`, `apelido`, `cep`, `rua`, `numero`, `complemento`, `bairro`, `cidade`, `estado`, `principal`, `criado_em`, `atualizado_em`) VALUES
-(1, 10, 'casa1xxxxx', '06550000', 'Mauro de oliveira britoo', '200', NULL, 'paiol 1', 'Pirapora do Bom Jesus', 'SP', 0, '2025-12-11 15:29:36', '2025-12-11 15:29:36'),
-(2, 10, 'chacara', '06550000', 'Mauro centro', '232', NULL, 'centro', 'Pirapora do Bom Jesus', 'SP', 0, '2025-12-11 15:30:38', '2025-12-11 15:30:38'),
-(3, 10, 'sanmt', '06501001', 'Estrada dos Romeiros', '2', NULL, 'Centro', 'Santana de Parnaíba', 'SP', 0, '2025-12-11 16:28:04', '2025-12-11 16:28:04'),
-(4, 19, 'casa', '06501001', 'Estrada dos Romeiros', '01', NULL, 'Centro', 'Santana de Parnaíba', 'SP', 0, '2025-12-12 16:26:32', '2025-12-12 16:26:32'),
-(5, 24, 'caxxxxxxxxxxxxxxxx', '06501001', 'Estrada dos Romeiros', '012', 'cas', 'Centro', 'Santana de Parnaíba', 'SP', 0, '2025-12-12 17:02:21', '2025-12-12 17:02:21'),
-(6, 24, 'casa paiol', '06550000', 'Mauro De Oliveira Brito', '200', NULL, 'paiol 1', 'Pirapora do Bom Jesus', 'SP', 0, '2025-12-12 17:03:24', '2025-12-12 17:03:24'),
-(7, 24, NULL, '06501001', 'Estrada dos mendes', '540', '22', 'Centro', 'Santana de Parnaíba', 'SP', 0, '2025-12-12 17:08:13', '2025-12-12 17:08:13'),
-(8, 24, NULL, '06501001', 'Estrada dos mendes', '540', '22', 'Centro', 'Santana de Parnaíba', 'SP', 0, '2025-12-15 17:10:39', '2025-12-15 17:10:39'),
-(9, 24, NULL, '06550000', 'Mauro De Oliveira Brito', '200', '22', 'Centro', 'Pirapora do Bom Jesus', 'SP', 0, '2025-12-15 17:43:28', '2025-12-15 17:43:28');
 
 -- --------------------------------------------------------
 
@@ -539,7 +546,7 @@ CREATE TABLE `configuracoes` (
 --
 
 INSERT INTO `configuracoes` (`id`, `site_titulo`, `site_descricao`, `site_logo`, `site_favicon`, `site_capa`, `endereco_cep`, `endereco_rua`, `endereco_numero`, `endereco_complemento`, `endereco_bairro`, `endereco_cidade`, `endereco_estado`, `contato_whatsapp`, `contato_email`, `social_facebook`, `social_instagram`, `atualizado_em`, `whatsapp_chave_pix`, `whatsapp_tempo_preparo_padrao`, `whatsapp_tempo_entrega_padrao`, `whatsapp_mensagem_pronto_retirada`, `whatsapp_mensagem_pronto_delivery`, `recaptcha_v2_site_key`, `recaptcha_v2_secret_key`, `recaptcha_v3_site_key`, `recaptcha_v3_secret_key`, `recaptcha_version`, `recaptcha_ativo`, `recaptcha_paginas`, `push_vapid_public_key`, `push_vapid_private_key`, `push_notifications_ativo`, `nome_site`, `descricao_site`, `logo`, `favicon`, `capa`, `cep`, `rua`, `numero`, `complemento`, `bairro`, `cidade`, `estado`, `whatsapp`, `email_contato`, `facebook`, `instagram`, `tema`, `cor_principal`, `cor_secundaria`, `tema_layout`, `impressao_automatica`) VALUES
-(1, 'CardapiX', 'O melhor sistema de pedidos Online!', 'uploads/config/logo.png', 'uploads/config/favicon.ico', 'uploads/config/capa.jpg', '83830-289', 'Avenida Rio Amazonas', '110', '3254', 'Estados', 'Fazenda Rio Grande', 'PR', '(41) 99860-8485', 'plw@gmail.com', '', 'plwdesign', '2025-12-22 16:06:27', '73981433240', 30, 40, 'dsfsdf', 'sfsdfsdfsdfsdf', '6LcfagssAAAAAFbUrL-yJAmqD1vFbTdW3PEcYqhN', '6LcfagssAAAAADKXyHkcAl86GDA3YJUdE1fyziJy', '6LcnagssAAAAACon_vm_dersse_buSf_uFDTqy0P', '6LcnagssAAAAAGuFQoTWsAy_vhnpCpT4UGsZEzJ9', 'v3', 0, '[\"admin\\/login.php\",\"cliente\\/login.php\"]', 'BJ0OHSU1jrYKynyxAfV5Fuu3tQUBV887udulpUS_GM1IUnnIA2voY31Q7B_77mwJiq_tgtgxNYC7qs_Y_Gsahig', 'hTd4UtJT0ChJN3Pg0ebIHmE6hIpaJihhHz-69L5tNSM', 1, 'PedeMais', 'Desenvolvimento', 'logo.jpg', 'favicon.jpg', 'capa.png', '06550-000', 'paulo arruda', '1', '', 'km50', 'Pirapora do Bom Jesus', 'SP', '(11) 93226-1888', '', 'thiagomz', 'thiagoomz', 'roxo', '#9c27b0', '#7b1fa2', 'default', 1);
+(1, 'PediMais', 'O melhor sistema de pedidos Online!', 'uploads/config/logo.png', 'uploads/config/favicon.ico', 'uploads/config/capa.jpg', '83830-289', 'Avenida Rio Amazonas', '110', '3254', 'Estados', 'Fazenda Rio Grande', 'PR', NULL, NULL, '', NULL, '2026-01-23 15:21:22', NULL, 30, 40, 'dsfsdf', 'sfsdfsdfsdfsdf', '6LcfagssAAAAAFbUrL-yJAmqD1vFbTdW3PEcYqhN', '6LcfagssAAAAADKXyHkcAl86GDA3YJUdE1fyziJy', '6LcnagssAAAAACon_vm_dersse_buSf_uFDTqy0P', '6LcnagssAAAAAGuFQoTWsAy_vhnpCpT4UGsZEzJ9', 'v3', 0, '[\"admin\\/login.php\",\"cliente\\/login.php\"]', 'BJ0OHSU1jrYKynyxAfV5Fuu3tQUBV887udulpUS_GM1IUnnIA2voY31Q7B_77mwJiq_tgtgxNYC7qs_Y_Gsahig', 'hTd4UtJT0ChJN3Pg0ebIHmE6hIpaJihhHz-69L5tNSM', 1, 'Seu Site', '', 'logo.jpg', 'favicon.jpg', 'capa.png', '06550-000', 'paulo arruda', '1', '', 'km50', 'Pirapora do Bom Jesus', 'SP', '(11) 93226-1888', '', 'thiagoomz', 'thiagoomz', 'roxo', '#9c27b0', '#7b1fa2', 'default', 1);
 
 -- --------------------------------------------------------
 
@@ -560,7 +567,7 @@ CREATE TABLE `fidelidade_config` (
 --
 
 INSERT INTO `fidelidade_config` (`id`, `ativo`, `quantidade_pedidos`, `criado_em`, `atualizado_em`) VALUES
-(1, 1, 10, '2025-11-30 11:56:21', '2025-12-14 04:36:44');
+(1, 1, 1, '2025-11-30 11:56:21', '2025-12-28 16:29:15');
 
 -- --------------------------------------------------------
 
@@ -576,16 +583,6 @@ CREATE TABLE `fidelidade_pontos` (
   `criado_em` timestamp NULL DEFAULT current_timestamp(),
   `atualizado_em` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Pontos de fidelidade dos clientes';
-
---
--- Despejando dados para a tabela `fidelidade_pontos`
---
-
-INSERT INTO `fidelidade_pontos` (`id`, `cliente_id`, `pedido_id`, `status`, `criado_em`, `atualizado_em`) VALUES
-(1, 8, 1, 'cancelado', '2025-11-30 12:15:23', '2025-11-30 12:18:58'),
-(2, 8, 2, 'resgatado', '2025-11-30 12:15:23', '2025-11-30 12:41:26'),
-(3, 8, 3, 'resgatado', '2025-11-30 12:15:23', '2025-11-30 12:41:26'),
-(4, 8, 4, 'resgatado', '2025-11-30 12:20:18', '2025-11-30 12:41:26');
 
 -- --------------------------------------------------------
 
@@ -603,15 +600,6 @@ CREATE TABLE `fidelidade_produtos` (
   `atualizado_em` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Produtos disponíveis para resgate no sistema de fidelidade';
 
---
--- Despejando dados para a tabela `fidelidade_produtos`
---
-
-INSERT INTO `fidelidade_produtos` (`id`, `produto_id`, `quantidade`, `ativo`, `ordem`, `criado_em`, `atualizado_em`) VALUES
-(1, 41, 1, 1, 1, '2025-11-30 12:05:44', '2025-11-30 12:05:44'),
-(2, 37, 1, 1, 2, '2025-12-01 13:37:04', '2025-12-01 13:37:04'),
-(3, 49, 1, 1, 3, '2025-12-01 17:22:24', '2025-12-01 17:22:24');
-
 -- --------------------------------------------------------
 
 --
@@ -628,13 +616,6 @@ CREATE TABLE `fidelidade_resgates` (
   `atualizado_em` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Histórico de resgates de fidelidade';
 
---
--- Despejando dados para a tabela `fidelidade_resgates`
---
-
-INSERT INTO `fidelidade_resgates` (`id`, `cliente_id`, `pedido_id`, `pontos_usados`, `status`, `criado_em`, `atualizado_em`) VALUES
-(4, 8, 5, 3, 'resgatado', '2025-11-30 12:41:26', '2025-11-30 12:41:26');
-
 -- --------------------------------------------------------
 
 --
@@ -648,13 +629,6 @@ CREATE TABLE `fidelidade_resgate_itens` (
   `quantidade` int(11) DEFAULT 1 COMMENT 'Quantidade do produto',
   `criado_em` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Itens resgatados em cada resgate de fidelidade';
-
---
--- Despejando dados para a tabela `fidelidade_resgate_itens`
---
-
-INSERT INTO `fidelidade_resgate_itens` (`id`, `resgate_id`, `produto_id`, `quantidade`, `criado_em`) VALUES
-(4, 4, 41, 1, '2025-11-30 12:41:26');
 
 -- --------------------------------------------------------
 
@@ -682,8 +656,49 @@ INSERT INTO `formas_pagamento` (`id`, `nome`, `tipo`, `ativo`, `aceita_troco`, `
 (1, 'Dinheiro', 'dinheiro', 1, 1, '', 'mdi:brazilian-real', 1, '2025-10-29 23:37:35'),
 (2, 'Cartão de Crédito', 'credito', 1, 0, NULL, 'solar:card-outline', 2, '2025-10-29 23:37:35'),
 (3, 'Cartão de Débito', 'debito', 1, 0, NULL, 'solar:card-outline', 3, '2025-10-29 23:37:35'),
-(4, 'PIX', 'pix', 1, 0, 'plw@plw.com', 'solar:qr-code-outline', 0, '2025-10-29 23:37:35'),
+(4, 'PIX', 'pix', 1, 0, '', 'solar:qr-code-outline', 0, '2025-10-29 23:37:35'),
 (6, 'fiado', 'outro', 1, 0, '', 'solar:wallet-outline', 8, '2025-12-09 03:14:16');
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `gateway_settings`
+--
+
+CREATE TABLE `gateway_settings` (
+  `id` int(11) NOT NULL DEFAULT 1,
+  `gateway_ativo` enum('mercadopago','asaas','none') DEFAULT 'none' COMMENT 'Gateway de pagamento ativo',
+  `atualizado_em` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Despejando dados para a tabela `gateway_settings`
+--
+
+INSERT INTO `gateway_settings` (`id`, `gateway_ativo`, `atualizado_em`) VALUES
+(1, 'asaas', '2026-01-22 02:28:33');
+
+-- --------------------------------------------------------
+
+--
+-- Estrutura para tabela `gemini_config`
+--
+
+CREATE TABLE `gemini_config` (
+  `id` int(11) NOT NULL DEFAULT 1,
+  `api_key` varchar(255) DEFAULT NULL,
+  `modelo` varchar(100) DEFAULT 'gemini-2.0-flash',
+  `ativo` tinyint(1) DEFAULT 1,
+  `criado_em` timestamp NOT NULL DEFAULT current_timestamp(),
+  `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Despejando dados para a tabela `gemini_config`
+--
+
+INSERT INTO `gemini_config` (`id`, `api_key`, `modelo`, `ativo`, `criado_em`, `atualizado_em`) VALUES
+(1, 'xxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'gemini-2.0-flash', 1, '2026-01-22 14:40:03', '2026-01-23 15:19:28');
 
 -- --------------------------------------------------------
 
@@ -705,15 +720,6 @@ CREATE TABLE `grupos_adicionais` (
   `atualizado_em` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Despejando dados para a tabela `grupos_adicionais`
---
-
-INSERT INTO `grupos_adicionais` (`id`, `nome`, `descricao`, `tipo_escolha`, `minimo_escolha`, `maximo_escolha`, `obrigatorio`, `ordem`, `ativo`, `criado_em`, `atualizado_em`) VALUES
-(1, 'extras', 'Escolha seus opcionais', 'multiplo', 0, 4, 1, 0, 1, '2025-12-11 14:09:57', '2025-12-11 14:42:22'),
-(2, 'açai', '', 'multiplo', 0, 5, 1, 2, 1, '2025-12-11 14:42:10', '2025-12-11 14:42:10'),
-(3, 'Bordas', 'Selecione a Borda Desejada', 'multiplo', 1, 1, 0, 0, 1, '2025-12-15 17:38:09', '2025-12-15 17:41:29');
-
 -- --------------------------------------------------------
 
 --
@@ -730,21 +736,6 @@ CREATE TABLE `grupo_adicional_itens` (
   `ativo` tinyint(1) DEFAULT 1,
   `criado_em` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Despejando dados para a tabela `grupo_adicional_itens`
---
-
-INSERT INTO `grupo_adicional_itens` (`id`, `grupo_id`, `nome`, `descricao`, `preco_adicional`, `ordem`, `ativo`, `criado_em`) VALUES
-(1, 1, 'cebola', '', 2.00, 0, 1, '2025-12-11 14:25:57'),
-(2, 1, 'feijao extra', '', 5.00, 1, 1, '2025-12-11 14:26:15'),
-(3, 1, 'molho ', '', 6.00, 0, 1, '2025-12-11 14:26:32'),
-(4, 1, 'mistura extra', 'Peito de frango', 10.00, 0, 1, '2025-12-11 14:26:55'),
-(5, 3, 'Borda de Cheddar', '', 15.00, 0, 1, '2025-12-15 17:38:59'),
-(6, 3, 'Borda de Catupry', '', 8.00, 0, 1, '2025-12-15 17:39:23'),
-(7, 3, 'Borda Tradicional Fina', 'Borda Fina', 0.00, 0, 1, '2025-12-15 17:39:50'),
-(8, 3, 'Borda Grossa', 'Borda Grossa', 0.00, 0, 1, '2025-12-15 17:40:11'),
-(9, 3, 'Borda de Nutella', '', 15.00, 0, 1, '2025-12-15 17:40:29');
 
 -- --------------------------------------------------------
 
@@ -844,7 +835,7 @@ CREATE TABLE `mercadopago_config` (
 --
 
 INSERT INTO `mercadopago_config` (`id`, `ativo`, `nome`, `sandbox_mode`, `public_key`, `access_token`, `prazo_pagamento_minutos`, `criado_em`, `atualizado_em`, `mostrar_modal_pagamento`, `botao_whatsapp_modal`) VALUES
-(1, 1, 'Pix Online', 0, 'APP_USR-8ce55bf5-2b79-4e2b-ac9f-afd0f77ce312', 'APP_USR-3947932562116502-052622-eb75e16624425e7bf07ccfdce68ec6d0-108359546', 10, '2025-10-31 11:19:00', '2025-12-08 20:05:31', 1, 1);
+(1, 1, 'Pix Online', 0, 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 10, '2025-10-31 11:19:00', '2026-01-23 14:47:14', 1, 1);
 
 -- --------------------------------------------------------
 
@@ -890,13 +881,6 @@ CREATE TABLE `mercadopago_pagamentos` (
   `criado_em` timestamp NULL DEFAULT current_timestamp(),
   `atualizado_em` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Despejando dados para a tabela `mercadopago_pagamentos`
---
-
-INSERT INTO `mercadopago_pagamentos` (`id`, `pedido_id`, `payment_id`, `qr_code`, `qr_code_base64`, `ticket_url`, `status`, `valor`, `expiracao`, `pago_em`, `criado_em`, `atualizado_em`) VALUES
-(65, 3, '137095009551', '00020126360014br.gov.bcb.pix0114+5511932261834520400005303986540517.105802BR5907HGMARKE6015Pirapora do Bom62250521mpqrinter1370950095516304CEC5', 'iVBORw0KGgoAAAANSUhEUgAABRQAAAUUAQMAAACUKAyrAAAABlBMVEX///8AAABVwtN+AAAIoUlEQVR42uzdQXLiOhAGYFEsWHIEjsLR4Gg5CkdgyYKKXw2J7W5JhiGTvHn1+P7VlAfbn7PrUqtVRERERERERERERERERERERERERERERERERERERET+I9kObU63/zn8+ud7/aP3cO9uvra+/eNcyv72j/D0071rOUdGRkZGRkZGRkZGRkZGxr7xlC5sxkccS7ndeUmP/fBcRvf42Hgt5Hz7z/3n79bhj7Cf0SX9iJGRkZGRkZGRkZGRkfEvGA+fN1+zsZRVrmebHH69ahVUb/P/rWvxx9ODcRW+hZGRkZGRkZGRkZGRkZHxOWOZr136Rfj5tu56TNem3F5/zQV3uLEwMjIyMjIyMjIyMjIyMn6HsZRyWwqePG+fv7suNhtn47Q2PD7smpeCGRkZGRkZGRkZGRkZGRmfMDZ9zeOyb1USNy3Lh7k9eRNI4wfnp380Pwfjn/VeMzIyMjIyMjIyMjIyMr6OsTeradyT29TXcU/uae5rvo6/Czeuc2Geb/yGeVKMjIyMjIyMjIyMjIyM32C8m2ZW0/HTEz+uqV0PaV5vWItd9xuQ/yyMjIyMjIyMjIyMjIyMr2BsjpFZPn/mmOYyhWbjpvV3+pZdMvYGP23qIU+MjIyMjIyMjIyMjIyMjG2CZ6G+DsZr/rhx2+qlrrmnteFcX5dxvTgfuMPIyMjIyMjIyMjIyMjI+HgduK2v8xk5+zTQ6Zx+VPU1j8Z4Y97vOr5xWkNmZGRkZGRkZGRkZGRkZHy0Njw+9pK20a5yK/JhiMe0DukQ2I/X71Ovc7P/9tKf38TIyMjIyMjIyMjIyMj4t4zb8VW9WU2hpXfs6o2ekl7VO38mP2ydrzULtkdGRkZGRkZGRkZGRkZGxsX6Om9Rbcrkqc23dPa75iNQ86ymqXo/lpJ7hgdGRkZGRkZGRkZGRkZGxmeNuUDOa8PhVXHOcDZOa8PHunof6oFOpV4bvn92KiMjIyMjIyMjIyMjI+PLG/O21RL6mvM68H4eRnwJN4aNss1+13O/WC+fa8PVBUZGRkZGRkZGRkZGRkbGu1msr2NJfEizmnbz76tF5fFaGFBcmvr6K/OkGBkZGRkZGRkZGRkZGX/UeM317O0pk+fm/njsJr1qYa7vkDbK9rLqDH5iZGRkZGRkZGRkZGRkZGyzq7t6T7WxN78p1NexTB5r6fdw4S0V8Od53fWp/a6MjIyMjIyMjIyMjIyML2x80Ef8OFXPcDhw55wetq7PyFnlir4wMjIyMjIyMjIyMjIyMt7Pql9fL/xoqF8V14ZDX3M43zWuA4fCfFPPb2JkZGRkZGRkZGRkZGRkjGmWc+Ni8ThnOGytbVuRQ33duxY+OA4oLvOPHs4ZZmRkZGRkZGRkZGRkZPw5Yz47dcivyufP5LNTc526sLd1GwY/BeNCGBkZGRkZGRkZGRkZGRkX6utTff5M78iY3fz62Pp7mH+0SefPtO3Aiwu25dF+V0ZGRkZGRkZGRkZGRsaXNw7psZvQ5pvr697a8DB/3KY+O7Wkva3Vx+VZTb+5fs3IyMjIyMjIyMjIyMj4ksa8Nhzr6zwuOL9qSOfhVPX1kIr10CS9/mJ9zcjIyMjIyMjIyMjIyPjaxrw23BshHM/DOaYP2XVuCOfhVB+cK/qhM7+JkZGRkZGRkZGRkZGRkfFxFqY7hWNa457c3VxLD3XNHYcWhybpZs7w9MbfDiMjIyMjIyMjIyMjI+N3Grep9TeWoIc0Z/j06V4tjgtuzk4toXbNxeyununEyMjIyMjIyMjIyMjIyHg3u7rNt9cznJdKG2PMYS6dz6lnuMoz57syMjIyMjIyMjIyMjIyvrAxjwte98/I6dXXzUbZ+Kr++a7VnOGhPjfnyMjIyMjIyMjIyMjIyMi4WF8fU5m8q/e7DouzmvLZN+e6dC6pSXodGqLf5hsvjIyMjIyMjIyMjIyMjIyPjXly0qleGw6vWuUyORfm5/nGIZ/vGuYRb+d9ur+/b5iRkZGRkZGRkZGRkZHxR40LVWOuSYPxkoreOIr3LXma82cu4YPzRllGRkZGRkZGRkZGRkZGxrs9w7nNd3pVrqWbkUsLWdjv2nxwVjzsa2ZkZGRkZGRkZGRkZGR8VePd+nrc7zqNBj7U44LH/a5DKJ3zOvC0eTYPedrPk417p/IwMjIyMjIyMjIyMjIyMrYlcRi5lPua8xjghblMpbM2vE6LyqWzXtzbFMvIyMjIyMjIyMjIyMjI2K2vmzvCaOBL+FHYk9vMarqkw2JLmDMc9unGvuZQX28fHfjKyMjIyMjIyMjIyMjI+KPGsWpc5/besSbt7XfdpkNqGuN0Ts2uv+4aCuHCyMjIyMjIyMjIyMjIyPhsfb2bl0+rs1PzGmtTS4eNsu/Na5rCPOfJdVdGRkZGRkZGRkZGRkbG1zHm5dym9bfa7xo8vTFMQ6e+zmenxiJ8SIvPjIyMjIyMjIyMjIyMjIzlqYQ74t7WZvbwIX3ceb6xWhsOA4qbteHpr1IYGRkZGRkZGRkZGRkZGe/V1/ndpV7iHevruCd3l2rp3kynbT2/qZkzfK0/jpGRkZGRkZGRkZGRkfHfNp7ShTjDdySdU2PxujOXqekjrm48psbiZr9rYWRkZGRkZGRkZGRkZGR8YDzMK6ObhF7VW1SrOcN5Ifb8uSl2KszzX6DXM8zIyMjIyMjIyMjIyMjI+EXjPpXO02PznOFTbZxaf8c6vJnLtEmLypObkZGRkZGRkZGRkZGRkfErxnwka962ulmc0vTW75puHpYHPz3c78rIyMjIyMjIyMjIyMj48saFvuZbmbypnxLnDB/nWjpnqq93c819ze58IyMjIyMjIyMjIyMjI+PfMi7MahqXT0uoXfO21SahZ3hYnNVUvrLuysjIyMjIyMjIyMjIyPjCRhERERERERERERERERERERERERERERERERERERH5f+WfAAAA//8RAkwNGj6D6AAAAABJRU5ErkJggg==', 'https://www.mercadopago.com.br/payments/137095009551/ticket?caller_id=1898042219&hash=a81a109e-0217-40e6-b277-196311bb0a39', 'pending', 17.10, '2025-12-13 10:31:13', NULL, '2025-12-13 15:01:13', '2025-12-13 15:01:13');
 
 -- --------------------------------------------------------
 
@@ -979,22 +963,6 @@ CREATE TABLE `pedidos` (
   `data_impressao` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Despejando dados para a tabela `pedidos`
---
-
-INSERT INTO `pedidos` (`id`, `cliente_id`, `entregador_id`, `codigo_pedido`, `token_avaliacao`, `cliente_nome`, `cliente_telefone`, `cliente_endereco`, `mesa_numero`, `valor_total`, `valor_produtos`, `valor_entrega`, `tipo_entrega`, `forma_pagamento_id`, `qr_code_base64`, `troco_para`, `status`, `lane_id`, `posicao_kanban`, `pago`, `entregue`, `saiu_entrega`, `em_preparo`, `observacoes_kanban`, `atualizado_em`, `data_pedido`, `observacoes`, `comprovante_pagamento`, `comprovante_enviado_em`, `comprovante_pix`, `comprovante_validado`, `comprovante_validado_em`, `comprovante_validado_por`, `pagamento_online`, `arquivado`, `data_conclusao`, `impresso`, `data_impressao`) VALUES
-(1, 24, NULL, '5D28027B', NULL, 'Thiago Barbosa da Silva de Oliveira Thiago', '11932261834', '', NULL, 28.00, 0.00, 0.00, 'balcao', 1, NULL, NULL, 'finalizado', 5, 0, 1, 1, 1, 1, NULL, '2025-12-13 15:40:26', '2025-12-12 20:22:49', '', NULL, NULL, NULL, 0, NULL, NULL, 0, 1, '2025-12-13 10:40:26', 0, NULL),
-(2, 24, NULL, '0226DC90', NULL, 'Thiago Barbosa da Silva de Oliveira Thiago', '11932261834', 'Estrada dos mendes, 540 - 22, Centro - Santana de Parnaíba/SP - CEP: 06501001', NULL, 71.00, 0.00, 0.00, 'delivery', 1, NULL, NULL, 'finalizado', 5, 0, 0, 1, 1, 1, NULL, '2025-12-13 15:33:42', '2025-12-12 22:28:29', '', NULL, NULL, NULL, 0, NULL, NULL, 0, 1, '2025-12-13 10:33:42', 0, NULL),
-(3, 24, NULL, 'AF77FB20', NULL, 'Thiago Barbosa da Silva de Oliveira Thiago', '11932261834', 'Estrada dos mendes, 540 - 22, Centro - Santana de Parnaíba/SP - CEP: 06501001', NULL, 17.10, 0.00, 0.00, 'delivery', 4, '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', NULL, 'finalizado', 5, 0, 1, 1, 1, 1, NULL, '2025-12-13 15:33:20', '2025-12-13 10:01:12', '', NULL, NULL, NULL, 0, NULL, NULL, 1, 1, '2025-12-13 10:33:20', 0, NULL),
-(4, 24, NULL, '0825FEFC', NULL, 'Thiago Barbosa da Silva de Oliveira Thiago', '11932261834', '', NULL, 10.10, 0.00, 0.00, 'balcao', 1, NULL, NULL, 'finalizado', 2, 0, 0, 1, 0, 0, NULL, '2025-12-14 15:09:15', '2025-12-13 11:47:45', '', NULL, NULL, NULL, 0, NULL, NULL, 0, 1, '2025-12-13 11:48:23', 1, '2025-12-14 10:09:15'),
-(5, 24, NULL, '0992A06F', NULL, 'Thiago Barbosa da Silva de Oliveira Thiago', '11932261834', 'Mauro De Oliveira Brito, 200, paiol 1 - Pirapora do Bom Jesus/SP - CEP: 06550000', NULL, 42.50, 0.00, 0.00, 'delivery', 6, NULL, NULL, 'pendente', 2, 0, 0, 0, 0, 0, NULL, '2025-12-14 15:09:33', '2025-12-13 12:26:05', '', NULL, NULL, NULL, 0, NULL, NULL, 0, 0, NULL, 1, '2025-12-14 10:09:33'),
-(6, 24, NULL, 'F2A757AF', NULL, 'Thiago Barbosa da Silva de Oliveira Thiago', '11932261834', 'Estrada dos mendes, 540 - 22, Centro - Santana de Parnaíba/SP - CEP: 06501001', NULL, 43.00, 0.00, 0.00, 'delivery', 3, NULL, NULL, 'pendente', 2, 0, 0, 0, 0, 0, NULL, '2025-12-14 15:09:39', '2025-12-14 10:09:00', '', NULL, NULL, NULL, 0, NULL, NULL, 0, 0, NULL, 1, '2025-12-14 10:09:39'),
-(7, 24, NULL, 'CA68DF63', NULL, 'Thiago Barbosa da Silva de Oliveira Thiago', '11932261834', 'Estrada dos Romeiros, 012 - cas, Centro - Santana de Parnaíba/SP - CEP: 06501001', NULL, 25.10, 0.00, 0.00, 'delivery', 1, NULL, NULL, 'pendente', 2, 0, 0, 0, 0, 0, NULL, '2025-12-14 15:17:20', '2025-12-14 10:17:11', 'sem cebola', NULL, NULL, NULL, 0, NULL, NULL, 0, 0, NULL, 1, '2025-12-14 10:17:20'),
-(8, 24, NULL, '863BE1DA', NULL, 'Thiago Barbosa da Silva de Oliveira Thiago', '11932261834', 'Estrada dos mendes, 540 - 22, Centro - Santana de Parnaíba/SP - CEP: 06501001', NULL, 43.00, 0.00, 0.00, 'delivery', 1, NULL, NULL, 'pendente', 2, 0, 0, 0, 0, 0, NULL, '2025-12-14 16:08:23', '2025-12-14 11:08:23', '', NULL, NULL, NULL, 0, NULL, NULL, 0, 0, NULL, 0, NULL),
-(9, 24, NULL, '55AA1E9D', NULL, 'Thiago Barbosa da Silva de Oliveira Thiago', '11932261834', 'Estrada dos mendes, 540 - 22, Centro - Santana de Parnaíba/SP - CEP: 06501001', NULL, 17.10, 0.00, 0.00, 'delivery', 1, NULL, NULL, 'pronto', 4, 0, 0, 0, 0, 1, NULL, '2025-12-19 15:22:37', '2025-12-15 12:10:41', '', NULL, NULL, NULL, 0, NULL, NULL, 0, 0, NULL, 0, NULL),
-(10, 24, NULL, 'C5057DFC', NULL, 'Thiago Barbosa da Silva de Oliveira Thiago', '11932261834', 'Mauro De Oliveira Brito, 200 - 22, Centro - Pirapora do Bom Jesus/SP - CEP: 06550-000', NULL, 41.50, 0.00, 0.00, 'delivery', 6, NULL, NULL, 'finalizado', 6, 0, 1, 1, 1, 1, NULL, '2025-12-15 17:47:34', '2025-12-15 12:43:30', '', NULL, NULL, NULL, 0, NULL, NULL, 0, 1, '2025-12-15 12:47:34', 0, NULL);
-
 -- --------------------------------------------------------
 
 --
@@ -1034,7 +1002,8 @@ INSERT INTO `pedido_item_adicionais` (`id`, `pedido_item_id`, `adicional_id`, `n
 (17, 68, 0, 'mistura extra', 10.00, '2025-12-13 16:47:45'),
 (18, 71, 0, 'mistura extra', 10.00, '2025-12-14 15:17:11'),
 (19, 73, 0, 'cebola', 2.00, '2025-12-15 17:10:41'),
-(20, 74, 0, 'Borda Grossa', 0.00, '2025-12-15 17:43:30');
+(20, 74, 0, 'Borda Grossa', 0.00, '2025-12-15 17:43:30'),
+(21, 82, 0, 'Borda Grossa', 0.00, '2026-01-22 02:53:33');
 
 -- --------------------------------------------------------
 
@@ -1065,23 +1034,6 @@ CREATE TABLE `pedido_itens` (
   `preco_unitario` decimal(10,2) NOT NULL,
   `observacoes` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Despejando dados para a tabela `pedido_itens`
---
-
-INSERT INTO `pedido_itens` (`id`, `pedido_id`, `produto_id`, `produto_nome`, `quantidade`, `preco_unitario`, `observacoes`) VALUES
-(64, 1, 41, 'Beach Baiano', 1, 28.00, ''),
-(65, 2, 41, 'Beach Baiano', 1, 28.00, ''),
-(66, 2, 41, 'Beach Baiano', 1, 28.00, 'SEM Cebola, SEM Tomate'),
-(67, 3, 50, 'Água', 1, 0.10, 'SEM Tomate'),
-(68, 4, 50, 'Água', 1, 0.10, ''),
-(69, 5, 54, 'Pizza de catupry + pizza de calabresa (Meio a Meio)', 1, 37.50, ''),
-(70, 6, 41, 'Beach Baiano', 1, 28.00, ''),
-(71, 7, 50, 'Água', 1, 0.10, ''),
-(72, 8, 41, 'Beach Baiano', 1, 28.00, 'SEM Cebola'),
-(73, 9, 50, 'Água', 1, 0.10, ''),
-(74, 10, 52, 'pizza de calabresa + Pizza de catupry (Meio a Meio)', 1, 34.50, 'sem azeitona');
 
 -- --------------------------------------------------------
 
@@ -1122,25 +1074,6 @@ CREATE TABLE `produtos` (
   `max_sabores_meio_meio` int(11) DEFAULT 2 COMMENT 'Quantidade máxima de sabores no meio a meio',
   `ativo` tinyint(1) DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Despejando dados para a tabela `produtos`
---
-
-INSERT INTO `produtos` (`id`, `categoria_id`, `nome`, `descricao`, `ordem`, `preco`, `preco_promocional`, `imagem_path`, `imagem_url`, `disponivel`, `limite_adicionais`, `limite_retirar`, `eh_pizza`, `permite_meio_meio`, `tipo_calculo_meio_meio`, `tamanho_pizza`, `max_sabores_meio_meio`, `ativo`) VALUES
-(36, 13, 'Hamburgue de X-Salada', 'Hambúrguer, mussarela e salada.', 0, 25.00, 20.00, 'admin/uploads/produtos/prod_1765819802_6807.jpg', '', 1, 0, 0, 0, 0, NULL, 8, 2, 1),
-(37, 13, 'Hamburgue especial da casa', 'Hambúrguer, mussarela, barbecue, cheddar, bacon, calabresa e salada.', 0, 28.00, NULL, 'admin/uploads/produtos/prod_1765819740_5966.png', '', 1, 0, 0, 0, 0, NULL, 8, 2, 1),
-(39, 13, 'Hamburgue de Bacon', 'Hambúrguer, cheddar, bacon.', 0, 26.00, NULL, 'admin/uploads/produtos/prod_1765819677_1366.jpg', '', 1, 0, 0, 0, 0, NULL, 8, 2, 1),
-(41, 16, 'Bronwnie simples', '', 0, 18.00, NULL, 'admin/uploads/produtos/prod_1765819577_4207.jpg', '', 1, 0, 0, 0, 0, NULL, 8, 2, 1),
-(42, 16, 'Bronwnie Especial', 'Chocolate com Nutella', 0, 30.00, NULL, 'admin/uploads/produtos/prod_1765819521_6527.jpg', '', 1, 0, 0, 0, 0, NULL, 8, 2, 1),
-(47, 15, 'Batata Bacon', 'Batata frita com cheddar, catupiry, parmesão e bacon.', 0, 35.00, NULL, 'admin/uploads/produtos/prod_1765819394_3831.jpg', '', 1, 0, 0, 0, 0, NULL, 8, 2, 1),
-(49, 15, 'Batata Simples pequena', 'Batata frita tradicional.', 0, 25.00, 0.10, 'admin/uploads/produtos/prod_1765819261_9874.jpg', '', 1, 0, 0, 0, 0, NULL, 8, 2, 1),
-(50, 14, 'Água 500 ml', '', 0, 0.10, 0.99, 'admin/uploads/produtos/prod_1765819312_7205.jpg', '', 1, 0, 0, 0, 0, NULL, 8, 2, 1),
-(51, 18, 'Filé de Frango Grelhado', '', 3, 28.00, NULL, 'admin/uploads/produtos/prod_1765242390.jpg', NULL, 1, 0, 0, 0, 0, NULL, 8, 2, 1),
-(52, 12, 'pizza de calabresa', 'Calabresa', 0, 30.00, NULL, 'admin/uploads/produtos/prod_1765819351_4683.webp', NULL, 1, 0, 0, 0, 0, NULL, 8, 2, 1),
-(53, 12, 'pizza de frango', 'Frango temperado', 2, 20.00, NULL, 'admin/uploads/produtos/prod_1765819904_1474.jpg', NULL, 1, 0, 0, 0, 0, NULL, 8, 2, 1),
-(54, 12, 'Pizza de catupry', 'pizza', 3, 45.00, 39.00, 'admin/uploads/produtos/prod_1765819932_1585.jpg', NULL, 1, 0, 0, 0, 0, NULL, 8, 2, 1),
-(55, 12, 'Pizza Calabresa', '', 6, 200.00, NULL, 'admin/uploads/produtos/prod_1765735271_5000.png', NULL, 1, 0, 0, 0, 0, NULL, 8, 2, 1);
 
 -- --------------------------------------------------------
 
@@ -1245,10 +1178,9 @@ CREATE TABLE `usuarios` (
 --
 
 INSERT INTO `usuarios` (`id`, `nome`, `email`, `senha`, `nivel_acesso`, `ativo`, `ultimo_acesso`, `criado_em`, `api_token`) VALUES
-(1, 'Administrador', 'admin@admin.com', '$2y$10$Zyl.ekDhBCFbtSRnQbjzh.43fj/1OcFaNRnr6UNaUtw/Zj8x7tecC', 'admin', 1, '2025-12-22 16:08:37', '2025-10-29 14:39:49', 'f758339f069941adea2d99b51b3ab3c808f8f0f5a71d8f58380294f09f18eb10'),
-(7, 'Cozinha', 'cozinha@cozinha.com', '$2y$10$Gv7rRG73Sjrd8wE5GGOsCO3ncJUbyDA8LIBEELjsTlvp35hpCcUGC', 'cozinha', 1, NULL, '2025-11-10 00:17:50', NULL),
-(8, 'entregador', 'entregador@entregador.com', '$2y$10$Lt0UIAwXqxxBGam/Cnn9ZehE37IkxbjGv/ypmPReUtYoc8RU.PSTW', 'entregador', 1, '2025-12-13 14:18:21', '2025-11-10 00:19:54', NULL),
-(9, 'Dev Admin', 'dev@dev.com', '$2y$10$Aqr94m6Iq3m.ug42SCYq5.nuGkTwMzbe6jOjIIaBCaowVmkvhf4tO', 'admin', 1, NULL, '2025-12-08 11:16:15', NULL);
+(1, 'Administrador', 'admin@admin.com', '$2y$10$7NRG15J9rjaIyiGcuV50rOEgO/HbiYebigK4nmts36.6JwqCfTqrS', 'admin', 1, '2026-01-22 14:39:23', '2025-10-29 14:39:49', 'f758339f069941adea2d99b51b3ab3c808f8f0f5a71d8f58380294f09f18eb10'),
+(7, 'Cozinha', 'cozinha@cozinha.com', '$2y$10$2fOUfixx68EAJvojsNTr7eqoNVlaNQ7nw7mlegmI7hw32hAPyvymy', 'cozinha', 1, NULL, '2025-11-10 00:17:50', NULL),
+(8, 'entregador', 'entregador@entregador.com', '$2y$10$Lt0UIAwXqxxBGam/Cnn9ZehE37IkxbjGv/ypmPReUtYoc8RU.PSTW', 'entregador', 1, '2025-12-13 14:18:21', '2025-11-10 00:19:54', NULL);
 
 -- --------------------------------------------------------
 
@@ -1298,7 +1230,8 @@ INSERT INTO `verificacao_codigos` (`id`, `cliente_id`, `telefone`, `codigo`, `us
 (23, 21, '', '728111', 1, 0, 0, '2025-12-12 16:37:07', NULL, '2025-12-12 18:42:07', '2025-12-12 11:37:07'),
 (24, 22, '', '906266', 1, 0, 0, '2025-12-12 16:44:11', NULL, '2025-12-12 18:49:11', '2025-12-12 11:44:11'),
 (25, 23, '', '210928', 1, 0, 0, '2025-12-12 16:50:59', NULL, '2025-12-12 18:56:00', '2025-12-12 11:50:59'),
-(26, 24, '', '438108', 1, 0, 0, '2025-12-12 16:59:18', NULL, '2025-12-12 19:04:18', '2025-12-12 11:59:18');
+(26, 24, '', '438108', 1, 0, 0, '2025-12-12 16:59:18', NULL, '2025-12-12 19:04:18', '2025-12-12 11:59:18'),
+(27, 26, '', '799412', 1, 0, 0, '2026-01-22 16:10:15', NULL, '2026-01-22 18:15:16', '2026-01-22 11:10:15');
 
 -- --------------------------------------------------------
 
@@ -1371,7 +1304,7 @@ CREATE TABLE `whatsapp_config` (
 --
 
 INSERT INTO `whatsapp_config` (`id`, `api_url`, `api_token`, `instance_name`, `instance_key`, `qrcode`, `status`, `telefone`, `ativo`, `enviar_comprovante`, `enviar_status`, `enviar_link_acompanhamento`, `criado_em`, `atualizado_em`, `sistema_entregadores_ativo`, `popup_finalizacao_ativo`, `whatsapp_estabelecimento`, `usar_mercadopago`, `enviar_qrcode_whatsapp`, `webjs_api_url`, `webjs_admin_token`, `webjs_webhook_url`, `usar_webjs_api`, `webjs_enviar_comprovante`, `webjs_enviar_status`, `webjs_enviar_link_acompanhamento`, `webjs_session_uuid`, `webjs_status`, `webjs_last_qr`, `webjs_atualizado_em`, `tempo_preparo_padrao`, `tempo_entrega_padrao`, `base_url`, `apikey`, `notificar_status_pedido`) VALUES
-(1, 'https://suaapi.com', 'seutokenaqui', 'food_350599', NULL, NULL, 'connected', NULL, 1, 1, 1, 1, '2025-10-30 12:10:01', '2025-12-19 10:22:10', 1, 1, '11941731330', 1, 0, NULL, NULL, NULL, 1, 1, 1, 1, NULL, 'connected', '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', '2025-11-13 08:23:38', 40, 60, 'https://apievolution.clouddix.com.br', '4F79A1C9B8E1D3F0C7A99F031E8DAA94F1FCE4AB77A55F0C33EA51DEBB449AFA', 1);
+(1, 'https://suaapi.com', 'seutokenaqui', 'food_350599', NULL, NULL, 'connected', NULL, 1, 1, 1, 1, '2025-10-30 12:10:01', '2026-01-23 09:46:45', 1, 1, '11941731330', 1, 0, NULL, NULL, NULL, 1, 1, 1, 1, NULL, 'connected', 'iVBORw0KGgoAAAANSUhEUgAAARQAAAEUCAYAAADqcMl5AAAAAklEQVR4AewaftIAABKKSURBVO3BQY4YybLgQDJR978yR7vxVQCJjJL6P7iZ/cFaa13wsNZalzystdYlD2utdcnDWmtd8rDWWpc8rLXWJQ9rrXXJw1prXfKw1lqXPKy11iUPa611ycNaa13ysNZalzystdYlD2utdckPH6n8TRVvqEwVk8pUMalMFZPKScWk8kbFb1I5qZhUpoovVE4q3lA5qfhCZap4Q+WkYlL5myq+eFhrrUse1lrrkoe11rrkh8sqblJ5Q+VE5Y2KL1RuUvlNFZPKVHFTxaTyhspJxaRyUjGpTBWTylTxmypuUrnpYa21LnlYa61LHtZa65IffpnKGxVvqEwVb6jcVDGpTBWTylQxqUwVk8pJxYnKGypTxYnKVDGpnKicVEwqb1S8ofKGym9SeaPiNz2stdYlD2utdcnDWmtd8sP/GJWpYlKZKk5UblKZKk4q3qg4UXmj4g2VE5WTikllqjip+EJlqphUTlROKiaV/yUPa611ycNaa13ysNZal/zwP07lROWkYlKZKiaVN1SmiknlpGJSOamYVCaVLyomlZOKSeVEZaqYVKaKqWJSeaNiUpkqJpVJZar4X/Kw1lqXPKy11iUPa611yQ+/rOJfqjhRmSq+qDhROVE5qXijYlI5qXhDZVKZKiaVk4o3VKaKSeWk4kTlpoqbKv5LHtZa65KHtda65GGttS754TKVf6liUpkq3lCZKiaVqWJSmSomlaliUjlRmSomlaliUjlRmSpOKiaVqWJSmSomlanii4pJZao4qZhUvlCZKk5U/sse1lrrkoe11rrkYa21LrE/+D9M5YuKSWWqOFGZKiaVk4o3VE4qTlROKt5QmSpOVE4qTlSmiknlpOILlali/X8Pa611ycNaa13ysNZal9gffKAyVUwqN1W8ofI3VUwqU8WkMlWcqLxRcaLymyomlS8qTlSmikllqphUpooTlTcqJpWpYlK5qeI3Pay11iUPa611ycNaa13yw2UqU8WkclJxojJVTConFZPKScWkcqIyVdxU8YbKVDFVTCpfVJxUTConFZPKVHGi8kbFTRUnFZPKGxUnKn/Tw1prXfKw1lqXPKy11iU/fFQxqUwqU8WkMqmcVJxUnKhMFScqJxWTyhcqX1ScqHxR8YbKScVNFZPKVPGbKk5UpoqTihOVqWKqmFROKr54WGutSx7WWuuSh7XWuuSHX1ZxUjGpTBWTylRxk8rfVHGiMlWcqLxRMam8oTJVTBWTyk0qU8VUcaIyVZyovKEyVbyhMlX8lz2stdYlD2utdcnDWmtd8sMvUzmpOFH5TSpTxaQyVUwqf5PKVHFSMalMKlPFpDKpTBWTyhsqb1S8oXJSMalMFW+oTBWTyhcqU8WkclLxmx7WWuuSh7XWuuRhrbUu+eEfUzmpeENlqviiYlI5qZhUTiomlaliUjmpeKNiUnlDZap4Q+WkYlKZKiaVk4pJZao4qZhU3qg4UflNKicVXzystdYlD2utdcnDWmtdYn/wgcpUMalMFScqJxWTyhsVk8pUMamcVLyhMlVMKicVJyonFZPKVHGiMlXcpHJS8YbKVHGiMlVMKicVk8obFW+oTBUnKicVXzystdYlD2utdcnDWmtd8sNlKlPFpDJVTBVfVJyoTBWTylRxojJVfFExqbxRMalMKlPFpHJScaJyU8VNKlPFicpUcaLyhcpJxRcVk8pND2utdcnDWmtd8rDWWpf88FHFGxWTylQxqUwVJypTxVQxqUwVJypTxaRyUjGp3KQyVUwqN6lMFW+oTBUnKlPFpDJVfFFxojJVTConFScqk8pU8YbKVHHTw1prXfKw1lqXPKy11iU/fKRyUvFFxUnFicpJxaQyVZyonFR8UTGpnFRMKlPFpPKGylTxhsqJylQxVbyhclIxVZyonKhMFW+ofKEyVfxND2utdcnDWmtd8rDWWpf88FHFicpU8YbKVHGi8obKb1KZKk4qTireqJhUpopJZaqYVE5UTiomlaniRGWqeKPiROWNihOVqWJSOan4QmWqmFSmii8e1lrrkoe11rrkYa21LrE/+EDli4o3VE4q3lCZKk5U3qj4QuWLijdUTir+JZWTikllqphUflPFpPJGxaRyUnGiMlXc9LDWWpc8rLXWJQ9rrXXJD/+YyhsVb6i8oXJS8YXKScUXFScqU8VUMal8ofJFxVRxU8Wk8kXFGxWTyhsVk8pUMVX8poe11rrkYa21LnlYa61L7A8uUpkq3lCZKiaVk4pJ5YuKSeWk4g2Vk4o3VKaKSWWqmFSmihOVqeINlaniC5U3Kt5QmSomlaniC5U3Kk5UTiq+eFhrrUse1lrrkoe11rrE/uADlaniROVvqnhD5Y2KSWWqmFSmihOVNyomlaniC5WpYlKZKiaVmyomlaliUjmpOFE5qZhUvqiYVE4qTlROKr54WGutSx7WWuuSh7XWusT+4CKVqWJSOam4SeWkYlKZKiaV/5KKN1SmikllqphUpopJZaq4SeWkYlKZKiaVk4qbVG6qeENlqrjpYa21LnlYa61LHtZa6xL7g79I5aRiUnmj4kTlpGJSmSpOVE4qvlB5o+ILlaliUpkq3lA5qZhUpopJ5Y2KN1TeqHhDZaqYVKaKSWWqmFSmipse1lrrkoe11rrkYa21LrE/+EUqU8VNKicVJypfVJyoTBWTyhsVk8pJxaQyVUwqU8UbKlPFicpUcZPKFxUnKicVb6icVEwqU8WkMlX8poe11rrkYa21LnlYa61L7A8uUnmj4kRlqphUvqiYVKaKSeWmiknli4ovVKaKSeWk4guVqeJE5YuKSWWqeEPlpGJSmSq+UPmi4ouHtda65GGttS55WGutS+wPPlCZKiaVqeILlaniROWk4g2Vk4qbVKaKSWWqmFSmihOVk4pJ5Y2Km1T+pYoTlZOKL1Smin/pYa21LnlYa61LHtZa6xL7g4tUTiomlZsqJpWp4g2Vk4pJZaq4SWWqmFSmiknlX6qYVN6oOFE5qThR+aLiDZXfVDGpnFR88bDWWpc8rLXWJQ9rrXXJD5dVfFHxhsqk8obKScWJylQxqZxUvFExqZyoTBWTylTxhspJxaTyRsVvUjmpOFG5qeINlROVk4qbHtZa65KHtda65GGttS754SOVqWJSmSreUJkqTipOVL5QeaPiRGWqmFSmipOKSWVSeUNlqnhD5aTiRGWqmFS+qDhReUPlJpWp4o2KSWVSmSq+eFhrrUse1lrrkoe11rrkh8tUbqp4Q2WquKniC5U3Km6qmFROKv4mlaliUpkq3lA5qXij4kTli4o3Kk4qJpWbHtZa65KHtda65GGttS6xP/iLVP6liptUTiomlTcqJpU3Kk5Ubqo4UTmpmFSmijdUTiomlaliUjmpmFSmiknlpopJ5Y2KLx7WWuuSh7XWuuRhrbUusT/4P0RlqjhROamYVN6omFSmijdUpopJ5aRiUpkq3lD5ouINlaniROWNikllqjhRmSomlaniC5WTiknlpOI3Pay11iUPa611ycNaa13yw0cqU8WkMlVMKlPFpDJVTCpTxRsqJxU3qbyhcpPKVDGpTBUnKlPFpDJV/KaKNyomlaliqphUTlSmiknlC5Wp4kTlpOKLh7XWuuRhrbUueVhrrUt++Kjii4qTikllqnijYlKZKiaVqWJSmSomlaliUnmj4kTlDZUTlZOKSeUNlaniRGWqmFROKk4qJpWTihOVLypuqphUbnpYa61LHtZa65KHtda65Id/TOWNiknlDZUvVKaKSWWqOKmYVKaKSeWNikllqjhRmSq+UJkqTlSmiknlDZWTiqniROWkYlJ5Q+WNiknlb3pYa61LHtZa65KHtda65IfLVKaKk4o3VKaKN1ROVE4qJpWpYlI5qbip4g2Vk4pJ5aTiC5WpYlI5qZhUpopJ5W+qmFSmikllqjhRmSomld/0sNZalzystdYlD2utdckPH6l8oTJVTCpvqEwVJxU3qUwVJyonKm+ovFFxk8obFVPFpDJVTCqTylQxqbyhMlVMFW+oTBWTyhsqX1Tc9LDWWpc8rLXWJQ9rrXXJD79MZaqYKiaVqeILlaniv6TiC5WpYlL5QuWkYlKZKiaVSWWq+KJiUnlDZaqYVKaKSWWqmComlaliUplUpoo3KiaVqeKLh7XWuuRhrbUueVhrrUvsDy5SmSomlaliUvmbKk5UTireUJkqJpWTiknlb6p4Q+WNiv9LVKaKSeWmiknljYpJZar44mGttS55WGutSx7WWusS+4MPVN6o+ELljYpJ5aRiUpkqJpWp4kTlpOJEZar4QmWqmFSmikllqvhCZap4Q+WLihOVqWJSmSomlaliUpkqJpWp4r/kYa21LnlYa61LHtZa65IfflnFFyq/qeKLii8q3qj4QmWqmFSmiknlROWkYlKZKiaVNyq+UJkq3qiYVL5QmSpOVKaKE5Wp4ouHtda65GGttS55WGutS+wPPlC5qeILlZOKSeWkYlJ5o+ImlaliUvmiYlKZKt5QmSomlTcqJpWTiknlpGJSmSreUJkqJpWp4jepnFR88bDWWpc8rLXWJQ9rrXWJ/cEvUpkqTlT+pYovVKaKSWWqmFTeqJhUpoo3VE4qJpWbKiaVk4o3VKaKSeWLihOVLyomlZsqvnhYa61LHtZa65KHtda6xP7gA5Wp4g2Vk4o3VN6omFROKt5QOak4UZkqJpXfVPGFylRxonJScaIyVZyoTBWTylQxqZxUnKhMFZPKVHGiclLxmx7WWuuSh7XWuuRhrbUusT+4SOWNiknlpGJSmSomlaniC5UvKk5UpooTlaniJpWpYlI5qZhUTipOVKaKE5UvKiaVLyomlf+Sii8e1lrrkoe11rrkYa21LvnhP65iUpkqblKZKqaKSWWqmFQmlZOKSeULlaliUnlDZaqYVCaVk4pJZar4ouJE5YuKN1S+qLhJ5aaHtda65GGttS55WGutS+wPPlCZKr5Q+aLiRGWqmFROKk5UpopJ5Y2KSeWNii9U3qiYVKaKSeWNii9UpooTlb+p4kTlpOJfelhrrUse1lrrkoe11rrE/uAvUpkqJpWp4kRlqphU3qh4Q+WLiknli4pJZaqYVG6qOFE5qXhD5Y2KSWWq+EJlqjhReaPiv+xhrbUueVhrrUse1lrrEvuDX6TymyomlaliUnmjYlI5qfibVL6oeENlqphUpopJZaqYVN6oOFGZKk5UpopJ5aRiUjmpOFE5qXhD5aTii4e11rrkYa21LnlYa61LfvhI5Y2KSWWqOFH5omJSmSomlaniROWLikllqjipmFSmiknljYqTii8qTlQmlZOKNyomlZOKSWWqmFQmlaliqphUTlSmiqliUrnpYa21LnlYa61LHtZa6xL7gw9Uvqg4UXmjYlI5qZhU3qiYVE4qJpU3Kk5UpopJ5TdVnKi8UTGpTBWTylQxqUwVX6hMFScqv6liUpkqftPDWmtd8rDWWpc8rLXWJfYH/4epvFExqUwVJyonFScqJxWTyk0Vk8pU8YbKScWkMlXcpHJS8YXKVDGpTBUnKlPFGypTxYnKVHHTw1prXfKw1lqXPKy11iU/fKTyN1VMFScqk8pUcaLyhsobFScVk8obFV+oTBUnFZPKVDGp/KaKSeWNihOVE5UvVKaKLyomlanii4e11rrkYa21LnlYa61Lfris4iaVE5Wp4qRiUnmj4g2VqWJSmSomlaliUjlR+aLiJpWTikllqnhD5aRiUplUTipOVL6oeENlqphUpoqbHtZa65KHtda65GGttS754ZepvFHxhcoXFZPKpDJVfFExqUwVk8obFZPKicpNFScqk8pUMalMFW9UfFExqUwVU8WJyqTyRcWkMlVMKlPFFw9rrXXJw1prXfKw1lqX/PA/pmJSmVS+qDhR+aJiUvlC5aRiUnmjYlKZKiaVk4qTihOVE5WpYqo4UflCZao4UTmpmFT+pYe11rrkYa21LnlYa61LfvgfV/FFxYnKVDGpfFExqUwVb6hMKlPFFxWTylQxqUwqb1RMFZPKVHGiclIxqUwqJxVvVEwq/2UPa611ycNaa13ysNZal/zwyyp+U8WJylQxqUwVk8pU8YXKScUbKicVU8WkMqmcVLxRMal8UTGpnFRMKicVN1W8ofKGylTxLz2stdYlD2utdcnDWmtd8sNlKn+TyhsqU8WkMlVMKjdVTCpfVLxRMamcqEwVk8pvUpkqvqiYVG5SmSpOKiaVk4pJ5V96WGutSx7WWuuSh7XWusT+YK21LnhYa61LHtZa65KHtda65GGttS55WGutSx7WWuuSh7XWuuRhrbUueVhrrUse1lrrkoe11rrkYa21LnlYa61LHtZa65KHtda65P8B3AXWg/IXGwIAAAAASUVORK5CYII=', '2025-11-13 08:23:38', 40, 60, 'https://apievolution.com', '4F79A1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 1);
 
 -- --------------------------------------------------------
 
@@ -1672,7 +1605,48 @@ INSERT INTO `whatsapp_logs` (`id`, `pedido_id`, `cliente_telefone`, `tipo_mensag
 (411, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0A8C2267937D6D1AAE6\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"📦 PEDIDO FINALIZADO!\\r\\nOlá, Thiago Barbosa da Silva de Oliveira Thiago! \\r\\n📋 Pedido: #C5057DFC\\r\\n💰 Total: R$ 41,50\\r\\n✅ Seu pedido foi concluído com sucesso!\\r\\n⭐ Avalie sua experiência:\\r\\nhttps://devpedimais.hgmark.shop/avaliar_pedido.php?token=690197904021ce82b405c19e96a8b8fa\\r\\nAté a próxima! 🙏\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1765648056,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1765820858,\"instanceId\":\"2131d7ce-a8e9-4710-8c7c-6d76d3f657dd\",\"source\":\"web\"}', NULL, '2025-12-15 12:47:38'),
 (412, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0EE2182EF7D2D9F76BF\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"⭐ Avalie seu pedido:\\nhttps://devpedimais.hgmark.shop/avaliar_pedido.php?token=690197904021ce82b405c19e96a8b8fa\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1765648061,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1765820863,\"instanceId\":\"2131d7ce-a8e9-4710-8c7c-6d76d3f657dd\",\"source\":\"web\"}', NULL, '2025-12-15 12:47:43'),
 (413, NULL, '5511932261834', '', '', 'erro', '{\"status\":404,\"error\":\"Not Found\",\"response\":{\"message\":[\"The \\\"cardapix_693729c3aebf9\\\" instance does not exist\"]}}', 'HTTP 404: {\"status\":404,\"error\":\"Not Found\",\"response\":{\"message\":[\"The \\\"cardapix_693729c3aebf9\\\" instance does not exist\"]}}', '2025-12-19 10:19:45'),
-(414, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB09D53F83C079E1A9156\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"✅ *PEDIDO PRONTO*\\r\\n\\r\\n📋 *Pedido:* #55AA1E9D\\r\\n\\r\\n{mensagem_pronto}\\r\\n\\r\\nObrigado pela preferência! 🎉\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1765984959,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1766157759,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2025-12-19 10:22:40');
+(414, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB09D53F83C079E1A9156\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"✅ *PEDIDO PRONTO*\\r\\n\\r\\n📋 *Pedido:* #55AA1E9D\\r\\n\\r\\n{mensagem_pronto}\\r\\n\\r\\nObrigado pela preferência! 🎉\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1765984959,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1766157759,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2025-12-19 10:22:40'),
+(415, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB06B2BDDBC2E7696E2EC\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🎉 *Pedido Confirmado!*\\n\\nOlá, Thiago Barbosa da Silva de Oliveira Thiago!\\n\\nSeu pedido *#8523E340* foi recebido com sucesso!\\n\\n📦 *Tipo:* 🛵 Delivery\\n💰 *Total:* R$ 15,10\\n\\nVocê receberá atualizações sobre o status do seu pedido.\\n\\nObrigado pela preferência! 😊\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1766760738,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1766933538,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2025-12-28 09:52:18'),
+(416, NULL, '5511941731330', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511941731330@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0CC1D5101380CF5B106\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔔 *NOVO PEDIDO!*\\n\\n📋 *Pedido:* #8523E340\\n👤 *Cliente:* Thiago Barbosa da Silva de Oliveira Thiago\\n📦 *Tipo:* Delivery\\n💰 *Total:* R$ 15,10\\n\\nAcesse o painel para mais detalhes.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1766760740,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1766933540,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2025-12-28 09:52:21'),
+(417, NULL, '5511941731330', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511941731330@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0A20DC2B1DB8C908ECA\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔐 *RECUPERAÇÃO DE SENHA*\\n\\n📧 *E-mail:* admin@admin.com\\n👤 *Usuário:* Administrador\\n\\n🔑 *Nova Senha:* bAYtnJeQ\\n\\n⚠️ Recomendamos alterar esta senha após o login.\\n\\nAcesse o painel administrativo para entrar.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1766762484,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1766935284,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2025-12-28 10:21:24'),
+(418, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0900CEC9C5A1A090EA8\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔐 *RECUPERAÇÃO DE SENHA*\\n\\nOlá, Thiago Barbosa da Silva de Oliveira Thiago! 👋\\n\\nSua nova senha é: *KiugTYZF*\\n\\n⚠️ Recomendamos alterar esta senha após o login.\\n\\nObrigado! 🙏\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1766762810,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1766935610,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2025-12-28 10:26:50'),
+(419, NULL, '5511941731330', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511941731330@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0EB3B2D53A29CCE9CBB\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔐 *RECUPERAÇÃO DE SENHA*\\n\\n📧 *E-mail:* admin@admin.com\\n👤 *Usuário:* Administrador\\n\\n🔑 *Nova Senha:* Fcytc5ni\\n\\n⚠️ Recomendamos alterar esta senha após o login.\\n\\nAcesse o painel administrativo para entrar.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1766763481,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1766936281,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2025-12-28 10:38:02'),
+(420, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0938FBEA98D9905D960\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔐 *RECUPERAÇÃO DE SENHA*\\n\\nOlá, Thiago Barbosa da Silva de Oliveira Thiago! 👋\\n\\nSua nova senha é: *q6blRIUo*\\n\\n⚠️ Recomendamos alterar esta senha após o login.\\n\\nObrigado! 🙏\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1766763734,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1766936534,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2025-12-28 10:42:15'),
+(421, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB028532C894512892145\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔐 *RECUPERAÇÃO DE SENHA*\\n\\nOlá, Thiago Barbosa da Silva de Oliveira Thiago! 👋\\n\\nSua nova senha é: *0qHLlVZ2*\\n\\n⚠️ Recomendamos alterar esta senha após o login.\\n\\nObrigado! 🙏\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1766764100,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1766936900,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2025-12-28 10:48:20'),
+(422, NULL, '5511941731330', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511941731330@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0D4103E3828DF65D332\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔐 *RECUPERAÇÃO DE SENHA*\\n\\n📧 *E-mail:* admin@admin.com\\n👤 *Usuário:* Administrador\\n\\n🔑 *Nova Senha:* HAb7W1wQ\\n\\n⚠️ Recomendamos alterar esta senha após o login.\\n\\nAcesse o painel administrativo para entrar.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1767975028,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1768147828,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-11 11:10:29'),
+(423, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0888253C0EF09626859\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"Olá teste, Thiago Barbosa da Silva de Oliveira! Recebemos o seu pedido e estamos aguardando o pagamento 😃.\\r\\n\\r\\nVocê tem 30 minutos para pagar o valor de R$ 144,50 usando o Pix Copia e Cola ou o QR Code abaixo. Após esse prazo, o pedido será cancelado automaticamente.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768871397,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769044197,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 20:09:58'),
+(424, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0C16336FF4D8EF84A1C\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"00020126360014br.gov.bcb.pix0114+55119322618345204000053039865406144.505802BR5907HGMARKS6015Pirapora do Bom62250521mpqrinter1430128907226304E792\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768871401,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769044201,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 20:10:01'),
+(425, NULL, '5511941731330', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511941731330@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB075FEA1680F04D357E6\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔔 *NOVO PEDIDO!*\\n\\n📋 *Pedido:* #BB915E75\\n👤 *Cliente:* Thiago Barbosa da Silva de Oliveira\\n📦 *Tipo:* Delivery\\n💰 *Total:* R$ 144,50\\n\\nAcesse o painel para mais detalhes.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768871403,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769044203,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 20:10:04'),
+(426, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB00D8150AC0DCC506339\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🎉 *Pedido Confirmado!*\\n\\nOlá, Thiago Barbosa da Silva de Oliveira!\\n\\nSeu pedido *#4D79F367* foi recebido com sucesso!\\n\\n📦 *Tipo:* 🛵 Delivery\\n💰 *Total:* R$ 0,10\\n\\nVocê receberá atualizações sobre o status do seu pedido.\\n\\nObrigado pela preferência! 😊\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768875454,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769048254,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 21:17:35'),
+(427, NULL, '5511941731330', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511941731330@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB03359CA41214824B938\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔔 *NOVO PEDIDO!*\\n\\n📋 *Pedido:* #4D79F367\\n👤 *Cliente:* Thiago Barbosa da Silva de Oliveira\\n📦 *Tipo:* Delivery\\n💰 *Total:* R$ 0,10\\n\\nAcesse o painel para mais detalhes.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768875457,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769048257,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 21:17:37'),
+(428, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB029EED14026914960D8\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"Olá teste, Thiago Barbosa da Silva de Oliveira! Recebemos o seu pedido e estamos aguardando o pagamento 😃.\\r\\n\\r\\nVocê tem 30 minutos para pagar o valor de R$ 7,10 usando o Pix Copia e Cola ou o QR Code abaixo. Após esse prazo, o pedido será cancelado automaticamente.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768875709,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769048509,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 21:21:50'),
+(429, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0315D4DF47C030E75F3\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"00020126360014br.gov.bcb.pix0114+551193226183452040000530398654047.105802BR5907HGMARKS6015Pirapora do Bom62250521mpqrinter143018472982630458A7\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768875713,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769048513,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 21:21:53'),
+(430, NULL, '5511941731330', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511941731330@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0A09767C3647A877AB3\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔔 *NOVO PEDIDO!*\\n\\n📋 *Pedido:* #9C854DE9\\n👤 *Cliente:* Thiago Barbosa da Silva de Oliveira\\n📦 *Tipo:* Delivery\\n💰 *Total:* R$ 7,10\\n\\nAcesse o painel para mais detalhes.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768875715,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769048515,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 21:21:55'),
+(431, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0AD3608046A060639EA\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🎉 *Pedido Confirmado!*\\n\\nOlá, Thiago Barbosa da Silva de Oliveira!\\n\\nSeu pedido *#34EEA222* foi recebido com sucesso!\\n\\n📦 *Tipo:* 🏪 Retirada no balcão\\n💰 *Total:* R$ 0,10\\n\\nVocê receberá atualizações sobre o status do seu pedido.\\n\\nObrigado pela preferência! 😊\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768876234,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769049034,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 21:30:35'),
+(432, NULL, '5511941731330', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511941731330@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0B0DA204FE06EA4A2BE\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔔 *NOVO PEDIDO!*\\n\\n📋 *Pedido:* #34EEA222\\n👤 *Cliente:* Thiago Barbosa da Silva de Oliveira\\n📦 *Tipo:* Retirada\\n💰 *Total:* R$ 0,10\\n\\nAcesse o painel para mais detalhes.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768876237,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769049037,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 21:30:37'),
+(433, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB08016CEDB5B03DD40F3\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🎉 *Pedido Confirmado!*\\n\\nOlá, Thiago Barbosa da Silva de Oliveira!\\n\\nSeu pedido *#9CD7595C* foi recebido com sucesso!\\n\\n📦 *Tipo:* 🏪 Retirada no balcão\\n💰 *Total:* R$ 0,10\\n\\nVocê receberá atualizações sobre o status do seu pedido.\\n\\nObrigado pela preferência! 😊\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768876969,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769049769,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 21:42:50'),
+(434, NULL, '5511941731330', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511941731330@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0725428459043041B4E\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔔 *NOVO PEDIDO!*\\n\\n📋 *Pedido:* #9CD7595C\\n👤 *Cliente:* Thiago Barbosa da Silva de Oliveira\\n📦 *Tipo:* Retirada\\n💰 *Total:* R$ 0,10\\n\\nAcesse o painel para mais detalhes.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768876971,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769049771,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 21:42:52'),
+(435, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB01618496861DB5EEC1F\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🎉 *Pedido Confirmado!*\\n\\nOlá, Thiago Barbosa da Silva de Oliveira!\\n\\nSeu pedido *#009E3794* foi recebido com sucesso!\\n\\n📦 *Tipo:* 🛵 Delivery\\n💰 *Total:* R$ 41,50\\n\\nVocê receberá atualizações sobre o status do seu pedido.\\n\\nObrigado pela preferência! 😊\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768877616,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769050416,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 21:53:36'),
+(436, NULL, '5511941731330', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511941731330@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0AE2D905F9CB38F3A2C\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔔 *NOVO PEDIDO!*\\n\\n📋 *Pedido:* #009E3794\\n👤 *Cliente:* Thiago Barbosa da Silva de Oliveira\\n📦 *Tipo:* Delivery\\n💰 *Total:* R$ 41,50\\n\\nAcesse o painel para mais detalhes.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768877618,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769050418,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 21:53:39'),
+(437, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0C8AED83BCB3EE38D3D\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"Olá teste, Thiago Barbosa da Silva de Oliveira! Recebemos o seu pedido e estamos aguardando o pagamento 😃.\\r\\n\\r\\nVocê tem 30 minutos para pagar o valor de R$ 0,10 usando o Pix Copia e Cola ou o QR Code abaixo. Após esse prazo, o pedido será cancelado automaticamente.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768877759,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769050559,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 21:56:00'),
+(438, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0E2623F37FF12878031\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"00020126980014br.gov.bcb.pix0136fa87fa30-a47e-4277-b899-12839d30d8ca0236Pedido #1AC757BE - Thiago Barbosa da52040000530398654040.105802BR5925Thiago Barbosa da Silva d6015Pirapora do Bom62290525THIAGOBA00000584865669ASA6304144D\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768877763,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769050563,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 21:56:03'),
+(439, NULL, '5511941731330', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511941731330@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB06201D742A21EEE90A3\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔔 *NOVO PEDIDO!*\\n\\n📋 *Pedido:* #1AC757BE\\n👤 *Cliente:* Thiago Barbosa da Silva de Oliveira\\n📦 *Tipo:* Retirada\\n💰 *Total:* R$ 0,10\\n\\nAcesse o painel para mais detalhes.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768877765,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769050565,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 21:56:05'),
+(440, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB05241D7287CD99EF33B\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🎉 O pagamento do seu pedido foi confirmado! Em breve vamos iniciar a preparação e manter você atualizado(a).\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768878282,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769051082,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 22:04:43'),
+(441, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB01852DBC593295CFF79\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"✅ *PEDIDO PRONTO*\\r\\n\\r\\n📋 *Pedido:* #1AC757BE\\r\\n\\r\\n{mensagem_pronto}\\r\\n\\r\\nObrigado pela preferência! 🎉\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768878469,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769051269,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 22:07:50'),
+(442, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0374DAFA80A0C2DAA5F\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🎉 *PEDIDO ENTREGUE*\\r\\n\\r\\n📋 *Pedido:* #1AC757BE\\r\\n\\r\\nEsperamos que tenha gostado!\\r\\n\\r\\nSua opinião é muito importante para nós.\\r\\nAvalie nosso atendimento! ⭐⭐⭐⭐⭐\\r\\n\\r\\nVolte sempre! 😊\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768878482,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769051282,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 22:08:03'),
+(443, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB015C5F6B0B502BCC6D5\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"📦 PEDIDO FINALIZADO!\\r\\nOlá, Thiago Barbosa da Silva de Oliveira! \\r\\n📋 Pedido: #1AC757BE\\r\\n💰 Total: R$ 0,10\\r\\n✅ Seu pedido foi concluído com sucesso!\\r\\n⭐ Avalie sua experiência:\\r\\n\\r\\nAté a próxima! 🙏\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768878674,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769051474,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 22:11:14'),
+(444, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB00DA81F1148A19D7D9C\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"⭐ Avalie seu pedido:\\nhttp://localhost:8000/avaliar_pedido.php?token=23adb07c9b803789613e58e0be35dca5\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768878677,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769051477,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-21 22:11:18'),
+(445, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0ED8A58240187CA2C2C\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔐 *Código de Verificação*\\n\\nSeu código de verificação é: *799412*\\n\\nEste código expira em 5 minutos.\\nDigite este código para finalizar seu primeiro pedido.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768925417,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769098217,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-22 11:10:18');
+INSERT INTO `whatsapp_logs` (`id`, `pedido_id`, `cliente_telefone`, `tipo_mensagem`, `mensagem`, `status`, `resposta_api`, `erro`, `enviado_em`) VALUES
+(446, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0CEE314E19FAAE605C4\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🎉 *Pedido Confirmado!*\\n\\nOlá, Thiago Barbosa da Silva de Oliveira!\\n\\nSeu pedido *#1BDC4A33* foi recebido com sucesso!\\n\\n📦 *Tipo:* 🛵 Delivery\\n💰 *Total:* R$ 5,10\\n\\nVocê receberá atualizações sobre o status do seu pedido.\\n\\nObrigado pela preferência! 😊\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768925435,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769098235,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-22 11:10:35'),
+(447, NULL, '5511941731330', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511941731330@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0D13728CDEE311D83C3\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔔 *NOVO PEDIDO!*\\n\\n📋 *Pedido:* #1BDC4A33\\n👤 *Cliente:* Thiago Barbosa da Silva de Oliveira\\n📦 *Tipo:* Delivery\\n💰 *Total:* R$ 5,10\\n\\nAcesse o painel para mais detalhes.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768925437,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769098237,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-22 11:10:38'),
+(448, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB05FCF06D0D30F8D80F7\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🎉 *Pedido Confirmado!*\\n\\nOlá, Thiago Barbosa da Silva de Oliveira!\\n\\nSeu pedido *#C5839313* foi recebido com sucesso!\\n\\n📦 *Tipo:* 🏪 Retirada no balcão\\n💰 *Total:* R$ 0,50\\n\\nVocê receberá atualizações sobre o status do seu pedido.\\n\\nObrigado pela preferência! 😊\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768925771,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769098571,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-22 11:16:11'),
+(449, NULL, '5511941731330', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511941731330@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB09E40897A7DF660606F\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🔔 *NOVO PEDIDO!*\\n\\n📋 *Pedido:* #C5839313\\n👤 *Cliente:* Thiago Barbosa da Silva de Oliveira\\n📦 *Tipo:* Retirada\\n💰 *Total:* R$ 0,50\\n\\nAcesse o painel para mais detalhes.\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768925773,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769098573,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-22 11:16:14'),
+(450, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB09D73DDC57C4E2C902C\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"👨‍🍳 *PEDIDO EM PREPARO*\\r\\n\\r\\n📋 *Pedido:* #1BDC4A33\\r\\n\\r\\nSua refeição está sendo preparada com muito carinho!\\r\\n\\r\\n⏱️ Tempo estimado: 40 minutos\\r\\n\\r\\nAguarde mais um pouco! 😋\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768925868,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769098668,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-22 11:17:49'),
+(451, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB010B49766341CD5D8C2\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🛵 *Thiago Barbosa da Silva de Oliveira*, seu pedido acabou de sair para entrega!\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768926163,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769098963,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-22 11:22:43'),
+(452, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB008EE0C767D138C6CCF\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"🎉 *PEDIDO ENTREGUE*\\r\\n\\r\\n📋 *Pedido:* #1BDC4A33\\r\\n\\r\\nEsperamos que tenha gostado!\\r\\n\\r\\nSua opinião é muito importante para nós.\\r\\nAvalie nosso atendimento! ⭐⭐⭐⭐⭐\\r\\n\\r\\nVolte sempre! 😊\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768926188,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769098988,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-22 11:23:09'),
+(453, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0E857985880E862D7B0\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"📦 PEDIDO FINALIZADO!\\r\\nOlá, Thiago Barbosa da Silva de Oliveira! \\r\\n📋 Pedido: #1BDC4A33\\r\\n💰 Total: R$ 5,10\\r\\n✅ Seu pedido foi concluído com sucesso!\\r\\n⭐ Avalie sua experiência:\\r\\n\\r\\nAté a próxima! 🙏\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768926201,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769099001,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-22 11:23:21'),
+(454, NULL, '5511932261834', '', '', 'enviado', '{\"key\":{\"remoteJid\":\"5511932261834@s.whatsapp.net\",\"fromMe\":true,\"id\":\"3EB0A2FFA6D3C84C4B0C63\"},\"pushName\":\"Você\",\"status\":\"PENDING\",\"message\":{\"conversation\":\"⭐ Avalie seu pedido:\\nhttp://localhost:8000/avaliar_pedido.php?token=5f6012d13cc1b1fff6fadb7dd12bcc77\"},\"contextInfo\":{\"mentionedJid\":[],\"groupMentions\":[],\"ephemeralSettingTimestamp\":{\"low\":1768926204,\"high\":0,\"unsigned\":false},\"disappearingMode\":{\"initiator\":0}},\"messageType\":\"conversation\",\"messageTimestamp\":1769099004,\"instanceId\":\"a421d811-747e-456a-b02c-9c074134da9b\",\"source\":\"web\"}', NULL, '2026-01-22 11:23:25');
 
 -- --------------------------------------------------------
 
@@ -1710,7 +1684,7 @@ INSERT INTO `whatsapp_mensagens` (`id`, `tipo`, `titulo`, `mensagem`, `ativo`, `
 (12, 'status_finalizado', 'Pedido Concluído/Finalizado', '📦 PEDIDO FINALIZADO!\r\nOlá, {nome}! \r\n📋 Pedido: #{codigo_pedido}\r\n💰 Total: R$ {total}\r\n✅ Seu pedido foi concluído com sucesso!\r\n⭐ Avalie sua experiência:\r\n\r\nAté a próxima! 🙏', 1, 0, '2025-12-12 22:18:30', '2025-12-15 12:50:40'),
 (45, 'status_cancelado_pix_expirado', 'Cancelado: PIX Expirado', '❌ *PEDIDO CANCELADO POR FALTA DE PAGAMENTO*\n\n📋 *Pedido:* #{codigo_pedido}\n\n{motivo_cancelamento}\n\nSe ainda desejar, faça um novo pedido quando estiver pronto. Estamos à disposição! 😊', 1, 15, '2025-10-31 12:44:49', NULL),
 (46, 'confirmacao_pedido', 'Confirmação do Pedido', '✅ *Pedido confirmado!*\r\n\r\nOlá, {nome}! 👋\r\nRecebemos o seu pedido.\r\n\r\n💰 Total: {total}\r\n\r\nAssim que estiver em preparo avisaremos por aqui. Obrigado pela preferência! 🙏', 1, 5, '2025-11-09 23:49:48', '2025-11-10 00:01:10'),
-(149, 'aguardando_pagamento', 'Aguardando Pagamento PIX', 'Olá teste, {nome}! Recebemos o seu pedido e estamos aguardando o pagamento 😃.\r\n\r\nVocê tem {minutos} minutos para pagar o valor de R$ {valor} usando o Pix Copia e Cola ou o QR Code abaixo. Após esse prazo, o pedido será cancelado automaticamente.', 1, 0, '2025-12-08 11:00:22', '2025-12-08 15:36:59'),
+(149, 'aguardando_pagamento', 'Aguardando Pagamento PIX', 'Olá teste, {nome}! Recebemos o seu pedido e estamos aguardando o pagamento 😃.\r\n\r\nVocê tem {minutos} minutos para pagar o valor de R$ {valor} usando o Pix Copia e Cola ou o QR Code abaixo. Após esse prazo, o pedido será cancelado automaticamente.', 1, 0, '2025-12-08 11:00:22', '2026-01-21 21:19:44'),
 (150, 'pagamento_recebido', 'Pagamento Recebido', '🎉 O pagamento do seu pedido foi confirmado! Em breve vamos iniciar a preparação e manter você atualizado(a).', 1, 0, '2025-12-08 11:00:23', NULL);
 
 -- --------------------------------------------------------
@@ -1809,6 +1783,25 @@ INSERT INTO `whatsapp_web_instances` (`id`, `session_uuid`, `session_name`, `dis
 --
 -- Índices para tabelas despejadas
 --
+
+--
+-- Índices de tabela `ai_config`
+--
+ALTER TABLE `ai_config`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Índices de tabela `asaas_config`
+--
+ALTER TABLE `asaas_config`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Índices de tabela `asaas_pagamentos`
+--
+ALTER TABLE `asaas_pagamentos`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `pedido_id` (`pedido_id`);
 
 --
 -- Índices de tabela `avaliacoes`
@@ -1990,6 +1983,18 @@ ALTER TABLE `fidelidade_resgate_itens`
 -- Índices de tabela `formas_pagamento`
 --
 ALTER TABLE `formas_pagamento`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Índices de tabela `gateway_settings`
+--
+ALTER TABLE `gateway_settings`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Índices de tabela `gemini_config`
+--
+ALTER TABLE `gemini_config`
   ADD PRIMARY KEY (`id`);
 
 --
@@ -2225,10 +2230,16 @@ ALTER TABLE `whatsapp_web_instances`
 --
 
 --
+-- AUTO_INCREMENT de tabela `asaas_pagamentos`
+--
+ALTER TABLE `asaas_pagamentos`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
 -- AUTO_INCREMENT de tabela `avaliacoes`
 --
 ALTER TABLE `avaliacoes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT de tabela `bairros`
@@ -2258,7 +2269,7 @@ ALTER TABLE `cardapio_cores`
 -- AUTO_INCREMENT de tabela `categorias`
 --
 ALTER TABLE `categorias`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
 -- AUTO_INCREMENT de tabela `cidades`
@@ -2276,7 +2287,7 @@ ALTER TABLE `cidades_entrega`
 -- AUTO_INCREMENT de tabela `clientes`
 --
 ALTER TABLE `clientes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 
 --
 -- AUTO_INCREMENT de tabela `clientes_verificados`
@@ -2348,25 +2359,25 @@ ALTER TABLE `fidelidade_config`
 -- AUTO_INCREMENT de tabela `fidelidade_pontos`
 --
 ALTER TABLE `fidelidade_pontos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT de tabela `fidelidade_produtos`
 --
 ALTER TABLE `fidelidade_produtos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT de tabela `fidelidade_resgates`
 --
 ALTER TABLE `fidelidade_resgates`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de tabela `fidelidade_resgate_itens`
 --
 ALTER TABLE `fidelidade_resgate_itens`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de tabela `formas_pagamento`
@@ -2414,7 +2425,7 @@ ALTER TABLE `mercadopago_mensagens`
 -- AUTO_INCREMENT de tabela `mercadopago_pagamentos`
 --
 ALTER TABLE `mercadopago_pagamentos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=66;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=68;
 
 --
 -- AUTO_INCREMENT de tabela `mesas`
@@ -2426,19 +2437,19 @@ ALTER TABLE `mesas`
 -- AUTO_INCREMENT de tabela `opcoes`
 --
 ALTER TABLE `opcoes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
 
 --
 -- AUTO_INCREMENT de tabela `pedidos`
 --
 ALTER TABLE `pedidos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de tabela `pedido_item_adicionais`
 --
 ALTER TABLE `pedido_item_adicionais`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- AUTO_INCREMENT de tabela `pedido_item_opcoes`
@@ -2450,7 +2461,7 @@ ALTER TABLE `pedido_item_opcoes`
 -- AUTO_INCREMENT de tabela `pedido_itens`
 --
 ALTER TABLE `pedido_itens`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=75;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=86;
 
 --
 -- AUTO_INCREMENT de tabela `pizza_relacionamentos`
@@ -2462,7 +2473,7 @@ ALTER TABLE `pizza_relacionamentos`
 -- AUTO_INCREMENT de tabela `produtos`
 --
 ALTER TABLE `produtos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=56;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=83;
 
 --
 -- AUTO_INCREMENT de tabela `produto_adicionais`
@@ -2504,7 +2515,7 @@ ALTER TABLE `usuarios`
 -- AUTO_INCREMENT de tabela `verificacao_codigos`
 --
 ALTER TABLE `verificacao_codigos`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
 
 --
 -- AUTO_INCREMENT de tabela `verificacao_config`
@@ -2522,7 +2533,7 @@ ALTER TABLE `whatsapp_config`
 -- AUTO_INCREMENT de tabela `whatsapp_logs`
 --
 ALTER TABLE `whatsapp_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=415;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=455;
 
 --
 -- AUTO_INCREMENT de tabela `whatsapp_mensagens`
@@ -2551,6 +2562,12 @@ ALTER TABLE `whatsapp_web_instances`
 --
 -- Restrições para tabelas despejadas
 --
+
+--
+-- Restrições para tabelas `asaas_pagamentos`
+--
+ALTER TABLE `asaas_pagamentos`
+  ADD CONSTRAINT `fk_asaas_pedido` FOREIGN KEY (`pedido_id`) REFERENCES `pedidos` (`id`) ON DELETE CASCADE;
 
 --
 -- Restrições para tabelas `bairros`

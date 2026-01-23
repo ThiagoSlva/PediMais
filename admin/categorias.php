@@ -35,14 +35,39 @@ $config_pizza = $config_pizza_stmt->fetch(PDO::FETCH_ASSOC);
 // Ações
 if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])) {
     $id = (int)$_GET['id'];
-    // Validar token se necessário, por enquanto vamos confiar na sessão de admin
-    $stmt = $pdo->prepare("DELETE FROM categorias WHERE id = ?");
-    if ($stmt->execute([$id])) {
-        $msg = 'Categoria excluída com sucesso!';
-        $msg_type = 'success';
+    
+    // Verificar se há produtos desta categoria com itens de pedido vinculados
+    $stmt_check = $pdo->prepare("
+        SELECT COUNT(*) as total 
+        FROM produtos p 
+        INNER JOIN pedido_itens pi ON pi.produto_id = p.id 
+        WHERE p.categoria_id = ?
+    ");
+    $stmt_check->execute([$id]);
+    $has_orders = $stmt_check->fetch(PDO::FETCH_ASSOC)['total'] > 0;
+    
+    if ($has_orders) {
+        $msg = 'Não é possível excluir esta categoria. Ela possui produtos que fazem parte de pedidos. Você pode desativá-la em vez de excluí-la.';
+        $msg_type = 'warning';
     } else {
-        $msg = 'Erro ao excluir categoria.';
-        $msg_type = 'danger';
+        try {
+            // Primeiro excluir produtos da categoria (se não houver pedidos)
+            $stmt_produtos = $pdo->prepare("DELETE FROM produtos WHERE categoria_id = ?");
+            $stmt_produtos->execute([$id]);
+            
+            // Depois excluir a categoria
+            $stmt = $pdo->prepare("DELETE FROM categorias WHERE id = ?");
+            if ($stmt->execute([$id])) {
+                $msg = 'Categoria e seus produtos excluídos com sucesso!';
+                $msg_type = 'success';
+            } else {
+                $msg = 'Erro ao excluir categoria.';
+                $msg_type = 'danger';
+            }
+        } catch (PDOException $e) {
+            $msg = 'Erro ao excluir categoria. Verifique se não há dados vinculados.';
+            $msg_type = 'danger';
+        }
     }
 }
 

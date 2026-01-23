@@ -16,15 +16,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_POST['csrf_token']) && $_POST['csrf_token'] === $_SESSION['csrf_token']) {
             try {
                 // Verificar se tem permissão (opcional, aqui assumimos admin)
-                $pdo->exec("TRUNCATE TABLE clientes");
-                // Opcional: Limpar pedidos associados ou manter como histórico desconectado?
-                // Por segurança, geralmente não se deleta pedidos ao deletar clientes em massa, 
-                // mas se for um reset total, talvez sim. Vou manter apenas clientes por enquanto.
                 
-                $msg = 'Todos os clientes foram excluídos com sucesso!';
+                // Primeiro excluir notificações vinculadas (tabela dependente)
+                $pdo->exec("DELETE FROM cliente_notificacoes");
+
+                // Usar DELETE em vez de TRUNCATE para respeitar outras chaves estrangeiras
+                $pdo->exec("DELETE FROM clientes");
+                
+                $msg = 'Todos os clientes (sem pedidos ativos) foram excluídos com sucesso!';
                 $msg_type = 'success';
             } catch (PDOException $e) {
-                $msg = 'Erro ao excluir clientes: ' . $e->getMessage();
+                // Verificar se é erro de integridade referencial (provavelmente pedidos)
+                if ($e->getCode() == '23000') {
+                     $msg = 'Não foi possível excluir todos os clientes pois existem pedidos vinculados. Apenas clientes sem pedidos ou notificações foram processados.';
+                } else {
+                     $msg = 'Erro ao excluir clientes: ' . $e->getMessage();
+                }
                 $msg_type = 'danger';
             }
         } else {
