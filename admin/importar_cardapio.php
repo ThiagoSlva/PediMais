@@ -174,6 +174,79 @@ try {
     50% { transform: scale(1.1); }
     100% { transform: scale(1); opacity: 1; }
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    .step-indicator {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+        padding: 0 10px;
+    }
+    .step {
+        padding: 10px 16px;
+        font-size: 14px;
+        justify-content: center;
+        border-radius: 12px;
+    }
+    .step-number {
+        width: 24px;
+        height: 24px;
+        font-size: 12px;
+    }
+    .upload-zone {
+        padding: 30px 20px;
+    }
+    .upload-icon {
+        font-size: 50px;
+        margin-bottom: 15px;
+    }
+    .upload-zone h4 {
+        font-size: 16px;
+    }
+    .upload-zone p {
+        font-size: 14px;
+    }
+    .loading-content {
+        padding: 30px 20px;
+        margin: 20px;
+        border-radius: 16px;
+    }
+    .loading-spinner {
+        width: 45px;
+        height: 45px;
+    }
+    .items-preview {
+        max-height: 400px;
+    }
+    .item-card {
+        padding: 12px;
+    }
+    .size-badge {
+        padding: 4px 8px;
+        font-size: 12px;
+        margin-right: 4px;
+        margin-bottom: 4px;
+    }
+    .preview-image {
+        max-height: 250px;
+    }
+    .card-body {
+        padding: 16px !important;
+    }
+    .d-flex.justify-content-between.align-items-center.mt-4 {
+        flex-direction: column;
+        gap: 15px;
+    }
+    .d-flex.gap-2 {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .btn-lg {
+        padding: 12px 20px;
+        font-size: 14px;
+    }
+}
 </style>
 
 <div class="dashboard-main-body">

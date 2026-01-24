@@ -80,7 +80,7 @@ $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <tr>
                                 <td>#<?php echo $pedido['id']; ?></td>
                                 <td><?php echo date('d/m/Y H:i', strtotime($pedido['data_pedido'])); ?></td>
-                                <td>R$ <?php echo number_format($pedido['total'], 2, ',', '.'); ?></td>
+                                <td>R$ <?php echo number_format($pedido['valor_total'], 2, ',', '.'); ?></td>
                                 <td><?php echo $pedido['total_itens']; ?></td>
                                 <td>
                                     <?php

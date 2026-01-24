@@ -33,6 +33,9 @@ try {
     
     // Search for category image if enabled (use category name or first product name)
     $categoria_imagem = null;
+    // Default image path (relative to site root, as expected by frontend)
+    $default_category_image = 'admin/uploads/categorias/default_category.png';
+    
     if ($buscar_imagens) {
         // Try with category name first
         $categoria_imagem = searchAndDownloadCategoryImage($categoria_nome);
@@ -41,6 +44,11 @@ try {
         if (!$categoria_imagem && !empty($items[0]['nome'])) {
             $categoria_imagem = searchAndDownloadCategoryImage($items[0]['nome']);
         }
+    }
+    
+    // Use default image if none found
+    if (!$categoria_imagem) {
+        $categoria_imagem = $default_category_image;
     }
     
     // Create category with image
@@ -88,8 +96,26 @@ try {
         $produto_id = $pdo->lastInsertId();
         $produtos_criados++;
         
-        // If there are multiple sizes, create options
+        // If there are multiple sizes, create grupo_adicional with items
         if (count($tamanhos) > 1) {
+            // Create a group for this product's sizes
+            $grupo_nome = "Tamanho - " . $nome;
+            $stmt = $pdo->prepare("
+                INSERT INTO grupos_adicionais (nome, tipo_escolha, minimo_escolha, maximo_escolha, obrigatorio, ordem, ativo) 
+                VALUES (?, 'unico', 1, 1, 1, 0, 1)
+            ");
+            $stmt->execute([$grupo_nome]);
+            $grupo_id = $pdo->lastInsertId();
+            
+            // Link group to product
+            $stmt = $pdo->prepare("
+                INSERT INTO produto_grupos (produto_id, grupo_id, ordem) 
+                VALUES (?, ?, 0)
+            ");
+            $stmt->execute([$produto_id, $grupo_id]);
+            
+            // Create group items for each size
+            $ordem_item = 0;
             foreach ($tamanhos as $tam) {
                 $tamanho_nome = $tam['tamanho'];
                 $preco_adicional = $tam['preco'] - $preco_base;
@@ -106,11 +132,12 @@ try {
                 $tamanho_label = $tamanho_labels[$tamanho_nome] ?? $tamanho_nome;
                 
                 $stmt = $pdo->prepare("
-                    INSERT INTO opcoes (produto_id, nome, preco_adicional, tipo) 
-                    VALUES (?, ?, ?, 'tamanho')
+                    INSERT INTO grupo_adicional_itens (grupo_id, nome, preco_adicional, ordem, ativo) 
+                    VALUES (?, ?, ?, ?, 1)
                 ");
-                $stmt->execute([$produto_id, $tamanho_label, $preco_adicional]);
+                $stmt->execute([$grupo_id, $tamanho_label, $preco_adicional, $ordem_item]);
                 $opcoes_criadas++;
+                $ordem_item++;
             }
         }
     }
@@ -213,7 +240,8 @@ function downloadImage($url, $item_name, $type = 'produtos') {
     $prefix = $type === 'categorias' ? 'cat_' : 'prod_';
     $filename = $prefix . time() . '_' . mt_rand(1000, 9999) . '.' . $extension;
     $full_path = $upload_dir . $filename;
-    $relative_path = $type === 'categorias' ? $filename : 'admin/uploads/produtos/' . $filename;
+    // Both need full path from site root
+    $relative_path = 'admin/uploads/' . $type . '/' . $filename;
     
     // Download the image
     $ch = curl_init($url);

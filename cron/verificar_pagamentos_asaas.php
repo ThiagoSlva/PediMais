@@ -53,13 +53,18 @@ foreach ($pedidos as $pedido) {
     if (empty($payment_id)) continue;
 
     echo "Pedido #$pedido_id (Payment $payment_id): Verificando...\n";
+    echo "  -> Valor: R$ $valor, Data criação: $data_criacao\n";
 
     // Tentar encontrar pagamento pelo ID ou por valor/data
     $payment_info = $asaasHelper->getPaymentStatus($payment_id);
     
-    if (!$payment_info) {
+    echo "  -> Resultado getPaymentStatus: " . json_encode($payment_info) . "\n";
+    
+    if (!$payment_info || $payment_info['status'] !== 'approved') {
         // Fallback: buscar por valor e data
+        echo "  -> Tentando fallback por valor/data...\n";
         $payment_info = $asaasHelper->findPaymentByValueAndDate($valor, $data_criacao);
+        echo "  -> Resultado findPaymentByValueAndDate: " . json_encode($payment_info) . "\n";
     }
 
     if ($payment_info && $payment_info['status'] === 'approved') {
@@ -73,14 +78,22 @@ foreach ($pedidos as $pedido) {
         $stmt_upd_ped = $pdo->prepare("UPDATE pedidos SET status = 'em_andamento', pago = 1, em_preparo = 1, atualizado_em = NOW() WHERE id = ?");
         $stmt_upd_ped->execute([$pedido_id]);
         
-        // Sincronizar Kanban
+        // Sincronizar Kanban (se função existir)
         try {
-            sync_pedido_lane_by_status($pedido_id, 'em_andamento');
+            if (function_exists('sync_pedido_lane_by_status')) {
+                sync_pedido_lane_by_status($pedido_id, 'em_andamento');
+                echo "-> Kanban sincronizado\n";
+            }
         } catch (Exception $e) {
-            error_log("Erro ao sincronizar Kanban: " . $e->getMessage());
+            echo "-> Erro Kanban: " . $e->getMessage() . "\n";
         }
         
         // Enviar mensagem WhatsApp
+        echo "-> Verificando WhatsApp...\n";
+        echo "   whatsapp.isConfigured: " . ($whatsapp->isConfigured() ? 'SIM' : 'NAO') . "\n";
+        echo "   template_pagamento: " . ($template_pagamento ? 'EXISTE' : 'NAO EXISTE') . "\n";
+        echo "   template_ativo: " . (isset($template_pagamento['ativo']) && $template_pagamento['ativo'] ? 'SIM' : 'NAO') . "\n";
+        
         if ($whatsapp->isConfigured() && $template_pagamento && $template_pagamento['ativo']) {
             $valor_formatado = number_format($pedido['valor_total'], 2, ',', '.');
             $mensagem = str_replace(
@@ -90,12 +103,24 @@ foreach ($pedidos as $pedido) {
             );
             
             $telefone = $pedido['cliente_telefone'];
+            // Limpar telefone (remover caracteres não numéricos)
+            $telefone = preg_replace('/\D/', '', $telefone);
             if (!str_starts_with($telefone, '55')) {
                 $telefone = '55' . $telefone;
             }
             
-            $whatsapp->sendMessage($telefone, $mensagem);
-            echo "-> Mensagem WhatsApp enviada para {$telefone}\n";
+            echo "   Telefone: $telefone\n";
+            echo "   Mensagem: " . substr($mensagem, 0, 50) . "...\n";
+            
+            $resultado = $whatsapp->sendMessage($telefone, $mensagem);
+            
+            if (isset($resultado['success']) && $resultado['success']) {
+                echo "-> ✅ Mensagem WhatsApp enviada para {$telefone}\n";
+            } else {
+                echo "-> ❌ Erro ao enviar WhatsApp: " . ($resultado['error'] ?? json_encode($resultado)) . "\n";
+            }
+        } else {
+            echo "-> ⚠️ WhatsApp não configurado ou template desativado\n";
         }
         
         echo "-> Pedido #$pedido_id APROVADO e movido para em_andamento.\n";

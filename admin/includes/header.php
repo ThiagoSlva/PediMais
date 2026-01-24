@@ -72,7 +72,7 @@ $nome_site = $site_config['nome_site'] ?? 'PedeMais';
     </button>
     <div>
         <a href="index.php" class="sidebar-logo d-flex align-items-center justify-content-center gap-2 p-3">
-            <img src="<?php echo SITE_URL; ?>/uploads/config/logo.png" alt="<?php echo htmlspecialchars($nome_site); ?>" style="max-height: 35px; display: block;">
+            <img src="<?php echo SITE_URL; ?>/uploads/config/<?php echo htmlspecialchars($site_config['logo'] ?? 'logo.png'); ?>" alt="<?php echo htmlspecialchars($nome_site); ?>" style="max-height: 35px; display: block;">
             <span class="fw-bold text-md"><?php echo htmlspecialchars($nome_site); ?></span>
         </a>
     </div>
@@ -172,7 +172,7 @@ $nome_site = $site_config['nome_site'] ?? 'PedeMais';
                     <!-- User Dropdown -->
                     <div class="dropdown">
                         <button class="d-flex justify-content-center align-items-center rounded-circle" type="button" data-bs-toggle="dropdown">
-                            <img src="<?php echo SITE_URL; ?>/uploads/config/logo.png" alt="Perfil" class="w-40-px h-40-px object-fit-cover rounded-circle">
+                            <img src="<?php echo SITE_URL; ?>/uploads/config/<?php echo htmlspecialchars($site_config['logo'] ?? 'logo.png'); ?>" alt="Perfil" class="w-40-px h-40-px object-fit-cover rounded-circle">
                         </button>
                         <div class="dropdown-menu to-top dropdown-menu-sm">
                             <div class="py-12 px-16 radius-8 bg-primary-50 mb-16 d-flex align-items-center justify-content-between gap-2">

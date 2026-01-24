@@ -101,8 +101,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['salvar_config'])) {
         $tema_layout = $_POST['tema_layout'] ?? 'default';
         $impressao_automatica = isset($_POST['impressao_automatica']) ? 1 : 0;
 
-        // Uploads
-        $upload_dir = __DIR__ . '/uploads/config/';
+        // Uploads - save to root uploads directory so sidebar and all pages can find it
+        $upload_dir = dirname(__DIR__) . '/uploads/config/';
         if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
 
         $updates = [];

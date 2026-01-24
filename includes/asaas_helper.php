@@ -161,9 +161,8 @@ class AsaasHelper {
             return null;
         }
 
-        // Para PIX estático, precisamos consultar as transferências recebidas
-        // e verificar se alguma corresponde ao nosso payment_id
-        $url = $this->getApiUrl() . '/pix/transactions';
+        // Para PIX estático, consultar transações PIX recebidas
+        $url = $this->getApiUrl() . '/pix/transactions?status=DONE';
 
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -177,14 +176,29 @@ class AsaasHelper {
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
+        error_log("Asaas getPaymentStatus (HTTP $http_code) para payment_id: $payment_id");
+
         if ($http_code == 200) {
             $result = json_decode($response, true);
             
-            // Procurar por transação que corresponda ao nosso payment_id
             if (isset($result['data']) && is_array($result['data'])) {
                 foreach ($result['data'] as $transaction) {
+                    // Verificar por ID do QR Code estático (se existir)
                     if (isset($transaction['originStaticQrCode']['id']) && 
                         $transaction['originStaticQrCode']['id'] === $payment_id) {
+                        error_log("Pagamento Asaas encontrado por originStaticQrCode: " . json_encode($transaction));
+                        return [
+                            'status' => 'approved',
+                            'transaction_id' => $transaction['id'] ?? null,
+                            'value' => $transaction['value'] ?? 0,
+                            'paidAt' => $transaction['dateCreated'] ?? null
+                        ];
+                    }
+                    
+                    // Verificar se o endToEndIdentifier contém o ID do QR Code
+                    if (isset($transaction['endToEndIdentifier']) && 
+                        strpos($transaction['endToEndIdentifier'], $payment_id) !== false) {
+                        error_log("Pagamento Asaas encontrado por endToEndIdentifier: " . json_encode($transaction));
                         return [
                             'status' => 'approved',
                             'transaction_id' => $transaction['id'] ?? null,
@@ -212,7 +226,8 @@ class AsaasHelper {
             return null;
         }
 
-        $url = $this->getApiUrl() . '/pix/transactions';
+        // Buscar apenas transações concluídas
+        $url = $this->getApiUrl() . '/pix/transactions?status=DONE';
 
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -226,17 +241,27 @@ class AsaasHelper {
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
+        error_log("Asaas findPaymentByValueAndDate (HTTP $http_code) - Buscando valor: R$ $valor, data_criacao: $data_criacao");
+
         if ($http_code == 200) {
             $result = json_decode($response, true);
+            
+            error_log("Asaas findPaymentByValueAndDate - Total transações: " . (isset($result['data']) ? count($result['data']) : 0));
             
             if (isset($result['data']) && is_array($result['data'])) {
                 foreach ($result['data'] as $transaction) {
                     // Verificar valor e se foi após a data de criação
-                    if (abs($transaction['value'] - $valor) < 0.01) {
+                    $trans_value = isset($transaction['value']) ? floatval($transaction['value']) : 0;
+                    $diff_valor = abs($trans_value - floatval($valor));
+                    
+                    if ($diff_valor < 0.01) {
                         $trans_date = strtotime($transaction['dateCreated']);
                         $pedido_date = strtotime($data_criacao);
                         
+                        error_log("Asaas - Encontrado valor R$ $trans_value, data: " . $transaction['dateCreated'] . " (pedido data: $data_criacao)");
+                        
                         if ($trans_date >= $pedido_date) {
+                            error_log("Pagamento Asaas encontrado por valor/data: " . json_encode($transaction));
                             return [
                                 'status' => 'approved',
                                 'transaction_id' => $transaction['id'] ?? null,
@@ -249,6 +274,7 @@ class AsaasHelper {
             }
         }
 
+        error_log("Asaas findPaymentByValueAndDate - Nenhum pagamento encontrado para R$ $valor");
         return null;
     }
 }
