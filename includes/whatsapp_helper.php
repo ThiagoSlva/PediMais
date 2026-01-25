@@ -112,16 +112,141 @@ class WhatsAppHelper {
         $nome = $pedido['cliente_nome'];
         $total = number_format($pedido['valor_total'], 2, ',', '.');
         $tipo = $pedido['tipo_entrega'] == 'delivery' ? '🛵 Delivery' : '🏪 Retirada no balcão';
+        
+        // Buscar itens do pedido
+        $itens_texto = '';
+        $adicionais_texto = '';
+        try {
+            $pedido_id = $pedido['id'] ?? null;
+            if ($pedido_id) {
+                // Buscar itens
+                $stmt_itens = $this->pdo->prepare("SELECT * FROM pedido_itens WHERE pedido_id = ?");
+                $stmt_itens->execute([$pedido_id]);
+                $itens = $stmt_itens->fetchAll(PDO::FETCH_ASSOC);
+                
+                if (!empty($itens)) {
+                    $itens_texto = "🛒 *Itens do Pedido:*\n";
+                    foreach ($itens as $item) {
+                        $qtd = $item['quantidade'];
+                        $nome_item = $item['produto_nome'];
+                        $preco_item = number_format($item['preco_unitario'] * $qtd, 2, ',', '.');
+                        $itens_texto .= "• {$qtd}x {$nome_item} - R$ {$preco_item}\n";
+                        
+                        // Observação do item
+                        if (!empty($item['observacoes'])) {
+                            $itens_texto .= "   📝 _{$item['observacoes']}_\n";
+                        }
+                        
+                        // Buscar adicionais deste item
+                        $stmt_adicionais = $this->pdo->prepare("SELECT * FROM pedido_item_adicionais WHERE pedido_item_id = ?");
+                        $stmt_adicionais->execute([$item['id']]);
+                        $adicionais = $stmt_adicionais->fetchAll(PDO::FETCH_ASSOC);
+                        
+                        if (!empty($adicionais)) {
+                            foreach ($adicionais as $adicional) {
+                                $preco_ad = $adicional['preco'] > 0 ? " (+R$ " . number_format($adicional['preco'], 2, ',', '.') . ")" : '';
+                                $itens_texto .= "   ➕ {$adicional['nome']}{$preco_ad}\n";
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            // Continua sem os itens
+        }
+        
+        // Buscar forma de pagamento
+        $forma_pagamento = 'Não informada';
+        try {
+            $forma_id = $pedido['forma_pagamento_id'] ?? null;
+            if ($forma_id) {
+                $stmt_fp = $this->pdo->prepare("SELECT nome FROM formas_pagamento WHERE id = ?");
+                $stmt_fp->execute([$forma_id]);
+                $fp = $stmt_fp->fetch(PDO::FETCH_ASSOC);
+                if ($fp) {
+                    $forma_pagamento = $fp['nome'];
+                }
+            }
+        } catch (Exception $e) {
+            // Usa valor padrão
+        }
+        
+        // Valores
+        $valor_produtos = isset($pedido['valor_produtos']) ? number_format($pedido['valor_produtos'], 2, ',', '.') : null;
+        $valor_entrega = isset($pedido['valor_entrega']) && $pedido['valor_entrega'] > 0 
+            ? number_format($pedido['valor_entrega'], 2, ',', '.') 
+            : null;
+        
+        // Troco
+        $troco = '';
+        if (!empty($pedido['troco_para']) && $pedido['troco_para'] > 0) {
+            $troco_valor = number_format($pedido['troco_para'], 2, ',', '.');
+            $troco = "\n💵 *Troco para:* R$ {$troco_valor}";
+        }
 
+        // Montar mensagem
         $mensagem = "🎉 *Pedido Confirmado!*\n\n";
-        $mensagem .= "Olá, {$nome}!\n\n";
+        $mensagem .= "Olá, *{$nome}*!\n\n";
         $mensagem .= "Seu pedido *#{$codigo}* foi recebido com sucesso!\n\n";
+        
+        // Itens do pedido
+        if (!empty($itens_texto)) {
+            $mensagem .= $itens_texto . "\n";
+        }
+        
+        // Valores detalhados
+        $mensagem .= "━━━━━━━━━━━━━━━━\n";
+        if ($valor_produtos) {
+            $mensagem .= "🧾 *Subtotal:* R$ {$valor_produtos}\n";
+        }
+        if ($valor_entrega) {
+            $mensagem .= "🚚 *Taxa de Entrega:* R$ {$valor_entrega}\n";
+        }
+        $mensagem .= "💰 *Total:* R$ {$total}\n";
+        $mensagem .= "━━━━━━━━━━━━━━━━\n\n";
+        
+        // Tipo de entrega
         $mensagem .= "📦 *Tipo:* {$tipo}\n";
-        $mensagem .= "💰 *Total:* R$ {$total}\n\n";
-        $mensagem .= "Você receberá atualizações sobre o status do seu pedido.\n\n";
+        
+        // Endereço (se delivery)
+        if ($pedido['tipo_entrega'] == 'delivery' && !empty($pedido['cliente_endereco'])) {
+            $mensagem .= "📍 *Endereço:* {$pedido['cliente_endereco']}\n";
+        }
+        
+        // Forma de pagamento
+        $mensagem .= "💳 *Pagamento:* {$forma_pagamento}{$troco}\n";
+        
+        // Telefone
+        if (!empty($telefone)) {
+            $telefone_formatado = $this->formatarTelefone($telefone);
+            $mensagem .= "📱 *Telefone:* {$telefone_formatado}\n";
+        }
+        
+        // Observações gerais do pedido
+        if (!empty($pedido['observacoes'])) {
+            $mensagem .= "\n📝 *Observações:* {$pedido['observacoes']}\n";
+        }
+        
+        $mensagem .= "\nVocê receberá atualizações sobre o status do seu pedido.\n\n";
         $mensagem .= "Obrigado pela preferência! 😊";
 
         return $this->sendMessage($telefone, $mensagem);
+    }
+    
+    // Formatar telefone para exibição
+    private function formatarTelefone($telefone) {
+        $telefone = preg_replace('/\D/', '', $telefone);
+        // Remove código do país se presente
+        if (strlen($telefone) > 11 && substr($telefone, 0, 2) == '55') {
+            $telefone = substr($telefone, 2);
+        }
+        // Formata (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
+        if (strlen($telefone) == 11) {
+            return '(' . substr($telefone, 0, 2) . ') ' . substr($telefone, 2, 5) . '-' . substr($telefone, 7);
+        } elseif (strlen($telefone) == 10) {
+            return '(' . substr($telefone, 0, 2) . ') ' . substr($telefone, 2, 4) . '-' . substr($telefone, 6);
+        }
+        return $telefone;
     }
 
     // Send status change notification using templates from database
@@ -230,15 +355,123 @@ class WhatsAppHelper {
 
         $codigo = $pedido['codigo_pedido'];
         $nome = $pedido['cliente_nome'];
+        $telefone = $pedido['cliente_telefone'] ?? '';
         $total = number_format($pedido['valor_total'], 2, ',', '.');
-        $tipo = $pedido['tipo_entrega'] == 'delivery' ? 'Delivery' : 'Retirada';
+        $tipo = $pedido['tipo_entrega'] == 'delivery' ? '🛵 Delivery' : '🏪 Retirada';
+        
+        // Buscar itens do pedido
+        $itens_texto = '';
+        try {
+            $pedido_id = $pedido['id'] ?? null;
+            if ($pedido_id) {
+                $stmt_itens = $this->pdo->prepare("SELECT * FROM pedido_itens WHERE pedido_id = ?");
+                $stmt_itens->execute([$pedido_id]);
+                $itens = $stmt_itens->fetchAll(PDO::FETCH_ASSOC);
+                
+                if (!empty($itens)) {
+                    $itens_texto = "\n🛒 *ITENS:*\n";
+                    foreach ($itens as $item) {
+                        $qtd = $item['quantidade'];
+                        $nome_item = $item['produto_nome'];
+                        $preco_item = number_format($item['preco_unitario'] * $qtd, 2, ',', '.');
+                        $itens_texto .= "• {$qtd}x {$nome_item} - R$ {$preco_item}\n";
+                        
+                        // Observação do item
+                        if (!empty($item['observacoes'])) {
+                            $itens_texto .= "   📝 _{$item['observacoes']}_\n";
+                        }
+                        
+                        // Buscar adicionais
+                        $stmt_adicionais = $this->pdo->prepare("SELECT * FROM pedido_item_adicionais WHERE pedido_item_id = ?");
+                        $stmt_adicionais->execute([$item['id']]);
+                        $adicionais = $stmt_adicionais->fetchAll(PDO::FETCH_ASSOC);
+                        
+                        if (!empty($adicionais)) {
+                            foreach ($adicionais as $adicional) {
+                                $preco_ad = $adicional['preco'] > 0 ? " (+R$ " . number_format($adicional['preco'], 2, ',', '.') . ")" : '';
+                                $itens_texto .= "   ➕ {$adicional['nome']}{$preco_ad}\n";
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            // Continua sem os itens
+        }
+        
+        // Buscar forma de pagamento
+        $forma_pagamento = 'N/A';
+        try {
+            $forma_id = $pedido['forma_pagamento_id'] ?? null;
+            if ($forma_id) {
+                $stmt_fp = $this->pdo->prepare("SELECT nome FROM formas_pagamento WHERE id = ?");
+                $stmt_fp->execute([$forma_id]);
+                $fp = $stmt_fp->fetch(PDO::FETCH_ASSOC);
+                if ($fp) {
+                    $forma_pagamento = $fp['nome'];
+                }
+            }
+        } catch (Exception $e) {
+            // Usa valor padrão
+        }
+        
+        // Valores detalhados
+        $valor_produtos = isset($pedido['valor_produtos']) ? number_format($pedido['valor_produtos'], 2, ',', '.') : null;
+        $valor_entrega = isset($pedido['valor_entrega']) && $pedido['valor_entrega'] > 0 
+            ? number_format($pedido['valor_entrega'], 2, ',', '.') 
+            : null;
+        
+        // Troco
+        $troco = '';
+        if (!empty($pedido['troco_para']) && $pedido['troco_para'] > 0) {
+            $troco_valor = number_format($pedido['troco_para'], 2, ',', '.');
+            $troco = "\n💵 *Troco para:* R$ {$troco_valor}";
+        }
 
-        $mensagem = "🔔 *NOVO PEDIDO!*\n\n";
+        // Montar mensagem
+        $mensagem = "🔔 *NOVO PEDIDO!*\n";
+        $mensagem .= "━━━━━━━━━━━━━━━━━━\n\n";
         $mensagem .= "📋 *Pedido:* #{$codigo}\n";
+        $mensagem .= "🕐 *Horário:* " . date('H:i') . "\n\n";
+        
+        // Dados do cliente
         $mensagem .= "👤 *Cliente:* {$nome}\n";
-        $mensagem .= "📦 *Tipo:* {$tipo}\n";
-        $mensagem .= "💰 *Total:* R$ {$total}\n\n";
-        $mensagem .= "Acesse o painel para mais detalhes.";
+        if (!empty($telefone)) {
+            $telefone_formatado = $this->formatarTelefone($telefone);
+            $mensagem .= "📱 *Telefone:* {$telefone_formatado}\n";
+        }
+        
+        // Tipo e endereço
+        $mensagem .= "\n📦 *Tipo:* {$tipo}\n";
+        if ($pedido['tipo_entrega'] == 'delivery' && !empty($pedido['cliente_endereco'])) {
+            $mensagem .= "📍 *Endereço:* {$pedido['cliente_endereco']}\n";
+        }
+        
+        // Itens do pedido
+        if (!empty($itens_texto)) {
+            $mensagem .= $itens_texto;
+        }
+        
+        // Valores
+        $mensagem .= "\n━━━━━━━━━━━━━━━━━━\n";
+        if ($valor_produtos) {
+            $mensagem .= "🧾 *Subtotal:* R$ {$valor_produtos}\n";
+        }
+        if ($valor_entrega) {
+            $mensagem .= "🚚 *Taxa Entrega:* R$ {$valor_entrega}\n";
+        }
+        $mensagem .= "💰 *TOTAL:* R$ {$total}\n";
+        $mensagem .= "━━━━━━━━━━━━━━━━━━\n";
+        
+        // Pagamento
+        $mensagem .= "\n💳 *Pagamento:* {$forma_pagamento}{$troco}\n";
+        
+        // Observações gerais
+        if (!empty($pedido['observacoes'])) {
+            $mensagem .= "\n📝 *Obs:* {$pedido['observacoes']}\n";
+        }
+        
+        $mensagem .= "\n✅ Acesse o painel para gerenciar!";
 
         return $this->sendMessage($whatsapp_estabelecimento, $mensagem);
     }

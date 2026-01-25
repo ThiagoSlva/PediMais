@@ -398,11 +398,18 @@ try {
         
         // Dados do pedido para notificação
         $pedido_notif = [
+            'id' => $pedido_id,
             'codigo_pedido' => $codigo_pedido,
             'cliente_nome' => $cliente_nome,
             'cliente_telefone' => $cliente_telefone,
+            'cliente_endereco' => $cliente_endereco,
             'valor_total' => $valor_total,
-            'tipo_entrega' => $tipo_entrega
+            'valor_produtos' => $valor_subtotal,
+            'valor_entrega' => $taxa_entrega,
+            'tipo_entrega' => $tipo_entrega,
+            'forma_pagamento_id' => $forma_pagamento_id,
+            'observacoes' => $observacoes,
+            'troco_para' => $dados['troco_para'] ?? 0
         ];
         
         // Se for pagamento PIX online, enviar código copia e cola para o cliente

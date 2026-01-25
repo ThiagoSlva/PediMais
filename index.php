@@ -676,8 +676,14 @@ header h1 {
     <?php endif; ?>
 
     <!-- WhatsApp -->
-    <?php if (!empty($config['whatsapp'] ?? '')): ?>
-    <a href="https://wa.me/<?php echo preg_replace('/[^0-9]/', '', $config['whatsapp']); ?>" target="_blank" class="action-btn btn-whatsapp">
+    <?php if (!empty($config['whatsapp'] ?? '')): 
+        $whatsapp_numero = preg_replace('/[^0-9]/', '', $config['whatsapp']);
+        // Adiciona código do país se não tiver
+        if (strlen($whatsapp_numero) <= 11 && substr($whatsapp_numero, 0, 2) !== '55') {
+            $whatsapp_numero = '55' . $whatsapp_numero;
+        }
+    ?>
+    <a href="https://wa.me/<?php echo $whatsapp_numero; ?>" target="_blank" class="action-btn btn-whatsapp">
         <i class="fa-brands fa-whatsapp"></i>
     </a>
     <?php endif; ?>

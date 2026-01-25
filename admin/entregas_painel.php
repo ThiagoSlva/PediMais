@@ -280,6 +280,10 @@ include 'includes/header.php';
     <div class="row">
         <?php foreach ($entregas as $entrega): 
             $telefone = preg_replace('/[^0-9]/', '', $entrega['cliente_telefone'] ?? $entrega['telefone'] ?? '');
+            // Adiciona código do país se não tiver
+            if (strlen($telefone) <= 11 && substr($telefone, 0, 2) !== '55') {
+                $telefone = '55' . $telefone;
+            }
         ?>
         <div class="col-xl-6 col-lg-12">
             <div class="entrega-card">
@@ -366,7 +370,7 @@ include 'includes/header.php';
                     </form>
                     
                     <?php if ($telefone): ?>
-                    <a href="https://wa.me/55<?php echo $telefone; ?>" target="_blank" class="btn-whatsapp">
+                    <a href="https://wa.me/<?php echo $telefone; ?>" target="_blank" class="btn-whatsapp">
                         <iconify-icon icon="logos:whatsapp-icon"></iconify-icon>
                     </a>
                     <?php endif; ?>

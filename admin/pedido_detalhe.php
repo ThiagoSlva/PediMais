@@ -216,7 +216,13 @@ $taxa_entrega = isset($pedido['taxa_entrega']) ? $pedido['taxa_entrega'] : 0;
                             <iconify-icon icon="solar:phone-bold" class="text-primary-600 text-lg mt-1"></iconify-icon>
                             <div>
                                 <span class="d-block fw-medium text-secondary-light text-sm">Telefone</span>
-                                <a href="https://wa.me/55<?php echo preg_replace('/[^0-9]/', '', $pedido['cliente_telefone']); ?>" target="_blank" class="text-primary-600 hover-text-primary-700">
+                                <?php 
+                                $whatsapp_cliente = preg_replace('/[^0-9]/', '', $pedido['cliente_telefone']);
+                                if (strlen($whatsapp_cliente) <= 11 && substr($whatsapp_cliente, 0, 2) !== '55') {
+                                    $whatsapp_cliente = '55' . $whatsapp_cliente;
+                                }
+                                ?>
+                                <a href="https://wa.me/<?php echo $whatsapp_cliente; ?>" target="_blank" class="text-primary-600 hover-text-primary-700">
                                     <?php echo htmlspecialchars($pedido['cliente_telefone']); ?>
                                 </a>
                             </div>

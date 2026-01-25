@@ -283,7 +283,14 @@ $config = get_config();
             <i class="fa-solid fa-home"></i> Voltar ao Cardápio
         </a>
         
-        <a href="https://wa.me/55<?php echo preg_replace('/[^0-9]/', '', $config['whatsapp'] ?? ''); ?>?text=Olá! Fiz o pedido %23<?php echo $pedido['codigo_pedido']; ?>" target="_blank" class="btn btn-outline">
+        <?php 
+        $whatsapp_numero = preg_replace('/[^0-9]/', '', $config['whatsapp'] ?? '');
+        // Adiciona código do país se não tiver
+        if (strlen($whatsapp_numero) <= 11 && substr($whatsapp_numero, 0, 2) !== '55') {
+            $whatsapp_numero = '55' . $whatsapp_numero;
+        }
+        ?>
+        <a href="https://wa.me/<?php echo $whatsapp_numero; ?>?text=Olá! Fiz o pedido %23<?php echo $pedido['codigo_pedido']; ?>" target="_blank" class="btn btn-outline">
             <i class="fa-brands fa-whatsapp"></i> Falar no WhatsApp
         </a>
     </div>
