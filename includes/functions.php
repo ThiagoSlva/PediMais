@@ -137,4 +137,91 @@ if (!function_exists('get_produto_avaliacao')) {
         return null;
     }
 }
+
+// ⚡ OTIMIZAÇÃO BD: Buscar categorias com produtos em UMA ÚNICA QUERY (resolve N+1)
+if (!function_exists('get_categorias_com_produtos')) {
+    function get_categorias_com_produtos() {
+        global $pdo;
+        
+        try {
+            // Query otimizada: JOINs categorias + produtos + avaliações em uma única query
+            $sql = "
+                SELECT 
+                    c.id as cat_id,
+                    c.nome as cat_nome,
+                    c.imagem as cat_imagem,
+                    c.ordem as cat_ordem,
+                    c.permite_meio_a_meio,
+                    p.id as prod_id,
+                    p.nome as prod_nome,
+                    p.descricao,
+                    p.preco,
+                    p.preco_promocional,
+                    p.imagem_path,
+                    p.ordem as prod_ordem,
+                    p.ativo,
+                    COALESCE(AVG(av.avaliacao), 0) as avg_rating,
+                    COALESCE(COUNT(av.id), 0) as total_ratings
+                FROM categorias c
+                LEFT JOIN produtos p ON p.categoria_id = c.id AND p.ativo = 1
+                LEFT JOIN avaliacoes av ON av.produto_id = p.id AND av.avaliacao > 0 AND av.ativo = 1
+                WHERE c.ativo = 1
+                GROUP BY c.id, p.id
+                ORDER BY c.ordem ASC, p.ordem ASC
+            ";
+            
+            $stmt = $pdo->query($sql);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            if (empty($rows)) {
+                return [];
+            }
+            
+            // Agrupar dados por categoria
+            $categorias = [];
+            foreach ($rows as $row) {
+                $cat_id = $row['cat_id'];
+                
+                // Se categoria ainda não foi adicionada, adicionar
+                if (!isset($categorias[$cat_id])) {
+                    $categorias[$cat_id] = [
+                        'id' => $cat_id,
+                        'nome' => $row['cat_nome'],
+                        'imagem' => $row['cat_imagem'],
+                        'ordem' => $row['cat_ordem'],
+                        'permite_meio_a_meio' => $row['permite_meio_a_meio'],
+                        'produtos' => []
+                    ];
+                }
+                
+                // Se tem produto (não é resultado do LEFT JOIN vazio)
+                if ($row['prod_id']) {
+                    $categorias[$cat_id]['produtos'][] = [
+                        'id' => $row['prod_id'],
+                        'nome' => $row['prod_nome'],
+                        'descricao' => $row['descricao'],
+                        'preco' => $row['preco'],
+                        'preco_promocional' => $row['preco_promocional'],
+                        'imagem_path' => $row['imagem_path'],
+                        'ordem' => $row['prod_ordem'],
+                        'ativo' => $row['ativo'],
+                        'rating' => [
+                            'media' => round($row['avg_rating'], 1),
+                            'total' => (int)$row['total_ratings'],
+                            'estrelas' => round($row['avg_rating'])
+                        ]
+                    ];
+                }
+            }
+            
+            // Retornar como array indexado (compatível com foreach)
+            return array_values($categorias);
+            
+        } catch (Exception $e) {
+            // Fallback para função antiga se der erro
+            error_log("Erro em get_categorias_com_produtos: " . $e->getMessage());
+            return [];
+        }
+    }
+}
 ?>

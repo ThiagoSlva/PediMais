@@ -3,7 +3,10 @@ session_start();
 require_once 'includes/functions.php';
 
 $config = get_config();
-$categorias = get_categorias_ativas();
+// ⚡ OTIMIZAÇÃO: Usar get_categorias_com_produtos() em vez de get_categorias_ativas()
+// Isso carrega categorias + produtos + avaliações em UMA ÚNICA QUERY
+// Reduz queries de 11+ para apenas 1-2 queries totais
+$categorias = get_categorias_com_produtos();
 $loja_aberta = loja_aberta();
 
 // Verificar se cliente está logado
@@ -653,10 +656,10 @@ img[data-src] {
     <!-- Promoções -->
     <?php
     // Contar produtos em promoção
+    // ⚡ OTIMIZAÇÃO: Produtos já estão carregados em $cat_promo['produtos'], sem query adicional
     $qtd_promo = 0;
     foreach ($categorias as $cat_promo) {
-        $prods_promo = get_produtos_por_categoria($cat_promo['id']);
-        foreach ($prods_promo as $pp) {
+        foreach ($cat_promo['produtos'] as $pp) {
             if ($pp['preco_promocional'] > 0) $qtd_promo++;
         }
     }
@@ -811,7 +814,8 @@ img[data-src] {
 <!-- Products Accordion -->
 <div class="accordion">
     <?php foreach ($categorias as $cat): 
-        $produtos = get_produtos_por_categoria($cat['id']);
+        // ⚡ OTIMIZAÇÃO: Produtos já vêm carregados, sem fazer query adicional
+        $produtos = $cat['produtos'];
         if (empty($produtos)) continue;
     ?>
     <div class="accordion-item" data-category-id="<?php echo $cat['id']; ?>">
@@ -824,12 +828,13 @@ img[data-src] {
         </div>
         <div class="accordion-content">
             <?php foreach ($produtos as $prod): 
-                $rating = get_produto_avaliacao($prod['id']);
+                // ⚡ OTIMIZAÇÃO: Rating já vem carregado, sem fazer query adicional
+                $rating = $prod['rating'];
             ?>
             <div class="product-card" onclick="abrirProduto(<?php echo $prod['id']; ?>)">
                 <div class="product-info">
                     <h4><?php echo $prod['nome']; ?></h4>
-                    <?php if ($rating): ?>
+                    <?php if ($rating && $rating['total'] > 0): ?>
                     <div class="product-rating" style="display: flex; align-items: center; gap: 5px; margin: 3px 0;">
                         <span style="color: #ffc107; font-size: 0.85rem;">
                             <?php for($i = 1; $i <= 5; $i++): ?>
