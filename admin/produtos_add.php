@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/header.php';
+require_once __DIR__ . '/../includes/image_optimization.php';
 
 $msg = '';
 $msg_type = '';
@@ -87,21 +88,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     // Se não tem imagem web, verificar upload local
     elseif (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === 0) {
-        $ext = pathinfo($_FILES['imagem']['name'], PATHINFO_EXTENSION);
-        $nome_arquivo = 'prod_' . time() . '.' . $ext;
         $upload_dir = __DIR__ . '/uploads/produtos/';
+        $file_base = $upload_dir . 'prod_' . time();
         
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
+        // Comprimir e otimizar imagem
+        $compress_result = compressAndOptimizeImage($_FILES['imagem']['tmp_name'], $file_base, 75, 1200, 1200);
         
-        if (move_uploaded_file($_FILES['imagem']['tmp_name'], $upload_dir . $nome_arquivo)) {
-            $imagem_path = 'admin/uploads/produtos/' . $nome_arquivo;
+        if ($compress_result['success']) {
+            $imagem_path = $compress_result['file'];
+            $msg = 'Imagem comprimida com sucesso! Redução: ' . $compress_result['compression_ratio'] . '%';
+            $msg_type = 'success';
+        } else {
+            $msg = 'Erro ao processar imagem: ' . $compress_result['error'];
+            $msg_type = 'danger';
         }
     }
 
-    // Só inserir se não teve erro
-    if (empty($msg)) {
+    // Só inserir se não teve erro de upload de imagem
+    if (empty($msg) || $msg_type === 'success') {
         $sql = "INSERT INTO produtos (nome, categoria_id, descricao, preco, preco_promocional, ordem, disponivel, imagem_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         $params = [$nome, $categoria_id, $descricao, $preco, $preco_promocional, $ordem, $disponivel, $imagem_path];
         

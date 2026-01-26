@@ -1,12 +1,13 @@
 <?php
 require_once 'includes/header.php';
+require_once __DIR__ . '/../includes/image_optimization.php';
 
 $msg = '';
 $msg_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nome = $_POST['nome'];
-    $descricao = isset($_POST['descricao']) ? $_POST['descricao'] : ''; // Support description if added later
+    $descricao = isset($_POST['descricao']) ? $_POST['descricao'] : '';
     $ordem = (int)$_POST['ordem'];
     $ativo = isset($_POST['ativo']) ? 1 : 0;
     $permite_meio_a_meio = isset($_POST['permite_meio_a_meio']) ? 1 : 0;
@@ -14,16 +15,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Upload de imagem
     $imagem = '';
     if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === 0) {
-        $ext = pathinfo($_FILES['imagem']['name'], PATHINFO_EXTENSION);
-        $nome_arquivo = 'cat_' . time() . '.' . $ext;
         $upload_dir = __DIR__ . '/uploads/categorias/';
+        $file_base = $upload_dir . 'cat_' . time();
         
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
+        // Comprimir e otimizar imagem
+        $compress_result = compressAndOptimizeImage($_FILES['imagem']['tmp_name'], $file_base, 75, 800, 800);
         
-        if (move_uploaded_file($_FILES['imagem']['tmp_name'], $upload_dir . $nome_arquivo)) {
-            $imagem = 'admin/uploads/categorias/' . $nome_arquivo; // Caminho relativo à raiz do site
+        if ($compress_result['success']) {
+            $imagem = $compress_result['file'];
+            $msg = 'Imagem comprimida! Redução: ' . $compress_result['compression_ratio'] . '%';
+            $msg_type = 'success';
+        } else {
+            $msg = 'Erro ao processar imagem: ' . $compress_result['error'];
+            $msg_type = 'danger';
         }
     }
 
@@ -31,25 +35,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // For now, we'll try to insert without description if it fails, or just insert standard fields
     // Let's stick to the known fields first: nome, ordem, ativo, imagem
     
-    $sql = "INSERT INTO categorias (nome, ordem, ativo, imagem, permite_meio_a_meio) VALUES (?, ?, ?, ?, ?)";
-    $params = [$nome, $ordem, $ativo, $imagem, $permite_meio_a_meio];
-    
-    // If we want to support description, we'd need to alter the table first. 
-    // I'll assume standard fields for now to be safe.
-    
-    try {
-        $stmt = $pdo->prepare($sql);
-        if ($stmt->execute($params)) {
-            // Redirect to list with success message
-            echo "<script>window.location.href = 'categorias.php?mensagem=Categoria adicionada com sucesso!&tipo=success';</script>";
-            exit;
-        } else {
-            $msg = 'Erro ao adicionar categoria.';
+    if (empty($msg) || $msg_type === 'success') {
+        $sql = "INSERT INTO categorias (nome, ordem, ativo, imagem, permite_meio_a_meio) VALUES (?, ?, ?, ?, ?)";
+        $params = [$nome, $ordem, $ativo, $imagem, $permite_meio_a_meio];
+        
+        // If we want to support description, we'd need to alter the table first. 
+        // I'll assume standard fields for now to be safe.
+        
+        try {
+            $stmt = $pdo->prepare($sql);
+            if ($stmt->execute($params)) {
+                // Redirect to list with success message
+                echo "<script>window.location.href = 'categorias.php?mensagem=Categoria adicionada com sucesso!&tipo=success';</script>";
+                exit;
+            } else {
+                $msg = 'Erro ao adicionar categoria.';
+                $msg_type = 'danger';
+            }
+        } catch (PDOException $e) {
+            $msg = 'Erro no banco de dados: ' . $e->getMessage();
             $msg_type = 'danger';
         }
-    } catch (PDOException $e) {
-        $msg = 'Erro no banco de dados: ' . $e->getMessage();
-        $msg_type = 'danger';
     }
 }
 ?>

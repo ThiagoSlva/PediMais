@@ -51,7 +51,7 @@ $tema_layout = $config['tema_layout'] ?? 'default';
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="<?php echo $cor_principal; ?>">
 <title><?php echo htmlspecialchars($config['nome_site'] ?? 'PedeMais'); ?></title>
-<link rel="icon" href="admin/uploads/config/<?php echo $config['favicon'] ?? 'favicon.ico'; ?>">
+<link rel="icon" href="uploads/config/<?php echo $config['favicon'] ?? 'favicon.ico'; ?>">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <?php if ($tema_layout === 'shioki'): ?>
@@ -606,13 +606,31 @@ header h1 {
   transform: translateY(-2px);
   box-shadow: 0 12px 35px var(--primary-shadow-hover);
 }
+
+/* ========== OTIMIZAÇÃO DE IMAGENS - LAZY LOADING ========== */
+img.lazy-img {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  transition: opacity 0.3s ease;
+}
+
+[data-theme="dark"] img.lazy-img {
+  background: linear-gradient(90deg, #2d3446 25%, #3d4556 50%, #2d3446 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+img[data-src] {
+  will-change: opacity;
+}
 </style>
 </head>
 <body class="<?php echo $tema_layout === 'shioki' ? 'tema-shioki' : ''; ?>">
 
 <header>
-  <img src="admin/uploads/config/<?php echo $config['capa'] ?? 'capa.png'; ?>" class="bg" alt="Capa">
-  <img src="admin/uploads/config/<?php echo $config['logo'] ?? 'logo.png'; ?>" class="logo" alt="Logo">
+  <img src="uploads/config/<?php echo $config['capa'] ?? 'capa.png'; ?>" class="bg" alt="Capa">
+  <img src="uploads/config/<?php echo $config['logo'] ?? 'logo.png'; ?>" class="logo" alt="Logo">
   <h1><?php echo htmlspecialchars($config['nome_site'] ?? 'PedeMais'); ?></h1>
 </header>
 
@@ -778,7 +796,12 @@ header h1 {
     <div class="categories">
         <?php foreach ($categorias as $cat): ?>
         <div class="category" data-category="<?php echo $cat['id']; ?>">
-            <img src="<?php echo $cat['imagem'] ? $cat['imagem'] : 'admin/assets/images/sem-foto.jpg'; ?>" alt="<?php echo $cat['nome']; ?>">
+            <img 
+                loading="lazy"
+                src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23f3f4f6' width='100' height='100'/%3E%3C/svg%3E"
+                data-src="<?php echo $cat['imagem'] ? $cat['imagem'] : 'admin/assets/images/sem-foto.jpg'; ?>" 
+                alt="<?php echo $cat['nome']; ?>"
+                class="lazy-img">
             <span class="category-name"><?php echo $cat['nome']; ?></span>
         </div>
         <?php endforeach; ?>
@@ -828,7 +851,12 @@ header h1 {
                         ?>
                     </p>
                 </div>
-                <img src="<?php echo $prod['imagem_path'] ? $prod['imagem_path'] : 'admin/assets/images/sem-foto.jpg'; ?>" alt="<?php echo $prod['nome']; ?>">
+                <img 
+                    loading="lazy"
+                    src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 95 95'%3E%3Crect fill='%23f3f4f6' width='95' height='95'/%3E%3C/svg%3E"
+                    data-src="<?php echo $prod['imagem_path'] ? $prod['imagem_path'] : 'admin/assets/images/sem-foto.jpg'; ?>" 
+                    alt="<?php echo $prod['nome']; ?>"
+                    class="lazy-img">
             </div>
             <?php endforeach; ?>
         </div>
@@ -1022,6 +1050,33 @@ endif;
 
 <script>
     window.siteConfig = <?php echo json_encode($config); ?>;
+    
+    // Lazy Loading com Intersection Observer - Otimiza Carregamento de Imagens
+    document.addEventListener('DOMContentLoaded', function() {
+        const lazyImages = document.querySelectorAll('img.lazy-img');
+        
+        if ('IntersectionObserver' in window) {
+            const imageObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        img.src = img.dataset.src;
+                        img.classList.remove('lazy-img');
+                        observer.unobserve(img);
+                    }
+                });
+            }, {
+                rootMargin: '50px' // Carrega 50px antes de entrar na viewport
+            });
+            
+            lazyImages.forEach(img => imageObserver.observe(img));
+        } else {
+            // Fallback para navegadores antigos
+            lazyImages.forEach(img => {
+                img.src = img.dataset.src;
+            });
+        }
+    });
 </script>
 <script src="assets/js/app_new.js"></script>
 

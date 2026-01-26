@@ -2,6 +2,7 @@
 include 'includes/auth.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+include '../includes/image_optimization.php';
 
 verificar_login();
 
@@ -121,28 +122,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['salvar_config'])) {
 
         // Handle Files
         if (!empty($_FILES['site_logo']['name'])) {
-            $ext = pathinfo($_FILES['site_logo']['name'], PATHINFO_EXTENSION);
-            $filename = 'logo.' . $ext; // Keep standard name for simplicity
-            move_uploaded_file($_FILES['site_logo']['tmp_name'], $upload_dir . $filename);
-            $sql .= ", logo = ?";
-            $params[] = $filename;
+            $file_base = $upload_dir . 'logo';
+            $compress_result = compressAndOptimizeImage($_FILES['site_logo']['tmp_name'], $file_base, 80, 400, 400);
+            
+            if ($compress_result['success']) {
+                $filename = basename($compress_result['file']);
+                $sql .= ", logo = ?";
+                $params[] = $filename;
+            }
         }
 
         if (!empty($_FILES['site_favicon']['name'])) {
-            $ext = pathinfo($_FILES['site_favicon']['name'], PATHINFO_EXTENSION);
-            $filename = 'favicon.ico'; // Force favicon.ico or similar
-            if ($ext != 'ico') $filename = 'favicon.' . $ext;
-            move_uploaded_file($_FILES['site_favicon']['tmp_name'], $upload_dir . $filename);
-            $sql .= ", favicon = ?";
-            $params[] = $filename;
+            $file_base = $upload_dir . 'favicon';
+            $compress_result = compressAndOptimizeImage($_FILES['site_favicon']['tmp_name'], $file_base, 80, 128, 128);
+            
+            if ($compress_result['success']) {
+                $filename = basename($compress_result['file']);
+                $sql .= ", favicon = ?";
+                $params[] = $filename;
+            }
         }
 
         if (!empty($_FILES['site_capa']['name'])) {
-            $ext = pathinfo($_FILES['site_capa']['name'], PATHINFO_EXTENSION);
-            $filename = 'capa.' . $ext;
-            move_uploaded_file($_FILES['site_capa']['tmp_name'], $upload_dir . $filename);
-            $sql .= ", capa = ?";
-            $params[] = $filename;
+            $file_base = $upload_dir . 'capa';
+            $compress_result = compressAndOptimizeImage($_FILES['site_capa']['tmp_name'], $file_base, 75, 1920, 600);
+            
+            if ($compress_result['success']) {
+                $filename = basename($compress_result['file']);
+                $sql .= ", capa = ?";
+                $params[] = $filename;
+            }
         }
 
         $sql .= " WHERE id = 1";

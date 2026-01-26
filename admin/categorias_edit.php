@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/header.php';
+require_once __DIR__ . '/../includes/image_optimization.php';
 
 // Migration: Adicionar coluna permite_meio_a_meio se não existir
 try {
@@ -46,16 +47,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Upload de imagem
     $imagem = $categoria['imagem']; // Manter imagem atual por padrão
     if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === 0) {
-        $ext = pathinfo($_FILES['imagem']['name'], PATHINFO_EXTENSION);
-        $nome_arquivo = 'cat_' . time() . '.' . $ext;
         $upload_dir = __DIR__ . '/uploads/categorias/';
+        $file_base = $upload_dir . 'cat_' . time();
         
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
+        // Comprimir e otimizar imagem
+        $compress_result = compressAndOptimizeImage($_FILES['imagem']['tmp_name'], $file_base, 75, 800, 800);
         
-        if (move_uploaded_file($_FILES['imagem']['tmp_name'], $upload_dir . $nome_arquivo)) {
-            $imagem = 'admin/uploads/categorias/' . $nome_arquivo; // Caminho relativo à raiz do site
+        if ($compress_result['success']) {
+            $imagem = $compress_result['file'];
+            $msg = 'Categoria atualizada! Imagem comprimida com redução de ' . $compress_result['compression_ratio'] . '%';
+            $msg_type = 'success';
+        } else {
+            $msg = 'Erro ao processar imagem: ' . $compress_result['error'];
+            $msg_type = 'danger';
         }
     }
 
