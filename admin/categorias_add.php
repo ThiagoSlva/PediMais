@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Upload de imagem
     $imagem = '';
     if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === 0) {
-        $upload_dir = __DIR__ . '/uploads/categorias/';
+        $upload_dir = __DIR__ . '/../uploads/categorias/';
         $file_base = $upload_dir . 'cat_' . time();
         
         // Comprimir e otimizar imagem

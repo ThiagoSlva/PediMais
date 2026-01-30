@@ -217,8 +217,12 @@ include 'includes/header.php';
 </div>
 
 <script>
-const modalEndereco = new bootstrap.Modal(document.getElementById('modalEndereco'));
+let modalEndereco;
 let editandoId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    modalEndereco = new bootstrap.Modal(document.getElementById('modalEndereco'));
+});
 
 function abrirModalEndereco() {
     editandoId = null;

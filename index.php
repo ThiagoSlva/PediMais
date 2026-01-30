@@ -802,7 +802,7 @@ img[data-src] {
             <img 
                 loading="lazy"
                 src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23f3f4f6' width='100' height='100'/%3E%3C/svg%3E"
-                data-src="<?php echo $cat['imagem'] ? $cat['imagem'] : 'admin/assets/images/sem-foto.jpg'; ?>" 
+                data-src="<?php echo ($cat['imagem'] && !str_ends_with($cat['imagem'], '.jpg') && !str_ends_with($cat['imagem'], '.png') && !str_ends_with($cat['imagem'], '.gif')) ? $cat['imagem'] . '.jpg' : ($cat['imagem'] ?: 'admin/assets/images/sem-foto.jpg'); ?>" 
                 alt="<?php echo $cat['nome']; ?>"
                 class="lazy-img">
             <span class="category-name"><?php echo $cat['nome']; ?></span>
@@ -859,7 +859,7 @@ img[data-src] {
                 <img 
                     loading="lazy"
                     src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 95 95'%3E%3Crect fill='%23f3f4f6' width='95' height='95'/%3E%3C/svg%3E"
-                    data-src="<?php echo $prod['imagem_path'] ? $prod['imagem_path'] : 'admin/assets/images/sem-foto.jpg'; ?>" 
+                    data-src="<?php echo ($prod['imagem_path'] && !str_ends_with($prod['imagem_path'], '.jpg') && !str_ends_with($prod['imagem_path'], '.png') && !str_ends_with($prod['imagem_path'], '.gif')) ? $prod['imagem_path'] . '.jpg' : ($prod['imagem_path'] ?: 'admin/assets/images/sem-foto.jpg'); ?>" 
                     alt="<?php echo $prod['nome']; ?>"
                     class="lazy-img">
             </div>

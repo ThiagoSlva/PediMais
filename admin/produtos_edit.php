@@ -76,7 +76,7 @@ function downloadWebImage($url, $prefix = 'prod_') {
     $filename = $prefix . time() . '_' . rand(1000, 9999) . '.' . $extension;
     
     if (file_put_contents($upload_dir . $filename, $image_content) !== false) {
-        return 'admin/uploads/produtos/' . $filename;
+        return 'uploads/produtos/' . $filename;
     }
     
     return false;
@@ -106,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     // Se não tem imagem web, verificar upload local
     elseif (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === 0) {
-        $upload_dir = __DIR__ . '/uploads/produtos/';
+        $upload_dir = __DIR__ . '/../uploads/produtos/';
         $file_base = $upload_dir . 'prod_' . time();
         
         // Comprimir e otimizar imagem
