@@ -132,25 +132,32 @@ function compressAndOptimizeImage($source, $destination, $quality = 75, $maxWidt
         // ou relativo (ex: uploads/cat_123)
         // O arquivo é SEMPRE salvo COM extensão .jpg, então precisa retornar COM extensão
         
+        // Normalizar separadores para compatibilidade Windows/Linux
+        $destination = str_replace('\\', '/', $destination);
+
+        // Retornar caminho relativo correto para web
+        // O $destination pode ser absoluto (ex: /home/user/public/uploads/cat_123)
+        // ou relativo (ex: uploads/cat_123)
+        // O arquivo é SEMPRE salvo COM extensão .jpg, então precisa retornar COM extensão
+        
         if (strpos($destination, '/') === 0 || (strlen($destination) > 1 && $destination[1] === ':')) {
             // É caminho absoluto (começa com / ou C:)
             // Extrair apenas a parte relativa a partir de 'uploads'
-            if (strpos($destination, '/uploads/') !== false) {
-                // Trata /home/user/public_html/uploads/...
-                $relative = 'uploads/' . substr($destination, strpos($destination, '/uploads/') + 9);
-            } elseif (strpos($destination, '/admin/uploads/') !== false) {
-                // Trata /home/user/public_html/admin/uploads/... (DEPRECATED - não usar mais)
-                // Converter para novo caminho /uploads/
-                $relative = 'uploads/' . substr($destination, strpos($destination, '/admin/uploads/') + 15);
-            } else {
-                // Fallback: pegar tudo após o último / 
-                $relative = basename($destination);
-            }
-            // Adicionar extensão para caminhos absolutos
-            $best_file = $relative . '.jpg';
+             if (strpos($destination, '/uploads/') !== false) {
+                 // Trata /home/user/public_html/uploads/... e C:/.../uploads/...
+                 $relative = 'uploads/' . substr($destination, strpos($destination, '/uploads/') + 9);
+             } elseif (strpos($destination, '/admin/uploads/') !== false) {
+                // Trata /home/user/public_html/admin/uploads/... (DEPRECATED)
+                 $relative = 'uploads/' . substr($destination, strpos($destination, '/admin/uploads/') + 15);
+             } else {
+                 // Fallback: tentar encontrar pasta do projeto
+                 $relative = basename($destination);
+             }
+             // Adicionar extensão para caminhos absolutos
+             $best_file = $relative . '.jpg';
         } else {
-            // Já é relativo
-            $best_file = $destination . '.jpg';
+             // Já é relativo
+             $best_file = $destination . '.jpg';
         }
         
         // Calcular economia

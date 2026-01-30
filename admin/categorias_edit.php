@@ -126,10 +126,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="col-md-12">
                         <label class="form-label fw-semibold text-primary-light text-sm mb-8">Imagem</label>
                         <input type="file" class="form-control radius-8" name="imagem" accept="image/*">
-                        <?php if ($categoria['imagem']): ?>
+                        <?php if ($categoria['imagem']): 
+                            // O caminho no banco é relativo à raiz (ex: uploads/categorias/xxx.jpg)
+                            // Estamos em /admin, então precisamos subir um nível
+                            $img_src = str_replace('admin/', '', $categoria['imagem']);
+                            if (!str_starts_with($img_src, 'http') && !str_starts_with($img_src, '../')) {
+                                $img_src = '../' . $img_src;
+                            }
+                        ?>
                             <div class="mt-2">
                                 <small class="text-secondary-light">Imagem atual:</small><br>
-                                <img src="<?php echo str_replace('admin/', '', $categoria['imagem']); ?>" 
+                                <img src="<?php echo htmlspecialchars($img_src); ?>" 
                                      style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; margin-top: 5px;"
                                      onerror="this.style.display='none'">
                             </div>

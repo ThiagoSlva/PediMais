@@ -224,9 +224,17 @@ if (isset($_GET['mensagem'])) {
                                 <td class="fw-bold text-primary-600"><?php echo $cat['ordem']; ?></td>
                                 <td>
                                     <?php 
-                                    // O caminho salvo no banco é 'admin/uploads/categorias/xxx.jpg'
-                                    // No admin, precisamos de 'uploads/categorias/xxx.jpg' (relativo)
-                                    $img_url = $cat['imagem'] ? str_replace('admin/', '', $cat['imagem']) : 'assets/images/sem-foto.jpg';
+                                    // O caminho salvo no banco é 'uploads/categorias/xxx.jpg' (relativo à raiz)
+                                    // No admin, precisamos de '../uploads/categorias/xxx.jpg'
+                                    $img_url = $cat['imagem'] ? str_replace('admin/', '', $cat['imagem']) : '';
+                                    
+                                    if ($img_url) {
+                                        if (!str_starts_with($img_url, 'http') && !str_starts_with($img_url, '../')) {
+                                            $img_url = '../' . $img_url;
+                                        }
+                                    } else {
+                                        $img_url = 'assets/images/sem-foto.jpg';
+                                    }
                                     ?>
                                     <img src="<?php echo htmlspecialchars($img_url); ?>" alt="<?php echo htmlspecialchars($cat['nome']); ?>" 
                                          style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;"
