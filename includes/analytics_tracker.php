@@ -202,6 +202,21 @@ function track_visitor($page_title = null) {
         ");
         
         $ip = get_visitor_ip();
+        
+        // ⚡ VERIFICAR SE IP JÁ FOI REGISTRADO HOJE
+        // Só registra 1 visita por IP por dia para evitar contagens duplicadas
+        $stmt_check = $pdo->prepare("
+            SELECT id FROM site_analytics 
+            WHERE ip_address = ? AND DATE(visited_at) = CURDATE()
+            LIMIT 1
+        ");
+        $stmt_check->execute([$ip]);
+        
+        if ($stmt_check->fetch()) {
+            // IP já registrado hoje, não inserir novamente
+            return false;
+        }
+        
         $geo = get_geolocation($ip);
         $device = detect_device($user_agent);
         
