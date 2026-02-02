@@ -2,6 +2,12 @@
 session_start();
 require_once 'includes/functions.php';
 
+// Sistema de Analytics - Rastreamento de Visitantes
+require_once 'includes/analytics_tracker.php';
+if (function_exists('track_visitor')) {
+    track_visitor('Cardápio');
+}
+
 $config = get_config();
 // ⚡ OTIMIZAÇÃO: Usar get_categorias_com_produtos() em vez de get_categorias_ativas()
 // Isso carrega categorias + produtos + avaliações em UMA ÚNICA QUERY

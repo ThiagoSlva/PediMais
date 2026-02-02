@@ -1,0 +1,57 @@
+COMO CONFIGURAR CRON JOBS (TAREFAS AGENDADAS)
+
+Este guia explica como configurar as tarefas automáticas do sistema PediMais usando o serviço gratuito cron-job.org. Essas tarefas são essenciais para verificar pagamentos, enviar notificações e limpar dados antigos.
+
+CRIAR UMA CONTA
+
+Acesse https://cron-job.org/en/
+
+Clique em "Sign Up" (ou Login se já tiver conta).
+
+Crie sua conta gratuitamente e faça login.
+
+CRIAR OS CRON JOBS
+
+Para cada script listado abaixo, você fará o mesmo processo:
+
+No painel (Dashboard), clique em "Cronjobs" e depois no botão "Create cronjob".
+
+Title: Escolha um nome para identificar (ex: Verificar Pagamentos MP).
+
+URL: Digite o endereço completo do script no seu site.
+
+Exemplo: https://seudominio.com.br/cron/nomedoscript.php
+(Substitua seudominio.com.br pelo seu domínio real).
+Execution schedule: Defina a frequência (veja sugestão abaixo para cada script).
+
+Clique em "Create cronjob".
+
+LISTA DE SCRIPTS PARA CONFIGURAR
+
+Aqui estão os scripts que você precisa configurar e a frequência recomendada:
+
+SCRIPT 1: Verificar Pagamentos Mercado Pago Este script verifica se os pagamentos pendentes foram aprovados.
+
+Nome: Verificar Pagamentos MP
+URL: https://seudominio.com.br/cron/verificar_pagamentos_mercadopago.php
+Frequência Recomendada: A cada 1 minuto ou 5 minutos.
+SCRIPT 2: Verificar Pagamentos Asaas Verifica o status das cobranças via Asaas.
+
+Nome: Verificar Pagamentos Asaas
+URL: https://seudominio.com.br/cron/verificar_pagamentos_asaas.php
+Frequência Recomendada: A cada 1 minuto ou 5 minutos.
+SCRIPT 3: Enviar Mensagens (Notificações) Envia mensagens de status (ex: WhatsApp) para os clientes.
+
+Nome: Enviar Mensagens MP
+URL: https://seudominio.com.br/cron/enviar_mensagens_mercadopago.php
+Frequência Recomendada: A cada 1 minuto ou 2 minutos.
+SCRIPT 4: Limpeza de Pagamentos Expirados Remove pedidos ou tentativas de pagamento que já venceram para limpar o banco de dados.
+
+Nome: Limpar Expirados
+URL: https://seudominio.com.br/cron/limpar_pagamentos_expirados.php
+Frequência Recomendada: A cada 30 minutos ou 1 hora.
+DICAS IMPORTANTES
+
+HTTPS: Certifique-se de que seu site tem SSL ativo (cadeado verde) e use https:// nas URLs.
+Logs: O cron-job.org mostra se a execução falhou. Verifique de vez em quando se está tudo "Verde" (Success).
+Timezone: O horário de execução pode depender do fuso horário configurado na sua conta do cron-job.org, mas para frequências como "A cada 5 minutos", isso não faz muita diferença.

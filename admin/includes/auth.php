@@ -148,6 +148,7 @@ function get_menu_items() {
         ];
         
         $menu['Sistema'] = [
+            ['href' => 'analytics.php', 'icon' => 'solar:chart-bold-duotone', 'label' => 'Analytics', 'color' => '#06b6d4'],
             ['href' => 'usuarios.php', 'icon' => 'solar:user-id-bold-duotone', 'label' => 'Usuários', 'color' => '#8b5cf6'],
             ['href' => 'configuracoes.php', 'icon' => 'solar:settings-bold-duotone', 'label' => 'Configurações', 'color' => '#6b7280'],
             ['href' => 'impressora.php', 'icon' => 'solar:printer-bold-duotone', 'label' => 'Impressora', 'color' => '#f97316'],

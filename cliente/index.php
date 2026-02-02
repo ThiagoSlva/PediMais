@@ -2,6 +2,12 @@
 require_once '../includes/config.php';
 require_once 'includes/auth.php';
 
+// Sistema de Analytics - Rastreamento de Visitantes
+require_once '../includes/analytics_tracker.php';
+if (function_exists('track_visitor')) {
+    track_visitor('Área do Cliente');
+}
+
 verificar_login_cliente();
 
 $cliente_id = $_SESSION['cliente_id'];
