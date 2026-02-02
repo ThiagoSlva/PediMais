@@ -450,7 +450,7 @@ foreach ($chart_data as $row) {
     <div class="stat-box blue">
         <iconify-icon icon="solar:eye-bold-duotone" class="icon"></iconify-icon>
         <div class="value"><?php echo number_format($stats['total']); ?></div>
-        <div class="label">Total de Visitas</div>
+        <div class="label">Visualizações de Página</div>
     </div>
     
     <div class="stat-box green">

@@ -202,18 +202,21 @@ function track_visitor($page_title = null) {
         ");
         
         $ip = get_visitor_ip();
+        $current_url = $_SERVER['REQUEST_URI'] ?? '/';
         
-        // ⚡ VERIFICAR SE IP JÁ FOI REGISTRADO HOJE
-        // Só registra 1 visita por IP por dia para evitar contagens duplicadas
+        // ⚡ OTIMIZAÇÃO: Evitar duplicatas de refresh (mesmo IP, mesma URL, intervalo curto)
+        // Mas PERMITIR navegação entre páginas diferentes para ver o fluxo do usuário
         $stmt_check = $pdo->prepare("
             SELECT id FROM site_analytics 
-            WHERE ip_address = ? AND DATE(visited_at) = CURDATE()
+            WHERE ip_address = ? 
+            AND page_url = ? 
+            AND visited_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
             LIMIT 1
         ");
-        $stmt_check->execute([$ip]);
+        $stmt_check->execute([$ip, $current_url]);
         
         if ($stmt_check->fetch()) {
-            // IP já registrado hoje, não inserir novamente
+            // Visita repetida na mesma página em menos de 5 min -> ignorar
             return false;
         }
         
