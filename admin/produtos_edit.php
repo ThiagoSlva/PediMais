@@ -355,7 +355,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         <?php if ($produto['imagem_path']): ?>
                         <div class="current-image mb-3">
-                            <img src="<?php echo str_replace('admin/', '', $produto['imagem_path']); ?>" 
+                            <?php 
+                            $img_src = str_replace('admin/', '', $produto['imagem_path']);
+                            if (strpos($img_src, 'uploads/') === 0) {
+                                $img_src = '../' . $img_src;
+                            }
+                            ?>
+                            <img src="<?php echo $img_src; ?>" 
                                  alt="Imagem atual"
                                  onerror="this.parentElement.style.display='none'">
                             <div>

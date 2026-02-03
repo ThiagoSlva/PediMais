@@ -1,0 +1,83 @@
+COMO RODAR O SISTEMA PEDIMAIS NO CPANEL
+
+Este guia irá ajudá-lo a configurar o sistema PediMais em sua hospedagem cPanel. O processo envolve o envio dos arquivos, criação do banco de dados e configuração do sistema.
+
+PREPARAÇÃO DOS ARQUIVOS
+Você já possui o arquivo PediMais.zip na pasta raiz do seu projeto. Este é o arquivo que enviaremos para o servidor. O sistema utiliza um arquivo .env para configurações.
+
+ENVIANDO OS ARQUIVOS PARA O CPANEL
+
+Acesse o seu cPanel.
+
+Vá em "Gerenciador de Arquivos" (File Manager).
+
+Navegue até a pasta public_html (ou a subpasta onde deseja instalar o sistema).
+
+Clique em "Carregar" (Upload) e selecione o arquivo PediMais.zip do seu computador.
+
+Após o envio, clique com o botão direito no arquivo zip e selecione "Extrair" (Extract).
+
+Os arquivos serão extraídos. Certifique-se de que eles estejam na pasta correta. Se forem extraídos para uma subpasta (ex: PediMais), mova-os para a raiz se desejar que o site abra diretamente no domínio principal.
+
+IMPORTANTE: O arquivo .env é oculto por padrão em alguns sistemas. No Gerenciador de Arquivos do cPanel, clique em "Configurações" (no canto superior direito) e marque a opção "Mostrar arquivos ocultos (dotfiles)" para vê-lo.
+
+CRIANDO O BANCO DE DADOS
+
+No cPanel, vá em "Bancos de Dados MySQL" (MySQL Databases).
+
+Criar Novo Banco de Dados:
+
+Dê um nome ao banco (ex: nomedousuario_pedimais) e clique em "Criar Banco de Dados".
+ANOTE ESTE NOME!
+Criar Usuário do MySQL:
+
+Role para baixo até "Adicionar Novo Usuário".
+Crie um usuário (ex: nomedousuario_pedi) e uma senha forte.
+ANOTE O USUÁRIO E A SENHA!
+Adicionar Usuário ao Banco de Dados:
+
+Role para baixo até "Adicionar Usuário ao Banco de Dados".
+Selecione o usuário e o banco que você acabou de criar.
+Clique em "Adicionar".
+Na próxima tela, marque a caixa TODOS OS PRIVILÉGIOS (ALL PRIVILEGES) e clique em "Fazer Alterações".
+IMPORTANDO O BANCO DE DADOS
+
+Volte ao cPanel e vá em "phpMyAdmin".
+
+Na lateral esquerda, clique no banco de dados que você acabou de criar.
+
+Clique na aba "Importar" (Import) no topo.
+
+Clique em "Escolher arquivo" e selecione o arquivo SQL localizado na pasta "Banco de Dados Aqui" do seu projeto. O arquivo deve se chamar "PediMais.sql".
+
+Clique em "Executar" (Go) no final da página.
+
+Aguarde a mensagem de sucesso confirmando a importação das tabelas.
+
+CONFIGURANDO O SISTEMA
+
+Agora precisamos conectar o sistema ao banco de dados que criamos.
+
+No Gerenciador de Arquivos do cPanel, procure pelo arquivo .env na raiz do site.
+Clique com o botão direito e selecione "Edit" (Editar).
+Localize as linhas de configuração do banco de dados e altere pelos dados que você anotou:
+DB_HOST=localhost DB_NAME=nomedousuario_pedimais <-- Coloque o nome do banco criado DB_USER=nomedousuario_pedi <-- Coloque o usuário criado DB_PASS=SuaSenhaForte123 <-- Coloque a senha criada
+
+Aproveite para configurar o seu site:
+SITE_URL=https://seudominio.com.br
+
+Clique em "Salvar Alterações".
+
+CONFIGURAÇÕES FINAIS E PERMISSÕES
+
+Verifique se a versão do PHP no cPanel está compatível (Recomendado 8.2 ou 8.3, dependendo dos requisitos do sistema). Vá em "Select PHP Version" no cPanel para alterar se necessário.
+
+Verifique as permissões das pastas. Pastas devem ser 755 e arquivos 644. O cPanel geralmente configura isso automaticamente.
+
+Acesse seu site pelo navegador. Se tudo estiver correto, o sistema deverá carregar.
+
+TROUBLESHOOTING (RESOLUÇÃO DE PROBLEMAS)
+
+Erro 500: Geralmente problema no .htaccess ou versão do PHP. Tente alterar a versão do PHP.
+Erro de Conexão com Banco: Verifique novamente o arquivo .env. O usuário e senha devem ser exatos. Lembre-se que no cPanel, o nome do banco e usuário geralmente incluem o prefixo da conta (ex: usuario_banco).
+Página em Branco: Pode ser erro de PHP oculto. Verifique o arquivo error_log na pasta onde instalou o sistema para mais detalhes.

@@ -268,6 +268,10 @@ if (isset($_GET['mensagem'])) {
                                     <td>
                                         <?php 
                                         $img_url = $prod['imagem_path'] ? str_replace('admin/', '', $prod['imagem_path']) : 'assets/images/sem-foto.jpg';
+                                        // Correção para caminho relativo no admin
+                                        if ($img_url && strpos($img_url, 'uploads/') === 0) {
+                                            $img_url = '../' . $img_url;
+                                        }
                                         ?>
                                         <img src="<?php echo htmlspecialchars($img_url); ?>" alt="<?php echo htmlspecialchars($prod['nome']); ?>" 
                                              style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;"
