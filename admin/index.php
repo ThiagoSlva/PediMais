@@ -532,7 +532,7 @@ $top_produtos = $stmt_top_produtos->fetchAll(PDO::FETCH_ASSOC);
                     <span class="quick-action-text">Novo Produto</span>
                     <iconify-icon icon="solar:arrow-right-outline" class="quick-action-arrow"></iconify-icon>
                 </a>
-                <a href="kanban.php" class="quick-action">
+                <a href="pedidos_kanban.php" class="quick-action">
                     <div class="quick-action-icon blue">
                         <iconify-icon icon="solar:clipboard-list-outline"></iconify-icon>
                     </div>
