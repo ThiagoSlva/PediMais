@@ -1552,7 +1552,7 @@
         </p>
         <div class="cta-buttons">
           <a
-            href="https://wa.me/5500000000000?text=Olá! Tenho interesse no sistema PediMais"
+            href="https://wa.me/5511932261834?text=Olá! Tenho interesse no sistema PediMais"
             class="btn-whatsapp"
             target="_blank"
           >
