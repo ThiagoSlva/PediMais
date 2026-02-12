@@ -62,17 +62,20 @@ if ($type === 'payment' && in_array($action, ['payment.created', 'payment.update
     error_log("💳 Payment ID: {$payment_id}");
 
     // Consultar pagamento no Mercado Pago
-    $mp = new MercadoPago($pdo);
-    $result = $mp->consultarPagamento($payment_id);
+    $mp = new MercadoPagoHelper($pdo);
+    $result = $mp->getPaymentStatus($payment_id);
 
-    if (!$result['success']) {
-        error_log("❌ Erro ao consultar pagamento: " . ($result['error'] ?? 'Desconhecido'));
+    if (!$result) {
+        error_log("❌ Erro ao consultar pagamento: Falha na comunicação com API");
         http_response_code(500);
         echo json_encode(['error' => 'Erro ao consultar pagamento']);
         exit;
     }
 
-    $status = $result['status'];
+    // O helper retorna array com status se sucesso, ou null se falha
+    // O formato retornado pelo helper é direto o body da resposta do MP
+    $status = $result['status'] ?? 'unknown'; # Helper retorna o array do MP direto
+
     error_log("📊 Status do pagamento: {$status}");
 
     // Buscar pagamento no banco
@@ -118,6 +121,7 @@ if ($type === 'payment' && in_array($action, ['payment.created', 'payment.update
             $pedido_antigo = $stmt_pedido_antigo->fetch(PDO::FETCH_ASSOC);
 
             // 1. Atualizar pedido para PAGO e EM_PREPARO
+            // Status correto do ENUM: 'em_andamento'
             $stmt = $pdo->prepare("
                 UPDATE pedidos 
                 SET pago = 1,
@@ -131,14 +135,18 @@ if ($type === 'payment' && in_array($action, ['payment.created', 'payment.update
             // Adicionar ponto de fidelidade se mudou para em_andamento
             if ($pedido_antigo && !empty($pedido_antigo['cliente_id']) && $pedido_antigo['status'] !== 'em_andamento') {
                 require_once __DIR__ . '/../includes/functions.php';
-                adicionar_ponto_fidelidade((int)$pedido_antigo['cliente_id'], $pedido_id);
+                if (function_exists('adicionar_ponto_fidelidade')) {
+                    adicionar_ponto_fidelidade((int)$pedido_antigo['cliente_id'], $pedido_id);
+                }
             }
 
             // 2. Sincronizar com Kanban (mover para lane "Em Preparo")
             try {
                 require_once __DIR__ . '/../includes/functions.php';
-                sync_pedido_lane_by_status($pedido_id, 'em_andamento');
-                error_log("✅ Kanban sincronizado");
+                if (function_exists('sync_pedido_lane_by_status')) {
+                    sync_pedido_lane_by_status($pedido_id, 'em_andamento');
+                    error_log("✅ Kanban sincronizado");
+                }
             }
             catch (Exception $e) {
                 error_log("⚠️ Erro ao sincronizar Kanban: " . $e->getMessage());
@@ -149,66 +157,54 @@ if ($type === 'payment' && in_array($action, ['payment.created', 'payment.update
             $stmt->execute([':id' => $pedido_id]);
             $pedido = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            // 4. Enviar mensagem WhatsApp "Pagamento Recebido" (se WhatsApp ativo E usar_mercadopago ativo)
+            // 4. Enviar mensagem WhatsApp "Pagamento Recebido"
             try {
                 error_log("🔍 WEBHOOK: Verificando envio WhatsApp...");
                 $whatsapp_config = $pdo->query("SELECT * FROM whatsapp_config WHERE id = 1 LIMIT 1")->fetch(PDO::FETCH_ASSOC);
 
                 $usar_mp_whatsapp = isset($whatsapp_config['usar_mercadopago']) ? $whatsapp_config['usar_mercadopago'] : 1;
 
-                error_log("📋 WEBHOOK: WhatsApp ativo: " . ($whatsapp_config && $whatsapp_config['ativo'] ? 'SIM' : 'NÃO'));
-                error_log("📋 WEBHOOK: Usar MP WhatsApp: " . ($usar_mp_whatsapp ? 'SIM' : 'NÃO'));
-
                 if ($whatsapp_config && $whatsapp_config['ativo'] && $usar_mp_whatsapp) {
-                    error_log("✅ WEBHOOK: Buscando template 'pagamento_recebido'...");
-                    $template = obter_template_mercadopago('pagamento_recebido', $pdo);
+                    // Buscar template de pagamento recebido (ID 150)
+                    $stmt_template = $pdo->prepare("SELECT mensagem, ativo FROM whatsapp_mensagens WHERE id = 150 LIMIT 1");
+                    $stmt_template->execute();
+                    $template = $stmt_template->fetch(PDO::FETCH_ASSOC);
 
-                    if ($template) {
-                        error_log("📝 WEBHOOK: Template encontrado: " . $template['titulo']);
-                        error_log("📝 WEBHOOK: Mensagem template (100 chars): " . substr($template['mensagem'], 0, 100));
+                    if ($template && $template['ativo']) {
+                        // Substituir variáveis
+                        $valor_formatado = number_format($pedido['valor_total'], 2, ',', '.');
+                        $mensagem = str_replace(
+                        ['{nome}', '{codigo_pedido}', '{valor}'],
+                        [$pedido['cliente_nome'], $pedido['codigo_pedido'], $valor_formatado],
+                            $template['mensagem']
+                        );
 
-                        $mensagem = processar_template_mercadopago($template['mensagem'], $pedido, $pdo);
-                        error_log("📄 WEBHOOK: Mensagem processada (100 chars): " . substr($mensagem, 0, 100));
-
-                        // Obter telefone
-                        $telefone = obter_telefone_pedido($pedido, $pdo);
-                        error_log("📞 WEBHOOK: Telefone obtido: " . ($telefone ?? 'NULL'));
-
+                        $telefone = $pedido['cliente_telefone'];
+                        // Limpar telefone
+                        $telefone = preg_replace('/\D/', '', $telefone);
                         if ($telefone && !str_starts_with($telefone, '55')) {
                             $telefone = '55' . $telefone;
                         }
-                        error_log("📞 WEBHOOK: Telefone formatado: " . ($telefone ?? 'NULL'));
 
                         if ($telefone) {
                             error_log("📤 WEBHOOK: Enviando mensagem...");
-                            $whatsapp = new WhatsAppEvolution($pdo);
-                            $resultado = $whatsapp->enviarMensagem($telefone, $mensagem);
+                            $whatsapp = new WhatsAppHelper($pdo);
+                            $resultado = $whatsapp->sendMessage($telefone, $mensagem);
 
                             error_log("📡 WEBHOOK: Resultado: " . json_encode($resultado));
 
                             if ($resultado['success']) {
                                 error_log("✅ WEBHOOK: WhatsApp enviado com sucesso!");
-                                registrar_log_whatsapp($pedido_id, 'pagamento_recebido_mp', $telefone, $mensagem, 'success');
                             }
                             else {
                                 error_log("❌ WEBHOOK: Erro ao enviar: " . ($resultado['error'] ?? 'Desconhecido'));
                             }
                         }
-                        else {
-                            error_log("❌ WEBHOOK: Telefone vazio");
-                        }
                     }
-                    else {
-                        error_log("❌ WEBHOOK: Template 'pagamento_recebido' não encontrado");
-                    }
-                }
-                else {
-                    error_log("❌ WEBHOOK: WhatsApp não habilitado para MP");
                 }
             }
             catch (Exception $e) {
                 error_log("⚠️ WEBHOOK: Erro ao enviar WhatsApp: " . $e->getMessage());
-                error_log("⚠️ WEBHOOK: Stack trace: " . $e->getTraceAsString());
             }
 
             error_log("🎉 PROCESSAMENTO COMPLETO! Pedido #{$pedido_id} está na cozinha!");
