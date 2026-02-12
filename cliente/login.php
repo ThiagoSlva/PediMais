@@ -1,32 +1,49 @@
 <?php
 require_once '../includes/config.php';
+require_once '../includes/security_headers.php';
+require_once '../includes/rate_limiter.php';
+require_once '../includes/csrf.php';
 session_start();
 
 $erro = '';
+$client_ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = $_POST['email'];
-    $senha = $_POST['senha'];
-
-    // Nota: O SQL original tem 'senha' na tabela clientes.
-    // Assumindo que também usa password_hash.
-    $stmt = $pdo->prepare("SELECT * FROM clientes WHERE email = ? AND ativo = 1 LIMIT 1");
-    $stmt->execute([$email]);
-    $cliente = $stmt->fetch();
-
-    if ($cliente && password_verify($senha, $cliente['senha'])) {
-        $_SESSION['cliente_id'] = $cliente['id'];
-        $_SESSION['cliente_nome'] = $cliente['nome'];
-        $_SESSION['cliente_email'] = $cliente['email'];
-
-        // Atualizar último login
-        $pdo->prepare("UPDATE clientes SET ultimo_login = NOW() WHERE id = ?")->execute([$cliente['id']]);
-
-        header('Location: index.php');
-        exit;
-    } else {
-        $erro = 'E-mail ou senha incorretos.';
+    if (!validar_csrf()) {
+        $erro = 'Token de segurança inválido. Recarregue a página.';
     }
+    // Rate limiting: máx 5 tentativas a cada 15 minutos
+    elseif (!check_rate_limit('cliente_login', $client_ip, 5, 900)) {
+        $remaining = get_remaining_time('cliente_login', $client_ip, 900);
+        $min = ceil($remaining / 60);
+        $erro = "Muitas tentativas de login. Tente novamente em {$min} minutos.";
+    }
+    else {
+        $email = $_POST['email'];
+        $senha = $_POST['senha'];
+
+        // Nota: O SQL original tem 'senha' na tabela clientes.
+        // Assumindo que também usa password_hash.
+        $stmt = $pdo->prepare("SELECT * FROM clientes WHERE email = ? AND ativo = 1 LIMIT 1");
+        $stmt->execute([$email]);
+        $cliente = $stmt->fetch();
+
+        if ($cliente && password_verify($senha, $cliente['senha'])) {
+            session_regenerate_id(true); // Prevenir session fixation
+            $_SESSION['cliente_id'] = $cliente['id'];
+            $_SESSION['cliente_nome'] = $cliente['nome'];
+            $_SESSION['cliente_email'] = $cliente['email'];
+
+            // Atualizar último login
+            $pdo->prepare("UPDATE clientes SET ultimo_login = NOW() WHERE id = ?")->execute([$cliente['id']]);
+
+            header('Location: index.php');
+            exit;
+        }
+        else {
+            $erro = 'E-mail ou senha incorretos.';
+        }
+    } // fecha else do rate limit
 }
 ?>
 <!DOCTYPE html>
@@ -55,8 +72,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <h2>Minha Conta</h2>
         <?php if ($erro): ?>
             <div class="error"><?php echo $erro; ?></div>
-        <?php endif; ?>
+        <?php
+endif; ?>
         <form method="POST">
+            <?php echo campo_csrf(); ?>
             <div class="form-group">
                 <label>E-mail</label>
                 <input type="email" name="email" required placeholder="seu@email.com">
@@ -69,6 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
         <div class="links">
             <p><a href="esqueci_senha.php"><i class="fa-solid fa-key"></i> Esqueci minha senha</a></p>
+            <p><a href="primeiro_acesso.php"><i class="fa-solid fa-user-plus"></i> Primeiro acesso? Crie sua senha</a></p>
             <p>Não tem uma conta? <a href="cadastro.php">Cadastre-se</a></p>
             <p><a href="../index.php">Voltar ao Cardápio</a></p>
         </div>

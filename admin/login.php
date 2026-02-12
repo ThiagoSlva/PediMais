@@ -1,32 +1,48 @@
 <?php
 require_once '../includes/config.php';
+require_once '../includes/security_headers.php';
+require_once '../includes/rate_limiter.php';
+require_once '../includes/csrf.php';
 session_start();
 
 $erro = '';
+$client_ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = $_POST['email'];
-    $senha = $_POST['senha'];
-
-    $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE email = ? AND ativo = 1 LIMIT 1");
-    $stmt->execute([$email]);
-    $usuario = $stmt->fetch();
-
-    if ($usuario && password_verify($senha, $usuario['senha'])) {
-        session_regenerate_id(true); // Prevent session fixation
-        $_SESSION['usuario_id'] = $usuario['id'];
-        $_SESSION['usuario_nome'] = $usuario['nome'];
-        $_SESSION['usuario_email'] = $usuario['email'];
-        $_SESSION['usuario_nivel'] = $usuario['nivel_acesso'];
-
-        // Atualizar último acesso
-        $pdo->prepare("UPDATE usuarios SET ultimo_acesso = NOW() WHERE id = ?")->execute([$usuario['id']]);
-
-        header('Location: index.php');
-        exit;
-    } else {
-        $erro = 'E-mail ou senha incorretos.';
+    if (!validar_csrf()) {
+        $erro = 'Token de segurança inválido. Recarregue a página.';
     }
+    // Rate limiting: máx 5 tentativas a cada 15 minutos
+    elseif (!check_rate_limit('admin_login', $client_ip, 5, 900)) {
+        $remaining = get_remaining_time('admin_login', $client_ip, 900);
+        $min = ceil($remaining / 60);
+        $erro = "Muitas tentativas de login. Tente novamente em {$min} minutos.";
+    }
+    else {
+        $email = $_POST['email'];
+        $senha = $_POST['senha'];
+
+        $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE email = ? AND ativo = 1 LIMIT 1");
+        $stmt->execute([$email]);
+        $usuario = $stmt->fetch();
+
+        if ($usuario && password_verify($senha, $usuario['senha'])) {
+            session_regenerate_id(true); // Prevent session fixation
+            $_SESSION['usuario_id'] = $usuario['id'];
+            $_SESSION['usuario_nome'] = $usuario['nome'];
+            $_SESSION['usuario_email'] = $usuario['email'];
+            $_SESSION['usuario_nivel'] = $usuario['nivel_acesso'];
+
+            // Atualizar último acesso
+            $pdo->prepare("UPDATE usuarios SET ultimo_acesso = NOW() WHERE id = ?")->execute([$usuario['id']]);
+
+            header('Location: index.php');
+            exit;
+        }
+        else {
+            $erro = 'E-mail ou senha incorretos.';
+        }
+    } // fecha else do rate limit
 }
 ?>
 <!DOCTYPE html>
@@ -55,8 +71,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <h2>Painel Administrativo</h2>
         <?php if ($erro): ?>
             <div class="error"><?php echo $erro; ?></div>
-        <?php endif; ?>
+        <?php
+endif; ?>
         <form method="POST">
+            <?php echo campo_csrf(); ?>
             <div class="form-group">
                 <label>E-mail</label>
                 <input type="email" name="email" required placeholder="admin@admin.com">

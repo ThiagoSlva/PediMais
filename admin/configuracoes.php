@@ -3,6 +3,7 @@ include 'includes/auth.php';
 include '../includes/config.php';
 include '../includes/functions.php';
 include '../includes/image_optimization.php';
+require_once '../includes/csrf.php';
 
 verificar_login();
 
@@ -74,98 +75,107 @@ try {
         }
     }
 
-} catch (PDOException $e) {
-    // Log error or ignore if just checking
+}
+catch (PDOException $e) {
+// Log error or ignore if just checking
 }
 // -----------------------
 
 // Processar Formulário
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['salvar_config'])) {
-    try {
-        // Campos de Texto
-        $nome_site = $_POST['site_titulo'];
-        $descricao_site = $_POST['site_descricao'];
-        $cep = $_POST['endereco_cep'];
-        $rua = $_POST['endereco_rua'];
-        $numero = $_POST['endereco_numero'];
-        $complemento = $_POST['endereco_complemento'];
-        $bairro = $_POST['endereco_bairro'];
-        $cidade = $_POST['endereco_cidade'];
-        $estado = $_POST['endereco_estado'];
-        $whatsapp = $_POST['contato_whatsapp'];
-        $email_contato = $_POST['contato_email'];
-        $facebook = $_POST['social_facebook'];
-        $instagram = $_POST['social_instagram'];
-        $tema = $_POST['cardapio_tema'];
-        $cor_principal = $_POST['cor_principal_custom'];
-        $cor_secundaria = $_POST['cor_secundaria_custom'];
-        $tema_layout = $_POST['tema_layout'] ?? 'default';
-        $impressao_automatica = isset($_POST['impressao_automatica']) ? 1 : 0;
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_tipo = 'danger';
+    }
+    else {
+        try {
+            // Campos de Texto
+            $nome_site = $_POST['site_titulo'];
+            $descricao_site = $_POST['site_descricao'];
+            $cep = $_POST['endereco_cep'];
+            $rua = $_POST['endereco_rua'];
+            $numero = $_POST['endereco_numero'];
+            $complemento = $_POST['endereco_complemento'];
+            $bairro = $_POST['endereco_bairro'];
+            $cidade = $_POST['endereco_cidade'];
+            $estado = $_POST['endereco_estado'];
+            $whatsapp = $_POST['contato_whatsapp'];
+            $email_contato = $_POST['contato_email'];
+            $facebook = $_POST['social_facebook'];
+            $instagram = $_POST['social_instagram'];
+            $tema = $_POST['cardapio_tema'];
+            $cor_principal = $_POST['cor_principal_custom'];
+            $cor_secundaria = $_POST['cor_secundaria_custom'];
+            $tema_layout = $_POST['tema_layout'] ?? 'default';
+            $impressao_automatica = isset($_POST['impressao_automatica']) ? 1 : 0;
 
-        // Uploads - save to root uploads directory so sidebar and all pages can find it
-        $upload_dir = dirname(__DIR__) . '/uploads/config/';
-        if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
+            // Uploads - save to root uploads directory so sidebar and all pages can find it
+            $upload_dir = dirname(__DIR__) . '/uploads/config/';
+            if (!is_dir($upload_dir))
+                mkdir($upload_dir, 0777, true);
 
-        $updates = [];
-        $params = [
-            $nome_site, $descricao_site, 
-            $cep, $rua, $numero, $complemento, $bairro, $cidade, $estado,
-            $whatsapp, $email_contato, $facebook, $instagram,
-            $tema, $cor_principal, $cor_secundaria, $tema_layout, $impressao_automatica
-        ];
+            $updates = [];
+            $params = [
+                $nome_site, $descricao_site,
+                $cep, $rua, $numero, $complemento, $bairro, $cidade, $estado,
+                $whatsapp, $email_contato, $facebook, $instagram,
+                $tema, $cor_principal, $cor_secundaria, $tema_layout, $impressao_automatica
+            ];
 
-        $sql = "UPDATE configuracoes SET 
+            $sql = "UPDATE configuracoes SET 
             nome_site = ?, descricao_site = ?, 
             cep = ?, rua = ?, numero = ?, complemento = ?, bairro = ?, cidade = ?, estado = ?,
             whatsapp = ?, email_contato = ?, facebook = ?, instagram = ?,
             tema = ?, cor_principal = ?, cor_secundaria = ?, tema_layout = ?, impressao_automatica = ?";
 
-        // Handle Files
-        if (!empty($_FILES['site_logo']['name'])) {
-            $file_base = $upload_dir . 'logo';
-            $compress_result = compressAndOptimizeImage($_FILES['site_logo']['tmp_name'], $file_base, 80, 400, 400);
-            
-            if ($compress_result['success']) {
-                $filename = basename($compress_result['file']);
-                $sql .= ", logo = ?";
-                $params[] = $filename;
+            // Handle Files
+            if (!empty($_FILES['site_logo']['name'])) {
+                $file_base = $upload_dir . 'logo';
+                $compress_result = compressAndOptimizeImage($_FILES['site_logo']['tmp_name'], $file_base, 80, 400, 400);
+
+                if ($compress_result['success']) {
+                    $filename = basename($compress_result['file']);
+                    $sql .= ", logo = ?";
+                    $params[] = $filename;
+                }
             }
-        }
 
-        if (!empty($_FILES['site_favicon']['name'])) {
-            $file_base = $upload_dir . 'favicon';
-            $compress_result = compressAndOptimizeImage($_FILES['site_favicon']['tmp_name'], $file_base, 80, 128, 128);
-            
-            if ($compress_result['success']) {
-                $filename = basename($compress_result['file']);
-                $sql .= ", favicon = ?";
-                $params[] = $filename;
+            if (!empty($_FILES['site_favicon']['name'])) {
+                $file_base = $upload_dir . 'favicon';
+                $compress_result = compressAndOptimizeImage($_FILES['site_favicon']['tmp_name'], $file_base, 80, 128, 128);
+
+                if ($compress_result['success']) {
+                    $filename = basename($compress_result['file']);
+                    $sql .= ", favicon = ?";
+                    $params[] = $filename;
+                }
             }
-        }
 
-        if (!empty($_FILES['site_capa']['name'])) {
-            $file_base = $upload_dir . 'capa';
-            $compress_result = compressAndOptimizeImage($_FILES['site_capa']['tmp_name'], $file_base, 75, 1920, 600);
-            
-            if ($compress_result['success']) {
-                $filename = basename($compress_result['file']);
-                $sql .= ", capa = ?";
-                $params[] = $filename;
+            if (!empty($_FILES['site_capa']['name'])) {
+                $file_base = $upload_dir . 'capa';
+                $compress_result = compressAndOptimizeImage($_FILES['site_capa']['tmp_name'], $file_base, 75, 1920, 600);
+
+                if ($compress_result['success']) {
+                    $filename = basename($compress_result['file']);
+                    $sql .= ", capa = ?";
+                    $params[] = $filename;
+                }
             }
+
+            $sql .= " WHERE id = 1";
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+
+            $msg = 'Configurações salvas com sucesso!';
+            $msg_tipo = 'success';
+
         }
-
-        $sql .= " WHERE id = 1";
-        
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
-
-        $msg = 'Configurações salvas com sucesso!';
-        $msg_tipo = 'success';
-
-    } catch (Exception $e) {
-        $msg = 'Erro ao salvar configurações: ' . $e->getMessage();
-        $msg_tipo = 'danger';
-    }
+        catch (Exception $e) {
+            $msg = 'Erro ao salvar configurações: ' . $e->getMessage();
+            $msg_tipo = 'danger';
+        }
+    } // fecha else validar_csrf
 }
 
 // Buscar Configurações Atuais
@@ -173,7 +183,8 @@ $stmt = $pdo->query("SELECT * FROM configuracoes WHERE id = 1");
 $config = $stmt->fetch(PDO::FETCH_ASSOC);
 
 // Default values if empty
-if (!$config) $config = [];
+if (!$config)
+    $config = [];
 $config['nome_site'] = $config['nome_site'] ?? 'CardapiX';
 $config['tema'] = $config['tema'] ?? 'roxo';
 $config['logo'] = $config['logo'] ?? 'logo.png';
@@ -672,7 +683,8 @@ html[data-theme="dark"] .btn-close:hover {
         <?php echo $msg; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
@@ -685,13 +697,7 @@ html[data-theme="dark"] .btn-close:hover {
 
     <!-- Formulário -->
     <form method="POST" enctype="multipart/form-data" id="configForm">
-        <?php 
-        // Generate CSRF token if not exists
-        if (!isset($_SESSION['csrf_token'])) {
-            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-        }
-        ?>
-        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+        <?php echo campo_csrf(); ?>
         <input type="hidden" name="salvar_config" value="1">
         
         <!-- Informações Básicas -->
@@ -955,7 +961,8 @@ html[data-theme="dark"] .btn-close:hover {
                                 
                                 <?php if ($tema_layout_atual === 'default'): ?>
                                 <div style="position: absolute; top: 10px; right: 10px; background: #4a66f9; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">✓</div>
-                                <?php endif; ?>
+                                <?php
+endif; ?>
                             </div>
                             <div class="text-center mt-3">
                                 <strong style="font-size: 1rem;">🌙 Padrão (Dark)</strong>
@@ -992,7 +999,8 @@ html[data-theme="dark"] .btn-close:hover {
                                 
                                 <?php if ($tema_layout_atual === 'shioki'): ?>
                                 <div style="position: absolute; top: 10px; right: 10px; background: #E76F51; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">✓</div>
-                                <?php endif; ?>
+                                <?php
+endif; ?>
                             </div>
                             <div class="text-center mt-3">
                                 <strong style="font-size: 1rem;">☀️ Shioki (Light)</strong>
@@ -1049,26 +1057,26 @@ html[data-theme="dark"] .btn-close:hover {
                         <label class="form-label fw-semibold mb-3">Temas Predefinidos</label>
                         <div class="color-options-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; margin-bottom: 20px;">
                             <?php
-                            $temas = [
-                                'verde' => ['#4caf50', '#45a049', 'Verde'],
-                                'azul' => ['#2196F3', '#1976D2', 'Azul'],
-                                'roxo' => ['#9C27B0', '#7B1FA2', 'Roxo'],
-                                'rosa' => ['#E91E63', '#C2185B', 'Rosa'],
-                                'laranja' => ['#FF9800', '#F57C00', 'Laranja'],
-                                'vermelho' => ['#F44336', '#D32F2F', 'Vermelho'],
-                                'teal' => ['#009688', '#00796B', 'Teal'],
-                                'indigo' => ['#3F51B5', '#303F9F', 'Índigo'],
-                                'amber' => ['#FFC107', '#FFA000', 'Âmbar'],
-                                'cyan' => ['#00BCD4', '#0097A7', 'Ciano'],
-                                'deep-purple' => ['#673AB7', '#512DA8', 'Roxo Escuro'],
-                                'pink' => ['#EC407A', '#C2185B', 'Rosa Claro']
-                            ];
-                            
-                            foreach ($temas as $key => $colors):
-                                $checked = ($config['tema'] == $key) ? 'checked' : '';
-                                $selectedClass = ($config['tema'] == $key) ? 'selected' : '';
-                                $checkMark = ($config['tema'] == $key) ? '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 1.5rem; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">✓</div>' : '';
-                            ?>
+$temas = [
+    'verde' => ['#4caf50', '#45a049', 'Verde'],
+    'azul' => ['#2196F3', '#1976D2', 'Azul'],
+    'roxo' => ['#9C27B0', '#7B1FA2', 'Roxo'],
+    'rosa' => ['#E91E63', '#C2185B', 'Rosa'],
+    'laranja' => ['#FF9800', '#F57C00', 'Laranja'],
+    'vermelho' => ['#F44336', '#D32F2F', 'Vermelho'],
+    'teal' => ['#009688', '#00796B', 'Teal'],
+    'indigo' => ['#3F51B5', '#303F9F', 'Índigo'],
+    'amber' => ['#FFC107', '#FFA000', 'Âmbar'],
+    'cyan' => ['#00BCD4', '#0097A7', 'Ciano'],
+    'deep-purple' => ['#673AB7', '#512DA8', 'Roxo Escuro'],
+    'pink' => ['#EC407A', '#C2185B', 'Rosa Claro']
+];
+
+foreach ($temas as $key => $colors):
+    $checked = ($config['tema'] == $key) ? 'checked' : '';
+    $selectedClass = ($config['tema'] == $key) ? 'selected' : '';
+    $checkMark = ($config['tema'] == $key) ? '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 1.5rem; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">✓</div>' : '';
+?>
                             <label class="color-option-card <?php echo $selectedClass; ?>" style="cursor: pointer;">
                                 <input type="radio" name="cardapio_tema" value="<?php echo $key; ?>" 
                                        <?php echo $checked; ?>
@@ -1089,12 +1097,13 @@ html[data-theme="dark"] .btn-close:hover {
                                     <strong style="font-size: 0.9rem;"><?php echo $colors[2]; ?></strong>
                                 </div>
                             </label>
-                            <?php endforeach; ?>
+                            <?php
+endforeach; ?>
                             
                             <!-- Custom -->
-                            <label class="color-option-card <?php echo ($config['tema'] == 'custom') ? 'selected' : ''; ?>" style="cursor: pointer;">
+                            <label class="color-option-card <?php echo($config['tema'] == 'custom') ? 'selected' : ''; ?>" style="cursor: pointer;">
                                 <input type="radio" name="cardapio_tema" value="custom" 
-                                       <?php echo ($config['tema'] == 'custom') ? 'checked' : ''; ?>
+                                       <?php echo($config['tema'] == 'custom') ? 'checked' : ''; ?>
                                        onchange="handleTemaChange(this);">
                                 <div class="color-preview" style="
                                     background: linear-gradient(135deg, #999 0%, #666 100%);
@@ -1106,7 +1115,7 @@ html[data-theme="dark"] .btn-close:hover {
                                     position: relative;
                                     transition: all 0.2s;
                                 ">
-                                    <?php echo ($config['tema'] == 'custom') ? '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 1.5rem; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">✓</div>' : ''; ?>
+                                    <?php echo($config['tema'] == 'custom') ? '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 1.5rem; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">✓</div>' : ''; ?>
                                 </div>
                                 <div class="text-center">
                                     <strong style="font-size: 0.9rem;">Personalizado</strong>
@@ -1116,7 +1125,7 @@ html[data-theme="dark"] .btn-close:hover {
                     </div>
                     
                     <!-- Cores Customizadas -->
-                    <div class="col-md-6 mb-4" id="custom-colors-section" style="<?php echo ($config['tema'] == 'custom') ? 'display: block;' : 'display: none;'; ?>">
+                    <div class="col-md-6 mb-4" id="custom-colors-section" style="<?php echo($config['tema'] == 'custom') ? 'display: block;' : 'display: none;'; ?>">
                         <label class="form-label fw-semibold mb-3">Cores Personalizadas</label>
                         <div class="mb-3">
                             <label class="form-label">Cor Principal</label>
@@ -1177,7 +1186,7 @@ html[data-theme="dark"] .btn-close:hover {
                         <div class="form-check form-switch d-flex align-items-center gap-3" style="padding-left: 3rem;">
                             <input class="form-check-input" type="checkbox" name="impressao_automatica" 
                                    id="impressao_automatica" style="width: 50px; height: 26px;"
-                                   <?php echo ($config['impressao_automatica'] ?? 0) ? 'checked' : ''; ?>>
+                                   <?php echo($config['impressao_automatica'] ?? 0) ? 'checked' : ''; ?>>
                             <label class="form-check-label fw-semibold" for="impressao_automatica">
                                 <div class="d-flex align-items-center gap-2">
                                     <iconify-icon icon="solar:printer-bold-duotone" class="text-primary text-xl"></iconify-icon>

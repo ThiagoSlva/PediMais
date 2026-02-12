@@ -2,6 +2,7 @@
 include 'includes/auth.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+require_once '../includes/csrf.php';
 
 verificar_login();
 
@@ -10,20 +11,25 @@ $msg_tipo = '';
 
 // Processar formulário
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['acao'] == 'salvar_config') {
-    $ativo = isset($_POST['ativo']) ? 1 : 0;
-    $nome = $_POST['nome'];
-    $public_key = $_POST['public_key'];
-    $access_token = $_POST['access_token'];
-    $sandbox_mode = isset($_POST['sandbox_mode']) ? 1 : 0;
-    $prazo_pagamento_minutos = (int)$_POST['prazo_pagamento_minutos'];
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_tipo = 'danger';
+    }
+    else {
+        $ativo = isset($_POST['ativo']) ? 1 : 0;
+        $nome = $_POST['nome'];
+        $public_key = $_POST['public_key'];
+        $access_token = $_POST['access_token'];
+        $sandbox_mode = isset($_POST['sandbox_mode']) ? 1 : 0;
+        $prazo_pagamento_minutos = (int)$_POST['prazo_pagamento_minutos'];
 
-    try {
-        // Verificar se já existe registro
-        $stmt = $pdo->query("SELECT id FROM mercadopago_config LIMIT 1");
-        $config = $stmt->fetch(PDO::FETCH_ASSOC);
+        try {
+            // Verificar se já existe registro
+            $stmt = $pdo->query("SELECT id FROM mercadopago_config LIMIT 1");
+            $config = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($config) {
-            $sql = "UPDATE mercadopago_config SET 
+            if ($config) {
+                $sql = "UPDATE mercadopago_config SET 
                     ativo = :ativo,
                     nome = :nome,
                     public_key = :public_key,
@@ -32,36 +38,39 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['aca
                     prazo_pagamento_minutos = :prazo_pagamento_minutos,
                     atualizado_em = NOW()
                     WHERE id = :id";
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([
-                ':ativo' => $ativo,
-                ':nome' => $nome,
-                ':public_key' => $public_key,
-                ':access_token' => $access_token,
-                ':sandbox_mode' => $sandbox_mode,
-                ':prazo_pagamento_minutos' => $prazo_pagamento_minutos,
-                ':id' => $config['id']
-            ]);
-        } else {
-            $sql = "INSERT INTO mercadopago_config (ativo, nome, public_key, access_token, sandbox_mode, prazo_pagamento_minutos) 
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([
+                    ':ativo' => $ativo,
+                    ':nome' => $nome,
+                    ':public_key' => $public_key,
+                    ':access_token' => $access_token,
+                    ':sandbox_mode' => $sandbox_mode,
+                    ':prazo_pagamento_minutos' => $prazo_pagamento_minutos,
+                    ':id' => $config['id']
+                ]);
+            }
+            else {
+                $sql = "INSERT INTO mercadopago_config (ativo, nome, public_key, access_token, sandbox_mode, prazo_pagamento_minutos) 
                     VALUES (:ativo, :nome, :public_key, :access_token, :sandbox_mode, :prazo_pagamento_minutos)";
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([
-                ':ativo' => $ativo,
-                ':nome' => $nome,
-                ':public_key' => $public_key,
-                ':access_token' => $access_token,
-                ':sandbox_mode' => $sandbox_mode,
-                ':prazo_pagamento_minutos' => $prazo_pagamento_minutos
-            ]);
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([
+                    ':ativo' => $ativo,
+                    ':nome' => $nome,
+                    ':public_key' => $public_key,
+                    ':access_token' => $access_token,
+                    ':sandbox_mode' => $sandbox_mode,
+                    ':prazo_pagamento_minutos' => $prazo_pagamento_minutos
+                ]);
+            }
+
+            $msg = 'Configurações salvas com sucesso!';
+            $msg_tipo = 'success';
         }
-        
-        $msg = 'Configurações salvas com sucesso!';
-        $msg_tipo = 'success';
-    } catch (PDOException $e) {
-        $msg = 'Erro ao salvar configurações: ' . $e->getMessage();
-        $msg_tipo = 'danger';
-    }
+        catch (PDOException $e) {
+            $msg = 'Erro ao salvar configurações: ' . $e->getMessage();
+            $msg_tipo = 'danger';
+        }
+    } // fecha else validar_csrf
 }
 
 // Buscar configurações atuais
@@ -93,11 +102,13 @@ include 'includes/header.php';
         <span class="badge bg-success-600 px-3 py-2">
             <i class="fa-solid fa-circle-check"></i> SISTEMA ATIVO
         </span>
-        <?php else: ?>
+        <?php
+else: ?>
         <span class="badge bg-danger-600 px-3 py-2">
             <i class="fa-solid fa-circle-xmark"></i> SISTEMA INATIVO
         </span>
-        <?php endif; ?>
+        <?php
+endif; ?>
     </div>
     <ul class="d-flex align-items-center gap-2">
         <li class="fw-medium">
@@ -116,7 +127,8 @@ include 'includes/header.php';
     <?php echo $msg; ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 </div>
-<?php endif; ?>
+<?php
+endif; ?>
 
 <!-- Card de Configuração -->
 <div class="card h-100 p-0 radius-12 mb-24">
@@ -129,14 +141,17 @@ include 'includes/header.php';
         <span class="badge bg-success-600">
             <i class="fa-solid fa-check-circle"></i> Credenciais OK
         </span>
-        <?php else: ?>
+        <?php
+else: ?>
         <span class="badge bg-warning-600">
             <i class="fa-solid fa-exclamation-triangle"></i> Credenciais Pendentes
         </span>
-        <?php endif; ?>
+        <?php
+endif; ?>
     </div>
     <div class="card-body p-24">
         <form method="POST" action="">
+            <?php echo campo_csrf(); ?>
             <input type="hidden" name="acao" value="salvar_config">
             
             <div class="row gy-4">
@@ -152,11 +167,13 @@ include 'includes/header.php';
                         <span class="badge bg-success-600 px-3 py-2">
                             <i class="fa-solid fa-circle-check me-1"></i> PIX Online disponível no checkout
                         </span>
-                        <?php else: ?>
+                        <?php
+else: ?>
                         <span class="badge bg-secondary px-3 py-2">
                             <i class="fa-solid fa-circle-xmark me-1"></i> Indisponível
                         </span>
-                        <?php endif; ?>
+                        <?php
+endif; ?>
                     </div>
                 </div>
 
@@ -295,12 +312,12 @@ include 'includes/header.php';
         <!-- Preview das mensagens -->
         <div class="row g-3 mt-3">
             <?php
-            // Buscar mensagens para preview
-            $stmt = $pdo->query("SELECT * FROM mercadopago_mensagens WHERE tipo IN ('aguardando_pagamento', 'pagamento_recebido')");
-            $mensagens = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            foreach ($mensagens as $msg): 
-            ?>
+// Buscar mensagens para preview
+$stmt = $pdo->query("SELECT * FROM mercadopago_mensagens WHERE tipo IN ('aguardando_pagamento', 'pagamento_recebido')");
+$mensagens = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+foreach ($mensagens as $msg):
+?>
             <div class="col-md-6">
                 <div class="card border">
                     <div class="card-body">
@@ -308,9 +325,11 @@ include 'includes/header.php';
                             <h6 class="mb-0"><?php echo htmlspecialchars($msg['titulo']); ?></h6>
                             <?php if ($msg['ativo']): ?>
                             <span class="badge bg-success">Ativo</span>
-                            <?php else: ?>
+                            <?php
+    else: ?>
                             <span class="badge bg-danger">Inativo</span>
-                            <?php endif; ?>
+                            <?php
+    endif; ?>
                         </div>
                         <small class="text-secondary-light d-block mb-2">
                             Tipo: <code><?php echo htmlspecialchars($msg['tipo']); ?></code>
@@ -319,7 +338,8 @@ include 'includes/header.php';
                     </div>
                 </div>
             </div>
-            <?php endforeach; ?>
+            <?php
+endforeach; ?>
         </div>
     </div>
 </div>

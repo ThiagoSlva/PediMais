@@ -3,6 +3,7 @@ include 'includes/auth.php';
 include 'includes/header.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+require_once '../includes/csrf.php';
 
 // Migration Logic (Inline)
 try {
@@ -20,11 +21,11 @@ try {
         usar_cadastro TINYINT(1) DEFAULT 0,
         usar_finalizar_pedido TINYINT(1) DEFAULT 0
     )");
-    
+
     // Verificar colunas (caso tabela já exista com estrutura antiga ou parcial)
     $stmt = $pdo->query("DESCRIBE configuracao_recaptcha");
     $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    
+
     $cols_needed = [
         'versao' => "VARCHAR(10) DEFAULT 'v3'",
         'site_key_v2' => "VARCHAR(255)",
@@ -49,12 +50,13 @@ try {
         $stmt = $pdo->prepare("INSERT INTO configuracao_recaptcha (ativo, versao, site_key_v3, secret_key_v3) VALUES (0, 'v3', '', '')");
         $stmt->execute();
     }
-    
-    // Migrar dados da tabela antiga 'recaptcha_config' se existir e a nova estiver vazia (opcional, mas bom para preservar dados se o user tinha)
-    // Vou pular essa complexidade para focar no novo design, assumindo que o user vai configurar de novo ou já está usando a nova estrutura se ela existir.
 
-} catch (PDOException $e) {
-    // Silently handle migration errors or log them
+// Migrar dados da tabela antiga 'recaptcha_config' se existir e a nova estiver vazia (opcional, mas bom para preservar dados se o user tinha)
+// Vou pular essa complexidade para focar no novo design, assumindo que o user vai configurar de novo ou já está usando a nova estrutura se ela existir.
+
+}
+catch (PDOException $e) {
+// Silently handle migration errors or log them
 }
 
 $msg = '';
@@ -62,44 +64,51 @@ $msg_tipo = '';
 
 // Processar Formulário
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $ativo = isset($_POST['recaptcha_ativo']) ? 1 : 0;
-    $versao = $_POST['recaptcha_version'];
-    
-    $site_key_v2 = $_POST['recaptcha_v2_site_key'];
-    $secret_key_v2 = $_POST['recaptcha_v2_secret_key'];
-    
-    $site_key_v3 = $_POST['recaptcha_v3_site_key'];
-    $secret_key_v3 = $_POST['recaptcha_v3_secret_key'];
-    
-    $usar_admin = isset($_POST['recaptcha_admin_login']) ? 1 : 0;
-    $usar_cliente = isset($_POST['recaptcha_cliente_login']) ? 1 : 0;
-    $usar_cadastro = isset($_POST['recaptcha_cadastro']) ? 1 : 0;
-    $usar_pedido = isset($_POST['recaptcha_finalizar_pedido']) ? 1 : 0;
-    
-    try {
-        $stmt = $pdo->prepare("UPDATE configuracao_recaptcha SET 
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_tipo = 'danger';
+    }
+    else {
+        $ativo = isset($_POST['recaptcha_ativo']) ? 1 : 0;
+        $versao = $_POST['recaptcha_version'];
+
+        $site_key_v2 = $_POST['recaptcha_v2_site_key'];
+        $secret_key_v2 = $_POST['recaptcha_v2_secret_key'];
+
+        $site_key_v3 = $_POST['recaptcha_v3_site_key'];
+        $secret_key_v3 = $_POST['recaptcha_v3_secret_key'];
+
+        $usar_admin = isset($_POST['recaptcha_admin_login']) ? 1 : 0;
+        $usar_cliente = isset($_POST['recaptcha_cliente_login']) ? 1 : 0;
+        $usar_cadastro = isset($_POST['recaptcha_cadastro']) ? 1 : 0;
+        $usar_pedido = isset($_POST['recaptcha_finalizar_pedido']) ? 1 : 0;
+
+        try {
+            $stmt = $pdo->prepare("UPDATE configuracao_recaptcha SET 
             ativo = ?, 
             versao = ?, 
             site_key_v2 = ?, secret_key_v2 = ?, 
             site_key_v3 = ?, secret_key_v3 = ?,
             usar_admin_login = ?, usar_cliente_login = ?, usar_cadastro = ?, usar_finalizar_pedido = ?
             WHERE id = 1");
-            
-        // Se não atualizar nada (row count 0), pode ser que não exista id 1, mas a migration garante.
-        // Ou os dados são iguais.
-        $stmt->execute([
-            $ativo, $versao, 
-            $site_key_v2, $secret_key_v2, 
-            $site_key_v3, $secret_key_v3,
-            $usar_admin, $usar_cliente, $usar_cadastro, $usar_pedido
-        ]);
-        
-        $msg = 'Configurações salvas com sucesso!';
-        $msg_tipo = 'success';
-    } catch (PDOException $e) {
-        $msg = 'Erro ao salvar: ' . $e->getMessage();
-        $msg_tipo = 'danger';
-    }
+
+            // Se não atualizar nada (row count 0), pode ser que não exista id 1, mas a migration garante.
+            // Ou os dados são iguais.
+            $stmt->execute([
+                $ativo, $versao,
+                $site_key_v2, $secret_key_v2,
+                $site_key_v3, $secret_key_v3,
+                $usar_admin, $usar_cliente, $usar_cadastro, $usar_pedido
+            ]);
+
+            $msg = 'Configurações salvas com sucesso!';
+            $msg_tipo = 'success';
+        }
+        catch (PDOException $e) {
+            $msg = 'Erro ao salvar: ' . $e->getMessage();
+            $msg_tipo = 'danger';
+        }
+    } // fecha else validar_csrf
 }
 
 // Buscar Configurações
@@ -109,10 +118,10 @@ $config = $stmt->fetch(PDO::FETCH_ASSOC);
 // Valores padrão para evitar erros de índice indefinido
 if (!$config) {
     $config = [
-        'ativo' => 0, 'versao' => 'v3', 
-        'site_key_v2' => '', 'secret_key_v2' => '', 
+        'ativo' => 0, 'versao' => 'v3',
+        'site_key_v2' => '', 'secret_key_v2' => '',
         'site_key_v3' => '', 'secret_key_v3' => '',
-        'usar_admin_login' => 1, 'usar_cliente_login' => 1, 
+        'usar_admin_login' => 1, 'usar_cliente_login' => 1,
         'usar_cadastro' => 0, 'usar_finalizar_pedido' => 0
     ];
 }
@@ -137,7 +146,8 @@ if (!$config) {
     <?php echo $msg; ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 </div>
-<?php endif; ?>
+<?php
+endif; ?>
 
 <div class="row g-3">
     <div class="col-12">
@@ -146,6 +156,7 @@ if (!$config) {
                 <h6 class="mb-20 fw-bold text-lg">Configurações de Segurança</h6>
                 
                 <form method="POST">
+                    <?php echo campo_csrf(); ?>
                     <!-- reCAPTCHA -->
                     <div class="mb-24">
                         <h6 class="mb-12 fw-semibold">Google reCAPTCHA</h6>

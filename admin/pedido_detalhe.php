@@ -1,5 +1,6 @@
 <?php
 include 'includes/header.php';
+require_once __DIR__ . '/../includes/csrf.php';
 
 if (!isset($_GET['id']) || empty($_GET['id'])) {
     echo "<script>window.location.href = 'pedidos.php';</script>";
@@ -10,14 +11,20 @@ $pedido_id = (int)$_GET['id'];
 
 // Processar atualização de status
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['acao'] == 'atualizar_status') {
-    $novo_status = $_POST['status'];
-    $stmt = $pdo->prepare("UPDATE pedidos SET status = ? WHERE id = ?");
-    $stmt->execute([$novo_status, $pedido_id]);
-    
-    // Opcional: Adicionar log de histórico se houver tabela para isso
-    
-    $msg = 'Status atualizado com sucesso!';
-    $msg_tipo = 'success';
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_tipo = 'danger';
+    }
+    else {
+        $novo_status = $_POST['status'];
+        $stmt = $pdo->prepare("UPDATE pedidos SET status = ? WHERE id = ?");
+        $stmt->execute([$novo_status, $pedido_id]);
+
+        // Opcional: Adicionar log de histórico se houver tabela para isso
+
+        $msg = 'Status atualizado com sucesso!';
+        $msg_tipo = 'success';
+    } // fecha else validar_csrf
 }
 
 // Buscar dados do pedido
@@ -40,7 +47,8 @@ $stmt->execute([$pedido_id]);
 $itens = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Helper para buscar opções do item
-function get_opcoes_item($pdo, $item_id) {
+function get_opcoes_item($pdo, $item_id)
+{
     $stmt = $pdo->prepare("SELECT pio.*, o.nome as opcao_nome 
                            FROM pedido_item_opcoes pio 
                            LEFT JOIN opcoes o ON pio.opcao_id = o.id 
@@ -78,7 +86,8 @@ $taxa_entrega = isset($pedido['taxa_entrega']) ? $pedido['taxa_entrega'] : 0;
         <?php echo $msg; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <div class="row gy-4">
         <!-- Coluna Esquerda: Itens e Totais -->
@@ -102,16 +111,16 @@ $taxa_entrega = isset($pedido['taxa_entrega']) ? $pedido['taxa_entrega'] : 0;
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($itens as $item): 
-                                    $opcoes = get_opcoes_item($pdo, $item['id']);
-                                    $total_item = $item['preco_unitario'] * $item['quantidade'];
-                                    // Somar opções ao total do item se necessário (depende da lógica, aqui assumo que preço_unitario já inclui base, e opções somam)
-                                    $total_opcoes = 0;
-                                    foreach ($opcoes as $opt) {
-                                        $total_opcoes += $opt['preco_adicional'] * $opt['quantidade'];
-                                    }
-                                    $total_item += $total_opcoes * $item['quantidade']; // Se opções multiplicam pela qtd do item
-                                ?>
+                                <?php foreach ($itens as $item):
+    $opcoes = get_opcoes_item($pdo, $item['id']);
+    $total_item = $item['preco_unitario'] * $item['quantidade'];
+    // Somar opções ao total do item se necessário (depende da lógica, aqui assumo que preço_unitario já inclui base, e opções somam)
+    $total_opcoes = 0;
+    foreach ($opcoes as $opt) {
+        $total_opcoes += $opt['preco_adicional'] * $opt['quantidade'];
+    }
+    $total_item += $total_opcoes * $item['quantidade']; // Se opções multiplicam pela qtd do item
+?>
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center gap-3">
@@ -120,7 +129,8 @@ $taxa_entrega = isset($pedido['taxa_entrega']) ? $pedido['taxa_entrega'] : 0;
                                                 <h6 class="text-md mb-0 fw-medium"><?php echo htmlspecialchars($item['produto_nome']); ?></h6>
                                                 <?php if (!empty($item['observacoes'])): ?>
                                                     <p class="text-sm text-secondary-light mb-0">Obs: <?php echo htmlspecialchars($item['observacoes']); ?></p>
-                                                <?php endif; ?>
+                                                <?php
+    endif; ?>
                                                 
                                                 <?php if (!empty($opcoes)): ?>
                                                     <ul class="list-unstyled mb-0 mt-1">
@@ -129,9 +139,11 @@ $taxa_entrega = isset($pedido['taxa_entrega']) ? $pedido['taxa_entrega'] : 0;
                                                                 + <?php echo htmlspecialchars($opt['opcao_nome']); ?> 
                                                                 (R$ <?php echo number_format($opt['preco_adicional'], 2, ',', '.'); ?>)
                                                             </li>
-                                                        <?php endforeach; ?>
+                                                        <?php
+        endforeach; ?>
                                                     </ul>
-                                                <?php endif; ?>
+                                                <?php
+    endif; ?>
                                             </div>
                                         </div>
                                     </td>
@@ -139,7 +151,8 @@ $taxa_entrega = isset($pedido['taxa_entrega']) ? $pedido['taxa_entrega'] : 0;
                                     <td class="text-end">R$ <?php echo number_format($item['preco_unitario'], 2, ',', '.'); ?></td>
                                     <td class="text-end fw-bold">R$ <?php echo number_format($total_item, 2, ',', '.'); ?></td>
                                 </tr>
-                                <?php endforeach; ?>
+                                <?php
+endforeach; ?>
                             </tbody>
                             <tfoot>
                                 <tr>
@@ -151,7 +164,8 @@ $taxa_entrega = isset($pedido['taxa_entrega']) ? $pedido['taxa_entrega'] : 0;
                                     <td colspan="3" class="text-end fw-medium">Taxa de Entrega:</td>
                                     <td class="text-end fw-bold">R$ <?php echo number_format($taxa_entrega, 2, ',', '.'); ?></td>
                                 </tr>
-                                <?php endif; ?>
+                                <?php
+endif; ?>
                                 <tr>
                                     <td colspan="3" class="text-end fw-bold text-lg">Total:</td>
                                     <td class="text-end fw-bold text-lg text-primary-600">R$ <?php echo number_format($pedido['valor_total'], 2, ',', '.'); ?></td>
@@ -172,6 +186,7 @@ $taxa_entrega = isset($pedido['taxa_entrega']) ? $pedido['taxa_entrega'] : 0;
                 </div>
                 <div class="card-body p-24">
                     <form method="POST">
+                        <?php echo campo_csrf(); ?>
                         <input type="hidden" name="acao" value="atualizar_status">
                         <div class="mb-3">
                             <label class="form-label fw-medium">Situação Atual</label>
@@ -216,12 +231,12 @@ $taxa_entrega = isset($pedido['taxa_entrega']) ? $pedido['taxa_entrega'] : 0;
                             <iconify-icon icon="solar:phone-bold" class="text-primary-600 text-lg mt-1"></iconify-icon>
                             <div>
                                 <span class="d-block fw-medium text-secondary-light text-sm">Telefone</span>
-                                <?php 
-                                $whatsapp_cliente = preg_replace('/[^0-9]/', '', $pedido['cliente_telefone']);
-                                if (strlen($whatsapp_cliente) <= 11 && substr($whatsapp_cliente, 0, 2) !== '55') {
-                                    $whatsapp_cliente = '55' . $whatsapp_cliente;
-                                }
-                                ?>
+                                <?php
+$whatsapp_cliente = preg_replace('/[^0-9]/', '', $pedido['cliente_telefone']);
+if (strlen($whatsapp_cliente) <= 11 && substr($whatsapp_cliente, 0, 2) !== '55') {
+    $whatsapp_cliente = '55' . $whatsapp_cliente;
+}
+?>
                                 <a href="https://wa.me/<?php echo $whatsapp_cliente; ?>" target="_blank" class="text-primary-600 hover-text-primary-700">
                                     <?php echo htmlspecialchars($pedido['cliente_telefone']); ?>
                                 </a>
@@ -232,18 +247,22 @@ $taxa_entrega = isset($pedido['taxa_entrega']) ? $pedido['taxa_entrega'] : 0;
                             <div>
                                 <span class="d-block fw-medium text-secondary-light text-sm">Endereço de Entrega</span>
                                 <span class="d-block text-heading">
-                                    <?php 
-                                    if (isset($pedido['cliente_endereco'])) {
-                                        echo htmlspecialchars($pedido['cliente_endereco']);
-                                    } else {
-                                        // Fallback para campos antigos se existirem (improvável dado o erro anterior, mas seguro)
-                                        $endereco = [];
-                                        if (isset($pedido['endereco_rua'])) $endereco[] = $pedido['endereco_rua'];
-                                        if (isset($pedido['endereco_numero'])) $endereco[] = $pedido['endereco_numero'];
-                                        if (isset($pedido['endereco_bairro'])) $endereco[] = $pedido['endereco_bairro'];
-                                        echo htmlspecialchars(implode(', ', $endereco));
-                                    }
-                                    ?>
+                                    <?php
+if (isset($pedido['cliente_endereco'])) {
+    echo htmlspecialchars($pedido['cliente_endereco']);
+}
+else {
+    // Fallback para campos antigos se existirem (improvável dado o erro anterior, mas seguro)
+    $endereco = [];
+    if (isset($pedido['endereco_rua']))
+        $endereco[] = $pedido['endereco_rua'];
+    if (isset($pedido['endereco_numero']))
+        $endereco[] = $pedido['endereco_numero'];
+    if (isset($pedido['endereco_bairro']))
+        $endereco[] = $pedido['endereco_bairro'];
+    echo htmlspecialchars(implode(', ', $endereco));
+}
+?>
                                 </span>
                             </div>
                         </li>
@@ -271,22 +290,28 @@ $taxa_entrega = isset($pedido['taxa_entrega']) ? $pedido['taxa_entrega'] : 0;
                                     <span class="badge bg-success-focus text-success-main px-16 py-8 rounded-pill fw-semibold">
                                         💰 PIX Confirmado
                                     </span>
-                                <?php else: ?>
+                                <?php
+    else: ?>
                                     <span class="badge bg-warning-focus text-warning-main px-16 py-8 rounded-pill fw-semibold">
                                         ⏳ Aguardando PIX
                                     </span>
-                                <?php endif; ?>
-                            <?php else: ?>
+                                <?php
+    endif; ?>
+                            <?php
+else: ?>
                                 <?php if (!empty($pedido['pago'])): ?>
                                     <span class="badge bg-success-focus text-success-main px-16 py-8 rounded-pill fw-semibold">
                                         ✅ Pago
                                     </span>
-                                <?php else: ?>
+                                <?php
+    else: ?>
                                     <span class="badge bg-info-focus text-info-main px-16 py-8 rounded-pill fw-semibold">
                                         💵 Pagamento na Entrega
                                     </span>
-                                <?php endif; ?>
-                            <?php endif; ?>
+                                <?php
+    endif; ?>
+                            <?php
+endif; ?>
                         </li>
                         
                         <?php if ($pedido['troco_para']): ?>
@@ -298,7 +323,8 @@ $taxa_entrega = isset($pedido['taxa_entrega']) ? $pedido['taxa_entrega'] : 0;
                             <span class="text-secondary-light">Troco a devolver:</span>
                             <span class="fw-bold text-success-main">R$ <?php echo number_format($pedido['troco_para'] - $pedido['valor_total'], 2, ',', '.'); ?></span>
                         </li>
-                        <?php endif; ?>
+                        <?php
+endif; ?>
                         
                         <?php if ($pedido['observacoes']): ?>
                         <li class="mt-2">
@@ -307,7 +333,8 @@ $taxa_entrega = isset($pedido['taxa_entrega']) ? $pedido['taxa_entrega'] : 0;
                                 <?php echo nl2br(htmlspecialchars($pedido['observacoes'])); ?>
                             </div>
                         </li>
-                        <?php endif; ?>
+                        <?php
+endif; ?>
                     </ul>
                 </div>
             </div>

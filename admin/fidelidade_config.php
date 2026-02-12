@@ -2,6 +2,7 @@
 include 'includes/auth.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+require_once '../includes/csrf.php';
 
 verificar_login();
 
@@ -16,7 +17,7 @@ try {
         ativo TINYINT(1) DEFAULT 1,
         quantidade_pedidos INT DEFAULT 10
     )");
-    
+
     // Ensure initial record
     $stmt = $pdo->query("SELECT id FROM fidelidade_config LIMIT 1");
     if (!$stmt->fetch()) {
@@ -32,65 +33,77 @@ try {
         FOREIGN KEY (produto_id) REFERENCES produtos(id) ON DELETE CASCADE
     )");
 
-} catch (PDOException $e) {
-    // Ignore if tables exist
+}
+catch (PDOException $e) {
+// Ignore if tables exist
 }
 
 // Process Form Submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    try {
-        if (isset($_POST['acao'])) {
-            $acao = $_POST['acao'];
-            
-            if ($acao == 'salvar_config') {
-                $ativo = isset($_POST['ativo']) ? 1 : 0;
-                $qtd = (int)$_POST['quantidade_pedidos'];
-                
-                $stmt = $pdo->prepare("UPDATE fidelidade_config SET ativo = ?, quantidade_pedidos = ? WHERE id = 1");
-                $stmt->execute([$ativo, $qtd]);
-                
-                $msg = 'Configuração atualizada com sucesso!';
-                $msg_tipo = 'success';
-                
-            } elseif ($acao == 'adicionar_produto') {
-                $produto_id = (int)$_POST['produto_id'];
-                $quantidade = (int)$_POST['quantidade'];
-                
-                // Check if already exists
-                $stmt = $pdo->prepare("SELECT id FROM fidelidade_produtos WHERE produto_id = ?");
-                $stmt->execute([$produto_id]);
-                
-                if ($stmt->fetch()) {
-                    $msg = 'Este produto já está na lista de resgate!';
-                    $msg_tipo = 'warning';
-                } else {
-                    $stmt = $pdo->prepare("INSERT INTO fidelidade_produtos (produto_id, quantidade) VALUES (?, ?)");
-                    $stmt->execute([$produto_id, $quantidade]);
-                    $msg = 'Produto adicionado com sucesso!';
-                    $msg_tipo = 'success';
-                }
-                
-            } elseif ($acao == 'atualizar_quantidade') {
-                $id = (int)$_POST['id'];
-                $quantidade = (int)$_POST['quantidade'];
-                
-                $stmt = $pdo->prepare("UPDATE fidelidade_produtos SET quantidade = ? WHERE id = ?");
-                $stmt->execute([$quantidade, $id]);
-                $msg = 'Quantidade atualizada!';
-                $msg_tipo = 'success';
-                
-            } elseif ($acao == 'remover_produto') {
-                $id = (int)$_POST['id'];
-                $stmt = $pdo->prepare("DELETE FROM fidelidade_produtos WHERE id = ?");
-                $stmt->execute([$id]);
-                $msg = 'Produto removido!';
-                $msg_tipo = 'success';
-            }
-        }
-    } catch (PDOException $e) {
-        $msg = 'Erro ao salvar: ' . $e->getMessage();
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
         $msg_tipo = 'danger';
     }
+    else {
+        try {
+            if (isset($_POST['acao'])) {
+                $acao = $_POST['acao'];
+
+                if ($acao == 'salvar_config') {
+                    $ativo = isset($_POST['ativo']) ? 1 : 0;
+                    $qtd = (int)$_POST['quantidade_pedidos'];
+
+                    $stmt = $pdo->prepare("UPDATE fidelidade_config SET ativo = ?, quantidade_pedidos = ? WHERE id = 1");
+                    $stmt->execute([$ativo, $qtd]);
+
+                    $msg = 'Configuração atualizada com sucesso!';
+                    $msg_tipo = 'success';
+
+                }
+                elseif ($acao == 'adicionar_produto') {
+                    $produto_id = (int)$_POST['produto_id'];
+                    $quantidade = (int)$_POST['quantidade'];
+
+                    // Check if already exists
+                    $stmt = $pdo->prepare("SELECT id FROM fidelidade_produtos WHERE produto_id = ?");
+                    $stmt->execute([$produto_id]);
+
+                    if ($stmt->fetch()) {
+                        $msg = 'Este produto já está na lista de resgate!';
+                        $msg_tipo = 'warning';
+                    }
+                    else {
+                        $stmt = $pdo->prepare("INSERT INTO fidelidade_produtos (produto_id, quantidade) VALUES (?, ?)");
+                        $stmt->execute([$produto_id, $quantidade]);
+                        $msg = 'Produto adicionado com sucesso!';
+                        $msg_tipo = 'success';
+                    }
+
+                }
+                elseif ($acao == 'atualizar_quantidade') {
+                    $id = (int)$_POST['id'];
+                    $quantidade = (int)$_POST['quantidade'];
+
+                    $stmt = $pdo->prepare("UPDATE fidelidade_produtos SET quantidade = ? WHERE id = ?");
+                    $stmt->execute([$quantidade, $id]);
+                    $msg = 'Quantidade atualizada!';
+                    $msg_tipo = 'success';
+
+                }
+                elseif ($acao == 'remover_produto') {
+                    $id = (int)$_POST['id'];
+                    $stmt = $pdo->prepare("DELETE FROM fidelidade_produtos WHERE id = ?");
+                    $stmt->execute([$id]);
+                    $msg = 'Produto removido!';
+                    $msg_tipo = 'success';
+                }
+            }
+        }
+        catch (PDOException $e) {
+            $msg = 'Erro ao salvar: ' . $e->getMessage();
+            $msg_tipo = 'danger';
+        }
+    } // fecha else validar_csrf
 }
 
 // Sync Logic (Add points for orders in preparation that don't have points)
@@ -108,7 +121,7 @@ if (isset($_GET['sync']) && $_GET['sync'] == 1) {
             )
         ");
         $pedidos_sem_pontos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
         $pontos_adicionados = 0;
         foreach ($pedidos_sem_pontos as $pedido) {
             $stmt = $pdo->prepare("
@@ -118,15 +131,17 @@ if (isset($_GET['sync']) && $_GET['sync'] == 1) {
             $stmt->execute([$pedido['cliente_id'], $pedido['id']]);
             $pontos_adicionados++;
         }
-        
+
         if ($pontos_adicionados > 0) {
             $msg = "Sincronização concluída! $pontos_adicionados ponto(s) adicionado(s).";
             $msg_tipo = 'success';
-        } else {
+        }
+        else {
             $msg = "Nenhum pedido pendente de sincronização encontrado.";
             $msg_tipo = 'info';
         }
-    } catch (PDOException $e) {
+    }
+    catch (PDOException $e) {
         $msg = 'Erro na sincronização: ' . $e->getMessage();
         $msg_tipo = 'danger';
     }
@@ -164,11 +179,13 @@ include 'includes/header.php';
             <span class="badge bg-success-600 px-3 py-2">
                 <i class="fa-solid fa-circle-check"></i> SISTEMA ATIVO
             </span>
-            <?php else: ?>
+            <?php
+else: ?>
             <span class="badge bg-danger-600 px-3 py-2">
                 <i class="fa-solid fa-circle-xmark"></i> SISTEMA INATIVO
             </span>
-            <?php endif; ?>
+            <?php
+endif; ?>
         </div>
         <ul class="d-flex align-items-center gap-2">
             <li class="fw-medium">
@@ -187,7 +204,8 @@ include 'includes/header.php';
         <?php echo $msg; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <style>
     /* Dark mode support */
@@ -208,6 +226,7 @@ include 'includes/header.php';
         </div>
         <div class="card-body p-24">
             <form method="POST" id="formConfig">
+                <?php echo campo_csrf(); ?>
                 <input type="hidden" name="acao" value="salvar_config">
                 
                 <div class="row">
@@ -256,6 +275,7 @@ include 'includes/header.php';
         <div class="card-body p-24">
             <!-- Formulário para adicionar produto -->
             <form method="POST" class="mb-4 p-3 border rounded">
+                <?php echo campo_csrf(); ?>
                 <input type="hidden" name="acao" value="adicionar_produto">
                 
                 <div class="row g-3">
@@ -267,7 +287,8 @@ include 'includes/header.php';
                                 <option value="<?php echo $p['id']; ?>">
                                     <?php echo htmlspecialchars($p['nome']); ?> (R$ <?php echo number_format($p['preco'], 2, ',', '.'); ?>)
                                 </option>
-                            <?php endforeach; ?>
+                            <?php
+endforeach; ?>
                         </select>
                     </div>
                     <div class="col-md-4">
@@ -300,7 +321,8 @@ include 'includes/header.php';
                             <tr>
                                 <td colspan="5" class="text-center py-3">Nenhum produto configurado para resgate.</td>
                             </tr>
-                        <?php else: ?>
+                        <?php
+else: ?>
                             <?php foreach ($recompensas as $r): ?>
                             <tr>
                                 <td>
@@ -309,6 +331,7 @@ include 'includes/header.php';
                                 <td><?php echo htmlspecialchars($r['nome_categoria'] ?? 'Sem categoria'); ?></td>
                                 <td>
                                     <form method="POST" class="d-inline">
+                                        <?php echo campo_csrf(); ?>
                                         <input type="hidden" name="acao" value="atualizar_quantidade">
                                         <input type="hidden" name="id" value="<?php echo $r['id']; ?>">
                                         <div class="input-group" style="width: 100px;">
@@ -323,6 +346,7 @@ include 'includes/header.php';
                                 </td>
                                 <td>
                                     <form method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja remover este produto?');">
+                                        <?php echo campo_csrf(); ?>
                                         <input type="hidden" name="acao" value="remover_produto">
                                         <input type="hidden" name="id" value="<?php echo $r['id']; ?>">
                                         <button type="submit" class="btn btn-sm btn-danger-600">
@@ -331,8 +355,10 @@ include 'includes/header.php';
                                     </form>
                                 </td>
                             </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
+                            <?php
+    endforeach; ?>
+                        <?php
+endif; ?>
                     </tbody>
                 </table>
             </div>
@@ -341,8 +367,8 @@ include 'includes/header.php';
     
     <!-- Gerenciamento de Clientes -->
     <?php
-    // Get clients with points
-    $stmt_clientes = $pdo->query("
+// Get clients with points
+$stmt_clientes = $pdo->query("
         SELECT 
             c.id,
             c.nome,
@@ -358,8 +384,8 @@ include 'includes/header.php';
         ORDER BY pontos_ativos DESC, total_pontos DESC
         LIMIT 50
     ");
-    $clientes_fidelidade = $stmt_clientes->fetchAll(PDO::FETCH_ASSOC);
-    ?>
+$clientes_fidelidade = $stmt_clientes->fetchAll(PDO::FETCH_ASSOC);
+?>
     <div class="card mb-4 radius-12">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-semibold d-flex align-items-center gap-2">
@@ -384,7 +410,8 @@ include 'includes/header.php';
                         <small>Os pontos aparecerão aqui quando pedidos forem para "Em Preparo".</small>
                     </p>
                 </div>
-            <?php else: ?>
+            <?php
+else: ?>
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
@@ -398,10 +425,10 @@ include 'includes/header.php';
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($clientes_fidelidade as $cf): 
-                                $progresso = ($cf['pontos_ativos'] / $config['quantidade_pedidos']) * 100;
-                                $pode_resgatar = $cf['pontos_ativos'] >= $config['quantidade_pedidos'];
-                            ?>
+                            <?php foreach ($clientes_fidelidade as $cf):
+        $progresso = ($cf['pontos_ativos'] / $config['quantidade_pedidos']) * 100;
+        $pode_resgatar = $cf['pontos_ativos'] >= $config['quantidade_pedidos'];
+?>
                             <tr>
                                 <td>
                                     <strong><?php echo htmlspecialchars($cf['nome']); ?></strong>
@@ -424,14 +451,17 @@ include 'includes/header.php';
                                     </div>
                                     <?php if ($pode_resgatar): ?>
                                         <small class="text-success-600">⭐ Pode resgatar!</small>
-                                    <?php endif; ?>
+                                    <?php
+        endif; ?>
                                 </td>
                             </tr>
-                            <?php endforeach; ?>
+                            <?php
+    endforeach; ?>
                         </tbody>
                     </table>
                 </div>
-            <?php endif; ?>
+            <?php
+endif; ?>
         </div>
     </div>
 </div>

@@ -1,0 +1,12 @@
+# Bloquear execução de scripts PHP em uploads
+<FilesMatch "\.ph(p[0-9]?|tml|ps|ar)$">
+    Require all denied
+</FilesMatch>
+
+# Desabilitar listagem de diretórios
+Options -Indexes
+
+# Bloquear acesso a arquivos ocultos
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

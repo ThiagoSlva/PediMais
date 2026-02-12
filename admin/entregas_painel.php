@@ -2,6 +2,7 @@
 include 'includes/auth.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+require_once '../includes/csrf.php';
 
 verificar_login();
 
@@ -14,79 +15,87 @@ $msg_tipo = '';
 
 // Handle marking delivery as complete
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['concluir_entrega'])) {
-    try {
-        $pedido_id = (int)$_POST['pedido_id'];
-        
-        // Update order as delivered - use 'concluido' to match system standard
-        $stmt = $pdo->prepare("UPDATE pedidos SET status = 'concluido', em_preparo = 1, saiu_entrega = 1, entregue = 1, data_conclusao = NOW() WHERE id = ?");
-        $result = $stmt->execute([$pedido_id]);
-        
-        if (!$result) {
-            throw new Exception("Falha ao atualizar pedido");
-        }
-        
-        // Update Kanban lane to "Entregue" if exists
-        $stmt_lane = $pdo->prepare("SELECT id FROM kanban_lanes WHERE LOWER(nome) LIKE '%entreg%' OR acao = 'entregue' LIMIT 1");
-        $stmt_lane->execute();
-        $lane = $stmt_lane->fetch();
-        if ($lane) {
-            $stmt = $pdo->prepare("UPDATE pedidos SET lane_id = ? WHERE id = ?");
-            $stmt->execute([$lane['id'], $pedido_id]);
-        }
-        
-        // Get order details for notifications
-        $stmt = $pdo->prepare("SELECT * FROM pedidos WHERE id = ?");
-        $stmt->execute([$pedido_id]);
-        $pedido = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Send WhatsApp notifications
-        if ($pedido && !empty($pedido['cliente_telefone'])) {
-            try {
-                require_once '../includes/whatsapp_helper.php';
-                $whatsapp = new WhatsAppHelper($pdo);
-                
-                // 1) PRIMEIRO: Criar token de avaliação (antes do sendStatusUpdate para {link} funcionar)
-                $stmt_config = $pdo->query("SELECT * FROM configuracao_avaliacoes LIMIT 1");
-                $config_aval = $stmt_config->fetch(PDO::FETCH_ASSOC);
-                
-                if ($config_aval && $config_aval['ativo']) {
-                    // Verificar se já não existe token para este pedido
-                    $stmt_check = $pdo->prepare("SELECT id FROM avaliacoes WHERE pedido_id = ? LIMIT 1");
-                    $stmt_check->execute([$pedido_id]);
-                    
-                    if (!$stmt_check->fetch()) {
-                        // Gerar token único para avaliação
-                        $token = bin2hex(random_bytes(16));
-                        
-                        // Inserir entrada de avaliação (usando nomes corretos das colunas)
-                        $stmt_ins = $pdo->prepare("INSERT INTO avaliacoes (pedido_id, nome, cliente_nome, token, avaliacao) VALUES (?, ?, ?, ?, 0)");
-                        $stmt_ins->execute([$pedido_id, $pedido['cliente_nome'], $pedido['cliente_nome'], $token]);
-                    }
-                }
-                // 2) Enviar notificação de conclusão
-                $whatsapp->sendStatusUpdate($pedido, 'concluido');
-                
-                // 3) Enviar link de avaliação como mensagem separada (clicável)
-                if (isset($token) && !empty($token)) {
-                    sleep(1); // Pequeno delay entre mensagens
-                    $rating_link = SITE_URL . '/avaliar_pedido.php?token=' . $token;
-                    $link_msg = "⭐ Avalie seu pedido:\n" . $rating_link;
-                    $whatsapp->sendMessage($pedido['cliente_telefone'], $link_msg);
-                }
-                
-            } catch (Exception $e) {
-                // Log error but don't fail the delivery marking
-                error_log("WhatsApp notification failed: " . $e->getMessage());
-            }
-        }
-        
-        $msg = 'Entrega concluída com sucesso!';
-        $msg_tipo = 'success';
-        
-    } catch (Exception $e) {
-        $msg = 'Erro: ' . $e->getMessage();
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
         $msg_tipo = 'danger';
     }
+    else {
+        try {
+            $pedido_id = (int)$_POST['pedido_id'];
+
+            // Update order as delivered - use 'concluido' to match system standard
+            $stmt = $pdo->prepare("UPDATE pedidos SET status = 'concluido', em_preparo = 1, saiu_entrega = 1, entregue = 1, data_conclusao = NOW() WHERE id = ?");
+            $result = $stmt->execute([$pedido_id]);
+
+            if (!$result) {
+                throw new Exception("Falha ao atualizar pedido");
+            }
+
+            // Update Kanban lane to "Entregue" if exists
+            $stmt_lane = $pdo->prepare("SELECT id FROM kanban_lanes WHERE LOWER(nome) LIKE '%entreg%' OR acao = 'entregue' LIMIT 1");
+            $stmt_lane->execute();
+            $lane = $stmt_lane->fetch();
+            if ($lane) {
+                $stmt = $pdo->prepare("UPDATE pedidos SET lane_id = ? WHERE id = ?");
+                $stmt->execute([$lane['id'], $pedido_id]);
+            }
+
+            // Get order details for notifications
+            $stmt = $pdo->prepare("SELECT * FROM pedidos WHERE id = ?");
+            $stmt->execute([$pedido_id]);
+            $pedido = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            // Send WhatsApp notifications
+            if ($pedido && !empty($pedido['cliente_telefone'])) {
+                try {
+                    require_once '../includes/whatsapp_helper.php';
+                    $whatsapp = new WhatsAppHelper($pdo);
+
+                    // 1) PRIMEIRO: Criar token de avaliação (antes do sendStatusUpdate para {link} funcionar)
+                    $stmt_config = $pdo->query("SELECT * FROM configuracao_avaliacoes LIMIT 1");
+                    $config_aval = $stmt_config->fetch(PDO::FETCH_ASSOC);
+
+                    if ($config_aval && $config_aval['ativo']) {
+                        // Verificar se já não existe token para este pedido
+                        $stmt_check = $pdo->prepare("SELECT id FROM avaliacoes WHERE pedido_id = ? LIMIT 1");
+                        $stmt_check->execute([$pedido_id]);
+
+                        if (!$stmt_check->fetch()) {
+                            // Gerar token único para avaliação
+                            $token = bin2hex(random_bytes(16));
+
+                            // Inserir entrada de avaliação (usando nomes corretos das colunas)
+                            $stmt_ins = $pdo->prepare("INSERT INTO avaliacoes (pedido_id, nome, cliente_nome, token, avaliacao) VALUES (?, ?, ?, ?, 0)");
+                            $stmt_ins->execute([$pedido_id, $pedido['cliente_nome'], $pedido['cliente_nome'], $token]);
+                        }
+                    }
+                    // 2) Enviar notificação de conclusão
+                    $whatsapp->sendStatusUpdate($pedido, 'concluido');
+
+                    // 3) Enviar link de avaliação como mensagem separada (clicável)
+                    if (isset($token) && !empty($token)) {
+                        sleep(1); // Pequeno delay entre mensagens
+                        $rating_link = SITE_URL . '/avaliar_pedido.php?token=' . $token;
+                        $link_msg = "⭐ Avalie seu pedido:\n" . $rating_link;
+                        $whatsapp->sendMessage($pedido['cliente_telefone'], $link_msg);
+                    }
+
+                }
+                catch (Exception $e) {
+                    // Log error but don't fail the delivery marking
+                    error_log("WhatsApp notification failed: " . $e->getMessage());
+                }
+            }
+
+            $msg = 'Entrega concluída com sucesso!';
+            $msg_tipo = 'success';
+
+        }
+        catch (Exception $e) {
+            $msg = 'Erro: ' . $e->getMessage();
+            $msg_tipo = 'danger';
+        }
+    } // fecha else validar_csrf
 }
 
 // Get deliveries - for entregador show ALL orders with status 'saiu_entrega'
@@ -248,9 +257,11 @@ include 'includes/header.php';
             <p class="text-sm text-secondary mb-0">
                 <?php if ($nivel === 'entregador'): ?>
                     Gerencie suas entregas em andamento
-                <?php else: ?>
+                <?php
+else: ?>
                     Todas as entregas em andamento
-                <?php endif; ?>
+                <?php
+endif; ?>
             </p>
         </div>
         <div class="badge bg-primary-600 px-3 py-2">
@@ -263,7 +274,8 @@ include 'includes/header.php';
         <?php echo $msg; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <?php if (empty($entregas)): ?>
     <div class="card radius-12">
@@ -275,16 +287,17 @@ include 'includes/header.php';
             </div>
         </div>
     </div>
-    <?php else: ?>
+    <?php
+else: ?>
     
     <div class="row">
-        <?php foreach ($entregas as $entrega): 
-            $telefone = preg_replace('/[^0-9]/', '', $entrega['cliente_telefone'] ?? $entrega['telefone'] ?? '');
-            // Adiciona código do país se não tiver
-            if (strlen($telefone) <= 11 && substr($telefone, 0, 2) !== '55') {
-                $telefone = '55' . $telefone;
-            }
-        ?>
+        <?php foreach ($entregas as $entrega):
+        $telefone = preg_replace('/[^0-9]/', '', $entrega['cliente_telefone'] ?? $entrega['telefone'] ?? '');
+        // Adiciona código do país se não tiver
+        if (strlen($telefone) <= 11 && substr($telefone, 0, 2) !== '55') {
+            $telefone = '55' . $telefone;
+        }
+?>
         <div class="col-xl-6 col-lg-12">
             <div class="entrega-card">
                 <div class="entrega-header">
@@ -346,7 +359,8 @@ include 'includes/header.php';
                                 <div class="info-value"><?php echo htmlspecialchars($entrega['observacoes']); ?></div>
                             </div>
                         </div>
-                        <?php endif; ?>
+                        <?php
+        endif; ?>
                         
                         <?php if ($nivel !== 'entregador' && !empty($entrega['entregador_nome'])): ?>
                         <div class="info-row">
@@ -356,12 +370,14 @@ include 'includes/header.php';
                                 <div class="info-value"><?php echo htmlspecialchars($entrega['entregador_nome']); ?></div>
                             </div>
                         </div>
-                        <?php endif; ?>
+                        <?php
+        endif; ?>
                     </div>
                 </div>
                 
                 <div class="entrega-footer">
                     <form method="POST" style="flex: 1;">
+                        <?php echo campo_csrf(); ?>
                         <input type="hidden" name="pedido_id" value="<?php echo $entrega['id']; ?>">
                         <button type="submit" name="concluir_entrega" class="btn-concluir w-100" onclick="return confirm('Confirmar entrega realizada?')">
                             <iconify-icon icon="solar:check-circle-bold"></iconify-icon>
@@ -373,14 +389,17 @@ include 'includes/header.php';
                     <a href="https://wa.me/<?php echo $telefone; ?>" target="_blank" class="btn-whatsapp">
                         <iconify-icon icon="logos:whatsapp-icon"></iconify-icon>
                     </a>
-                    <?php endif; ?>
+                    <?php
+        endif; ?>
                 </div>
             </div>
         </div>
-        <?php endforeach; ?>
+        <?php
+    endforeach; ?>
     </div>
     
-    <?php endif; ?>
+    <?php
+endif; ?>
 </div>
 
 <?php include 'includes/footer.php'; ?>

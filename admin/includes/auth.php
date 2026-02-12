@@ -1,14 +1,17 @@
 <?php
+require_once __DIR__ . '/../../includes/security_headers.php';
 session_start();
 
-function verificar_login() {
+function verificar_login()
+{
     if (!isset($_SESSION['usuario_id'])) {
         header('Location: login.php');
         exit;
     }
 }
 
-function get_usuario_atual() {
+function get_usuario_atual()
+{
     if (isset($_SESSION['usuario_id'])) {
         return [
             'id' => $_SESSION['usuario_id'],
@@ -23,16 +26,17 @@ function get_usuario_atual() {
 /**
  * Get permitted pages for each user level
  */
-function get_paginas_permitidas($nivel) {
+function get_paginas_permitidas($nivel)
+{
     // Pages everyone can access
     $comum = ['logout.php', 'minha_conta.php'];
-    
+
     switch ($nivel) {
         case 'admin':
         case 'gerente':
             // Full access - return empty array means no restrictions
             return [];
-            
+
         case 'cozinha':
             return array_merge($comum, [
                 'index.php',
@@ -40,7 +44,7 @@ function get_paginas_permitidas($nivel) {
                 'pedidos.php',
                 'pedido_detalhe.php'
             ]);
-            
+
         case 'entregador':
             return array_merge($comum, [
                 'index.php',
@@ -48,7 +52,7 @@ function get_paginas_permitidas($nivel) {
                 'pedidos.php',
                 'pedido_detalhe.php'
             ]);
-            
+
         default:
             return $comum;
     }
@@ -57,47 +61,51 @@ function get_paginas_permitidas($nivel) {
 /**
  * Check if user has access to a specific page
  */
-function verificar_permissao($pagina = null) {
+function verificar_permissao($pagina = null)
+{
     verificar_login();
-    
+
     $nivel = $_SESSION['usuario_nivel'] ?? 'guest';
-    
+
     // Admin and gerente have full access
     if ($nivel === 'admin' || $nivel === 'gerente') {
         return true;
     }
-    
+
     // Get current page if not provided
     if ($pagina === null) {
         $pagina = basename($_SERVER['PHP_SELF']);
     }
-    
+
     $permitidas = get_paginas_permitidas($nivel);
-    
+
     // If empty array, user has full access
     if (empty($permitidas)) {
         return true;
     }
-    
+
     if (!in_array($pagina, $permitidas)) {
         // Redirect to appropriate page based on role
         if ($nivel === 'cozinha') {
             header('Location: pedidos_kanban.php');
-        } elseif ($nivel === 'entregador') {
+        }
+        elseif ($nivel === 'entregador') {
             header('Location: entregas_painel.php');
-        } else {
+        }
+        else {
             header('Location: index.php');
         }
         exit;
     }
-    
+
     return true;
 }
 
 /**
  * Check if user is admin or gerente
  */
-function is_admin() {
+function is_admin()
+{
     $nivel = $_SESSION['usuario_nivel'] ?? 'guest';
     return in_array($nivel, ['admin', 'gerente']);
 }
@@ -105,25 +113,28 @@ function is_admin() {
 /**
  * Check if user can edit menu (produtos, categorias, etc)
  */
-function pode_editar_cardapio() {
+function pode_editar_cardapio()
+{
     return is_admin();
 }
 
 /**
  * Check if user can manage settings
  */
-function pode_gerenciar_configuracoes() {
+function pode_gerenciar_configuracoes()
+{
     return is_admin();
 }
 
 /**
  * Get menu items based on user level
  */
-function get_menu_items() {
+function get_menu_items()
+{
     $nivel = $_SESSION['usuario_nivel'] ?? 'guest';
-    
+
     $menu = [];
-    
+
     if ($nivel === 'admin' || $nivel === 'gerente') {
         // Full menu for admin/gerente
         $menu['Principal'] = [
@@ -136,17 +147,17 @@ function get_menu_items() {
             ['href' => 'clientes.php', 'icon' => 'solar:users-group-rounded-bold-duotone', 'label' => 'Clientes', 'color' => '#ec4899'],
             ['href' => 'pedidos_kanban.php', 'icon' => 'solar:clipboard-list-bold-duotone', 'label' => 'Kanban', 'color' => '#14b8a6']
         ];
-        
+
         $menu['Marketing'] = [
             ['href' => 'whatsapp_config.php', 'icon' => 'ic:baseline-whatsapp', 'label' => 'Configuração API', 'color' => '#25d366'],
             ['href' => 'whatsapp_mensagens.php', 'icon' => 'solar:chat-round-dots-bold-duotone', 'label' => 'Mensagens Editáveis', 'color' => '#3b82f6']
         ];
-        
+
         $menu['Gateways de Pagamento'] = [
             ['href' => 'gateway_config.php', 'icon' => 'solar:card-bold-duotone', 'label' => 'Configuração', 'color' => '#00bcff'],
             ['href' => 'mercadopago_mensagens.php', 'icon' => 'solar:chat-line-bold-duotone', 'label' => 'Mensagens PIX', 'color' => '#32bcad']
         ];
-        
+
         $menu['Sistema'] = [
             ['href' => 'analytics.php', 'icon' => 'solar:chart-bold-duotone', 'label' => 'Analytics', 'color' => '#06b6d4'],
             ['href' => 'usuarios.php', 'icon' => 'solar:user-id-bold-duotone', 'label' => 'Usuários', 'color' => '#8b5cf6'],
@@ -158,40 +169,44 @@ function get_menu_items() {
             ['href' => 'fidelidade_config.php', 'icon' => 'solar:gift-bold-duotone', 'label' => 'Fidelidade', 'color' => '#ec4899'],
             ['href' => 'verificacao_config.php', 'icon' => 'solar:verified-check-bold-duotone', 'label' => 'Verificação Primeiro Pedido', 'color' => '#22c55e'],
             ['href' => 'configuracao_entrega.php', 'icon' => 'solar:scooter-bold-duotone', 'label' => 'Configuração de Entrega', 'color' => '#f97316'],
-            ['href' => 'avaliacoes.php', 'icon' => 'solar:star-bold-duotone', 'label' => 'Avaliações', 'color' => '#fbbf24']
+            ['href' => 'avaliacoes.php', 'icon' => 'solar:star-bold-duotone', 'label' => 'Avaliações', 'color' => '#fbbf24'],
+            ['href' => 'atualizacoes.php', 'icon' => 'solar:history-bold-duotone', 'label' => 'Atualizações', 'color' => '#6366f1']
         ];
-        
+
         $menu['Inteligência Artificial'] = [
             ['href' => 'importar_cardapio.php', 'icon' => 'ri:gemini-fill', 'label' => 'Importar Cardápio IA', 'color' => '#8b5cf6'],
             ['href' => 'gemini_config.php', 'icon' => 'solar:settings-minimalistic-bold-duotone', 'label' => 'Configurar IA', 'color' => '#4285f4']
         ];
-        
-    } elseif ($nivel === 'cozinha') {
+
+    }
+    elseif ($nivel === 'cozinha') {
         // Menu for kitchen staff
         $menu['Principal'] = [
             ['href' => 'index.php', 'icon' => 'solar:home-2-bold-duotone', 'label' => 'Dashboard', 'color' => '#4a66f9'],
             ['href' => 'pedidos_kanban.php', 'icon' => 'solar:clipboard-list-bold-duotone', 'label' => 'Kanban', 'color' => '#14b8a6'],
             ['href' => 'pedidos.php', 'icon' => 'solar:cart-large-2-bold-duotone', 'label' => 'Pedidos', 'color' => '#06b6d4']
         ];
-        
-    } elseif ($nivel === 'entregador') {
+
+    }
+    elseif ($nivel === 'entregador') {
         // Menu for delivery staff - ONLY their deliveries
         $menu['Principal'] = [
             ['href' => 'index.php', 'icon' => 'solar:home-2-bold-duotone', 'label' => 'Dashboard', 'color' => '#4a66f9'],
             ['href' => 'entregas_painel.php', 'icon' => 'solar:scooter-bold-duotone', 'label' => 'Minhas Entregas', 'color' => '#f97316']
         ];
-    } else {
+    }
+    else {
         // Guest/unknown - minimal menu
         $menu['Principal'] = [
             ['href' => 'index.php', 'icon' => 'solar:home-2-bold-duotone', 'label' => 'Dashboard', 'color' => '#4a66f9']
         ];
     }
-    
+
     // Conta section - available to all
     $menu['Conta'] = [
         ['href' => 'logout.php', 'icon' => 'solar:logout-2-bold-duotone', 'label' => 'Sair', 'color' => '#ef4444']
     ];
-    
+
     return $menu;
 }
 ?>

@@ -1,6 +1,7 @@
 <?php
 require_once dirname(__DIR__) . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once dirname(__DIR__) . '/includes/csrf.php';
 
 verificar_login();
 
@@ -30,24 +31,31 @@ $stmt->execute([$grupo_id]);
 $grupo = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $nome = filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_SPECIAL_CHARS);
-    $descricao = filter_input(INPUT_POST, 'descricao', FILTER_SANITIZE_SPECIAL_CHARS);
-    $preco_adicional = str_replace(',', '.', str_replace('.', '', $_POST['preco_adicional']));
-    $ordem = filter_input(INPUT_POST, 'ordem', FILTER_VALIDATE_INT) ?? 0;
-    $ativo = isset($_POST['ativo']) ? 1 : 0;
-
-    if ($nome) {
-        $sql = "UPDATE grupo_adicional_itens SET nome = ?, descricao = ?, preco_adicional = ?, ordem = ?, ativo = ? WHERE id = ?";
-        $stmt = $pdo->prepare($sql);
-        if ($stmt->execute([$nome, $descricao, $preco_adicional, $ordem, $ativo, $id])) {
-            header("Location: grupo_adicional_itens.php?grupo_id=$grupo_id&msg=updated");
-            exit;
-        } else {
-            $msg = "Erro ao atualizar item.";
-        }
-    } else {
-        $msg = "Preencha o nome do item.";
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
     }
+    else {
+        $nome = filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_SPECIAL_CHARS);
+        $descricao = filter_input(INPUT_POST, 'descricao', FILTER_SANITIZE_SPECIAL_CHARS);
+        $preco_adicional = str_replace(',', '.', str_replace('.', '', $_POST['preco_adicional']));
+        $ordem = filter_input(INPUT_POST, 'ordem', FILTER_VALIDATE_INT) ?? 0;
+        $ativo = isset($_POST['ativo']) ? 1 : 0;
+
+        if ($nome) {
+            $sql = "UPDATE grupo_adicional_itens SET nome = ?, descricao = ?, preco_adicional = ?, ordem = ?, ativo = ? WHERE id = ?";
+            $stmt = $pdo->prepare($sql);
+            if ($stmt->execute([$nome, $descricao, $preco_adicional, $ordem, $ativo, $id])) {
+                header("Location: grupo_adicional_itens.php?grupo_id=$grupo_id&msg=updated");
+                exit;
+            }
+            else {
+                $msg = "Erro ao atualizar item.";
+            }
+        }
+        else {
+            $msg = "Preencha o nome do item.";
+        }
+    } // fecha else validar_csrf
 }
 ?>
 <!DOCTYPE html>
@@ -99,9 +107,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <div class="card-body p-4">
                     <?php if ($msg): ?>
                         <div class="alert alert-danger"><?php echo $msg; ?></div>
-                    <?php endif; ?>
+                    <?php
+endif; ?>
 
                     <form method="POST">
+                        <?php echo campo_csrf(); ?>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Nome do Item</label>

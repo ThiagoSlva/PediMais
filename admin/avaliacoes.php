@@ -3,6 +3,7 @@ include 'includes/auth.php';
 include 'includes/header.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+require_once '../includes/csrf.php';
 
 // Migration Logic (Inline)
 try {
@@ -13,11 +14,11 @@ try {
         mostrar_no_site TINYINT(1) DEFAULT 0,
         mensagem_avaliacao TEXT
     )");
-    
+
     // Verificar colunas
     $stmt = $pdo->query("DESCRIBE configuracao_avaliacoes");
     $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    
+
     if (!in_array('mostrar_no_site', $columns)) {
         $pdo->exec("ALTER TABLE configuracao_avaliacoes ADD COLUMN mostrar_no_site TINYINT(1) DEFAULT 0");
     }
@@ -44,11 +45,11 @@ try {
         data_avaliacao DATETIME DEFAULT CURRENT_TIMESTAMP,
         ativo TINYINT(1) DEFAULT 1
     )");
-    
+
     // Verificar e adicionar colunas novas se não existirem
     $stmt = $pdo->query("DESCRIBE avaliacoes");
     $av_columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    
+
     if (!in_array('cliente_nome', $av_columns)) {
         $pdo->exec("ALTER TABLE avaliacoes ADD COLUMN cliente_nome VARCHAR(255)");
     }
@@ -60,8 +61,9 @@ try {
         $pdo->exec("ALTER TABLE avaliacoes ADD INDEX idx_produto_id (produto_id)");
     }
 
-} catch (PDOException $e) {
-    // Silently handle migration errors or log them
+}
+catch (PDOException $e) {
+// Silently handle migration errors or log them
 }
 
 $msg = '';
@@ -69,27 +71,32 @@ $msg_tipo = '';
 
 // Processar Ações
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if (isset($_POST['action'])) {
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_tipo = 'danger';
+    }
+    elseif (isset($_POST['action'])) {
         if ($_POST['action'] == 'config') {
             $ativo = isset($_POST['ativo']) ? 1 : 0;
             $mostrar_no_site = isset($_POST['mostrar_no_site']) ? 1 : 0;
             $mensagem = $_POST['mensagem_avaliacao'];
-            
+
             try {
                 $stmt = $pdo->prepare("UPDATE configuracao_avaliacoes SET ativo = ?, mostrar_no_site = ?, mensagem_avaliacao = ? WHERE id = 1");
                 $stmt->execute([$ativo, $mostrar_no_site, $mensagem]);
-                
+
                 if ($stmt->rowCount() == 0) {
-                     $check = $pdo->query("SELECT id FROM configuracao_avaliacoes LIMIT 1")->fetch();
-                     if (!$check) {
-                         $stmt = $pdo->prepare("INSERT INTO configuracao_avaliacoes (ativo, mostrar_no_site, mensagem_avaliacao) VALUES (?, ?, ?)");
-                         $stmt->execute([$ativo, $mostrar_no_site, $mensagem]);
-                     }
+                    $check = $pdo->query("SELECT id FROM configuracao_avaliacoes LIMIT 1")->fetch();
+                    if (!$check) {
+                        $stmt = $pdo->prepare("INSERT INTO configuracao_avaliacoes (ativo, mostrar_no_site, mensagem_avaliacao) VALUES (?, ?, ?)");
+                        $stmt->execute([$ativo, $mostrar_no_site, $mensagem]);
+                    }
                 }
 
                 $msg = 'Configurações salvas com sucesso!';
                 $msg_tipo = 'success';
-            } catch (PDOException $e) {
+            }
+            catch (PDOException $e) {
                 $msg = 'Erro ao salvar: ' . $e->getMessage();
                 $msg_tipo = 'danger';
             }
@@ -105,7 +112,8 @@ if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['id']))
         $stmt->execute([$id]);
         $msg = 'Avaliação excluída com sucesso!';
         $msg_tipo = 'success';
-    } catch (PDOException $e) {
+    }
+    catch (PDOException $e) {
         $msg = 'Erro ao excluir: ' . $e->getMessage();
         $msg_tipo = 'danger';
     }
@@ -159,7 +167,8 @@ $avaliacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php echo $msg; ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 </div>
-<?php endif; ?>
+<?php
+endif; ?>
 
 <div class="card h-100 p-0 radius-12 mb-4">
     <div class="card-header">
@@ -167,6 +176,7 @@ $avaliacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
     <div class="card-body">
         <form method="POST" action="avaliacoes.php">
+            <?php echo campo_csrf(); ?>
             <input type="hidden" name="action" value="config">
             
             <div class="row">
@@ -248,9 +258,10 @@ $avaliacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <iconify-icon icon="solar:magnifer-outline"></iconify-icon>
                         Filtrar
                     </button>
-                    <?php if(isset($_GET['busca'])): ?>
+                    <?php if (isset($_GET['busca'])): ?>
                         <a href="avaliacoes.php" class="btn btn-outline-secondary radius-8 px-4">Limpar</a>
-                    <?php endif; ?>
+                    <?php
+endif; ?>
                 </div>
             </div>
         </form>
@@ -276,15 +287,18 @@ $avaliacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <td>
                                 <?php if (!empty($av['produto_nome'])): ?>
                                     <span class="badge bg-info-50 text-info-600"><?php echo htmlspecialchars($av['produto_nome']); ?></span>
-                                <?php else: ?>
+                                <?php
+        else: ?>
                                     <span class="text-secondary-light">Geral</span>
-                                <?php endif; ?>
+                                <?php
+        endif; ?>
                             </td>
                             <td>
                                 <div style="display: inline-flex; align-items: center; gap: 4px;">
-                                    <?php for($i=1; $i<=5; $i++): ?>
+                                    <?php for ($i = 1; $i <= 5; $i++): ?>
                                         <iconify-icon icon="solar:star-bold" style="color: <?php echo $i <= ($av['avaliacao'] ?? 0) ? '#ffc107' : '#e0e0e0'; ?>; font-size: 1.2rem; display: inline-block;"></iconify-icon>
-                                    <?php endfor; ?>
+                                    <?php
+        endfor; ?>
                                     <span class="ms-2 text-secondary-light">(<?php echo $av['avaliacao'] ?? 0; ?>/5)</span>
                                 </div>
                             </td>
@@ -292,11 +306,13 @@ $avaliacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <?php echo htmlspecialchars($av['descricao'] ?? ''); ?>
                             </td>
                             <td>
-                                <?php if($av['codigo_pedido']): ?>
+                                <?php if ($av['codigo_pedido']): ?>
                                     <span class="badge bg-primary-50 text-primary-600">#<?php echo $av['codigo_pedido']; ?></span>
-                                <?php else: ?>
+                                <?php
+        else: ?>
                                     <span class="text-secondary-light">-</span>
-                                <?php endif; ?>
+                                <?php
+        endif; ?>
                             </td>
                             <td>
                                 <?php echo date('d/m/Y H:i', strtotime($av['data_avaliacao'])); ?>
@@ -310,12 +326,15 @@ $avaliacoes = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 </a>
                             </td>
                         </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
+                        <?php
+    endforeach; ?>
+                    <?php
+else: ?>
                         <tr>
                             <td colspan="6" class="text-center py-4">Nenhuma avaliação encontrada.</td>
                         </tr>
-                    <?php endif; ?>
+                    <?php
+endif; ?>
                 </tbody>
             </table>
         </div>

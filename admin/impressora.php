@@ -2,23 +2,29 @@
 include 'includes/auth.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+require_once '../includes/csrf.php';
 verificar_login();
 
 $config = get_config();
 
 // Processar formulário
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!validar_csrf()) {
+        // Token inválido, redirecionar
+        header('Location: impressora.php?erro=csrf');
+        exit;
+    }
     $impressao_automatica = isset($_POST['impressao_automatica']) ? 1 : 0;
-    
+
     // Atualizar configuração
     $pdo->prepare("UPDATE configuracoes SET impressao_automatica = ?")->execute([$impressao_automatica]);
-    
+
     // Gerar novo token se solicitado
     if (isset($_POST['gerar_novo_token'])) {
         $novo_token = bin2hex(random_bytes(32));
         $pdo->prepare("UPDATE usuarios SET api_token = ? WHERE nivel_acesso = 'admin' LIMIT 1")->execute([$novo_token]);
     }
-    
+
     header('Location: impressora.php?salvo=1');
     exit;
 }
@@ -47,7 +53,8 @@ include 'includes/header.php';
         <strong>Sucesso!</strong> Configurações salvas com sucesso.
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <div class="row">
         <div class="col-lg-8">
@@ -78,6 +85,7 @@ include 'includes/header.php';
                     </div>
                     
                     <form method="POST" class="d-inline">
+                        <?php echo campo_csrf(); ?>
                         <input type="hidden" name="gerar_novo_token" value="1">
                         <button type="submit" class="btn btn-warning" 
                                 onclick="return confirm('Gerar novo token? O token antigo deixará de funcionar!')">
@@ -97,6 +105,7 @@ include 'includes/header.php';
                 </div>
                 <div class="card-body">
                     <form method="POST">
+                        <?php echo campo_csrf(); ?>
                         <div class="alert alert-secondary mb-4">
                             <strong>💻 Como funciona:</strong> Quando ativado, ao receber novo pedido 
                             no painel admin, abrirá automaticamente uma janela de impressão.
@@ -105,7 +114,7 @@ include 'includes/header.php';
                         <div class="form-check form-switch mb-4" style="padding-left: 3rem;">
                             <input class="form-check-input" type="checkbox" name="impressao_automatica" 
                                    id="impressao_automatica" style="width: 50px; height: 26px;"
-                                   <?php echo ($config['impressao_automatica'] ?? 0) ? 'checked' : ''; ?>>
+                                   <?php echo($config['impressao_automatica'] ?? 0) ? 'checked' : ''; ?>>
                             <label class="form-check-label fw-semibold" for="impressao_automatica">
                                 Ativar Impressão Automática via Navegador
                             </label>

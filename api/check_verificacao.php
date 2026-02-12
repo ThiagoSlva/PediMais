@@ -5,7 +5,8 @@
  */
 
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
+$allowed_origin = defined('SITE_URL') ? SITE_URL : '*';
+header("Access-Control-Allow-Origin: $allowed_origin");
 
 require_once '../includes/config.php';
 
@@ -20,7 +21,7 @@ try {
     // Verificar se sistema de verificação está ativo
     $stmt = $pdo->query("SELECT ativo, tempo_expiracao FROM configuracao_verificacao LIMIT 1");
     $config = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if (!$config || !$config['ativo']) {
         echo json_encode([
             'sucesso' => true,
@@ -29,18 +30,18 @@ try {
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }
-    
+
     // Verificar se cliente existe e está verificado
     $stmt = $pdo->prepare("SELECT id, telefone_verificado FROM clientes WHERE telefone = ? LIMIT 1");
     $stmt->execute([$telefone]);
     $cliente = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     $precisa_verificar = true;
-    
+
     if ($cliente && $cliente['telefone_verificado']) {
         $precisa_verificar = false;
     }
-    
+
     echo json_encode([
         'sucesso' => true,
         'verificacao_ativa' => true,
@@ -48,7 +49,8 @@ try {
         'tempo_expiracao' => intval($config['tempo_expiracao'])
     ], JSON_UNESCAPED_UNICODE);
 
-} catch (PDOException $e) {
+}
+catch (PDOException $e) {
     error_log("Erro ao verificar status: " . $e->getMessage());
     echo json_encode(['erro' => 'Erro ao verificar status'], JSON_UNESCAPED_UNICODE);
 }

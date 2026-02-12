@@ -2,6 +2,7 @@
 include 'includes/auth.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+require_once '../includes/csrf.php';
 
 verificar_login();
 
@@ -48,91 +49,104 @@ try {
         FOREIGN KEY (cidade_id) REFERENCES cidades(id) ON DELETE CASCADE
     )");
 
-} catch (PDOException $e) {
-    // Ignore if tables exist
+}
+catch (PDOException $e) {
+// Ignore if tables exist
 }
 
 // Process Form Submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    try {
-        if (isset($_POST['acao'])) {
-            $acao = $_POST['acao'];
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_tipo = 'danger';
+    }
+    else {
+        try {
+            if (isset($_POST['acao'])) {
+                $acao = $_POST['acao'];
 
-            if ($acao == 'config') {
-                $modo_gratis_valor_ativo = isset($_POST['modo_gratis_valor_ativo']) ? 1 : 0;
-                $valor_minimo_gratis = converterPreco($_POST['valor_minimo_gratis']);
-                $modo_gratis_todos_ativo = isset($_POST['modo_gratis_todos_ativo']) ? 1 : 0;
-                $modo_valor_fixo_ativo = isset($_POST['modo_valor_fixo_ativo']) ? 1 : 0;
-                $valor_fixo_entrega = converterPreco($_POST['valor_fixo_entrega']);
-                $modo_por_bairro_ativo = isset($_POST['modo_por_bairro_ativo']) ? 1 : 0;
-                $aceita_retirada = isset($_POST['aceita_retirada']) ? 1 : 0;
-                $taxa_retirada = converterPreco($_POST['taxa_retirada']);
+                if ($acao == 'config') {
+                    $modo_gratis_valor_ativo = isset($_POST['modo_gratis_valor_ativo']) ? 1 : 0;
+                    $valor_minimo_gratis = converterPreco($_POST['valor_minimo_gratis']);
+                    $modo_gratis_todos_ativo = isset($_POST['modo_gratis_todos_ativo']) ? 1 : 0;
+                    $modo_valor_fixo_ativo = isset($_POST['modo_valor_fixo_ativo']) ? 1 : 0;
+                    $valor_fixo_entrega = converterPreco($_POST['valor_fixo_entrega']);
+                    $modo_por_bairro_ativo = isset($_POST['modo_por_bairro_ativo']) ? 1 : 0;
+                    $aceita_retirada = isset($_POST['aceita_retirada']) ? 1 : 0;
+                    $taxa_retirada = converterPreco($_POST['taxa_retirada']);
 
-                $stmt = $pdo->prepare("UPDATE configuracao_entrega SET 
+                    $stmt = $pdo->prepare("UPDATE configuracao_entrega SET 
                     modo_gratis_valor_ativo = ?, valor_minimo_gratis = ?,
                     modo_gratis_todos_ativo = ?,
                     modo_valor_fixo_ativo = ?, valor_fixo_entrega = ?,
                     modo_por_bairro_ativo = ?,
                     aceita_retirada = ?, taxa_retirada = ?
                     WHERE id = 1");
-                $stmt->execute([
-                    $modo_gratis_valor_ativo, $valor_minimo_gratis,
-                    $modo_gratis_todos_ativo,
-                    $modo_valor_fixo_ativo, $valor_fixo_entrega,
-                    $modo_por_bairro_ativo,
-                    $aceita_retirada, $taxa_retirada
-                ]);
-                $msg = 'Configurações de entrega atualizadas!';
-                $msg_tipo = 'success';
+                    $stmt->execute([
+                        $modo_gratis_valor_ativo, $valor_minimo_gratis,
+                        $modo_gratis_todos_ativo,
+                        $modo_valor_fixo_ativo, $valor_fixo_entrega,
+                        $modo_por_bairro_ativo,
+                        $aceita_retirada, $taxa_retirada
+                    ]);
+                    $msg = 'Configurações de entrega atualizadas!';
+                    $msg_tipo = 'success';
 
-            } elseif ($acao == 'save_cidade') {
-                $nome = $_POST['cidade_nome'];
-                $estado = strtoupper($_POST['cidade_estado']);
-                $ativo = isset($_POST['cidade_ativa']) ? 1 : 0;
-                $id = isset($_POST['cidade_id']) ? (int)$_POST['cidade_id'] : 0;
-
-                if ($id > 0) {
-                    $stmt = $pdo->prepare("UPDATE cidades SET nome = ?, estado = ?, ativo = ? WHERE id = ?");
-                    $stmt->execute([$nome, $estado, $ativo, $id]);
-                    $msg = 'Cidade atualizada!';
-                } else {
-                    $stmt = $pdo->prepare("INSERT INTO cidades (nome, estado, ativo) VALUES (?, ?, ?)");
-                    $stmt->execute([$nome, $estado, $ativo]);
-                    $msg = 'Cidade adicionada!';
                 }
-                $msg_tipo = 'success';
+                elseif ($acao == 'save_cidade') {
+                    $nome = $_POST['cidade_nome'];
+                    $estado = strtoupper($_POST['cidade_estado']);
+                    $ativo = isset($_POST['cidade_ativa']) ? 1 : 0;
+                    $id = isset($_POST['cidade_id']) ? (int)$_POST['cidade_id'] : 0;
 
-            } elseif ($acao == 'delete_cidade') {
-                $id = (int)$_POST['id'];
-                $stmt = $pdo->prepare("DELETE FROM cidades WHERE id = ?");
-                $stmt->execute([$id]);
-                $msg = 'Cidade excluída!';
-                $msg_tipo = 'success';
+                    if ($id > 0) {
+                        $stmt = $pdo->prepare("UPDATE cidades SET nome = ?, estado = ?, ativo = ? WHERE id = ?");
+                        $stmt->execute([$nome, $estado, $ativo, $id]);
+                        $msg = 'Cidade atualizada!';
+                    }
+                    else {
+                        $stmt = $pdo->prepare("INSERT INTO cidades (nome, estado, ativo) VALUES (?, ?, ?)");
+                        $stmt->execute([$nome, $estado, $ativo]);
+                        $msg = 'Cidade adicionada!';
+                    }
+                    $msg_tipo = 'success';
 
-            } elseif ($acao == 'add_bairro') {
-                $nome = $_POST['bairro_nome'];
-                $cidade_id = (int)$_POST['cidade_id'];
-                $valor = converterPreco($_POST['bairro_valor']);
-                $gratis_acima = !empty($_POST['gratis_acima_valor']) ? converterPreco($_POST['gratis_acima_valor']) : NULL;
-                $disponivel = isset($_POST['entrega_disponivel']) ? 1 : 0;
+                }
+                elseif ($acao == 'delete_cidade') {
+                    $id = (int)$_POST['id'];
+                    $stmt = $pdo->prepare("DELETE FROM cidades WHERE id = ?");
+                    $stmt->execute([$id]);
+                    $msg = 'Cidade excluída!';
+                    $msg_tipo = 'success';
 
-                $stmt = $pdo->prepare("INSERT INTO bairros (cidade_id, nome, valor_entrega, gratis_acima_de, entrega_disponivel) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([$cidade_id, $nome, $valor, $gratis_acima, $disponivel]);
-                $msg = 'Bairro adicionado!';
-                $msg_tipo = 'success';
+                }
+                elseif ($acao == 'add_bairro') {
+                    $nome = $_POST['bairro_nome'];
+                    $cidade_id = (int)$_POST['cidade_id'];
+                    $valor = converterPreco($_POST['bairro_valor']);
+                    $gratis_acima = !empty($_POST['gratis_acima_valor']) ? converterPreco($_POST['gratis_acima_valor']) : NULL;
+                    $disponivel = isset($_POST['entrega_disponivel']) ? 1 : 0;
 
-            } elseif ($acao == 'delete_bairro') {
-                $id = (int)$_POST['id'];
-                $stmt = $pdo->prepare("DELETE FROM bairros WHERE id = ?");
-                $stmt->execute([$id]);
-                $msg = 'Bairro excluído!';
-                $msg_tipo = 'success';
+                    $stmt = $pdo->prepare("INSERT INTO bairros (cidade_id, nome, valor_entrega, gratis_acima_de, entrega_disponivel) VALUES (?, ?, ?, ?, ?)");
+                    $stmt->execute([$cidade_id, $nome, $valor, $gratis_acima, $disponivel]);
+                    $msg = 'Bairro adicionado!';
+                    $msg_tipo = 'success';
+
+                }
+                elseif ($acao == 'delete_bairro') {
+                    $id = (int)$_POST['id'];
+                    $stmt = $pdo->prepare("DELETE FROM bairros WHERE id = ?");
+                    $stmt->execute([$id]);
+                    $msg = 'Bairro excluído!';
+                    $msg_tipo = 'success';
+                }
             }
         }
-    } catch (PDOException $e) {
-        $msg = 'Erro ao salvar: ' . $e->getMessage();
-        $msg_tipo = 'danger';
-    }
+        catch (PDOException $e) {
+            $msg = 'Erro ao salvar: ' . $e->getMessage();
+            $msg_tipo = 'danger';
+        }
+    } // fecha else validar_csrf
 }
 
 // Fetch Data
@@ -180,7 +194,8 @@ include 'includes/header.php';
         <?php echo $msg; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <style>
     /* Dark mode specific styles for configuracao_entrega page */
@@ -193,6 +208,7 @@ include 'includes/header.php';
     </style>
 
     <form method="POST">
+        <?php echo campo_csrf(); ?>
         <input type="hidden" name="acao" value="config">
         
         <!-- Modo 1: Grátis a partir de Valor -->
@@ -342,6 +358,7 @@ include 'includes/header.php';
                 </div>
                 <div class="card-body">
                     <form method="POST">
+                        <?php echo campo_csrf(); ?>
                         <input type="hidden" name="acao" value="save_cidade">
                         <input type="hidden" name="cidade_id" value="<?php echo $edit_cidade ? $edit_cidade['id'] : '0'; ?>">
                         
@@ -357,7 +374,7 @@ include 'includes/header.php';
                         
                         <div class="mb-3">
                             <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" name="cidade_ativa" <?php echo (!$edit_cidade || $edit_cidade['ativo']) ? 'checked' : ''; ?>>
+                                <input class="form-check-input" type="checkbox" name="cidade_ativa" <?php echo(!$edit_cidade || $edit_cidade['ativo']) ? 'checked' : ''; ?>>
                                 <label class="form-check-label">Ativa</label>
                             </div>
                         </div>
@@ -369,7 +386,8 @@ include 'includes/header.php';
                             </button>
                             <?php if ($edit_cidade): ?>
                                 <a href="configuracao_entrega.php" class="btn btn-outline-secondary">Cancelar</a>
-                            <?php endif; ?>
+                            <?php
+endif; ?>
                         </div>
                     </form>
                 </div>
@@ -399,9 +417,11 @@ include 'includes/header.php';
                                     <td>
                                         <?php if ($c['ativo']): ?>
                                             <span class="badge bg-success">Ativa</span>
-                                        <?php else: ?>
+                                        <?php
+    else: ?>
                                             <span class="badge bg-secondary">Inativa</span>
-                                        <?php endif; ?>
+                                        <?php
+    endif; ?>
                                     </td>
                                     <td class="text-center">
                                         <div class="d-flex gap-1 justify-content-center">
@@ -409,6 +429,7 @@ include 'includes/header.php';
                                                 <iconify-icon icon="lucide:edit"></iconify-icon>
                                             </a>
                                             <form method="POST" class="d-inline" onsubmit="return confirm('Excluir esta cidade? Todos os bairros vinculados serão excluídos também.')">
+                                                <?php echo campo_csrf(); ?>
                                                 <input type="hidden" name="acao" value="delete_cidade">
                                                 <input type="hidden" name="id" value="<?php echo $c['id']; ?>">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">
@@ -418,7 +439,8 @@ include 'includes/header.php';
                                         </div>
                                     </td>
                                 </tr>
-                                <?php endforeach; ?>
+                                <?php
+endforeach; ?>
                             </tbody>
                         </table>
                     </div>
@@ -437,6 +459,7 @@ include 'includes/header.php';
                 </div>
                 <div class="card-body">
                     <form method="POST">
+                        <?php echo campo_csrf(); ?>
                         <input type="hidden" name="acao" value="add_bairro">
                         
                         <div class="row">
@@ -453,7 +476,8 @@ include 'includes/header.php';
                                         <option value="<?php echo $c['id']; ?>">
                                             <?php echo htmlspecialchars($c['nome'] . ' - ' . $c['estado']); ?>
                                         </option>
-                                    <?php endforeach; ?>
+                                    <?php
+endforeach; ?>
                                 </select>
                             </div>
                             
@@ -517,12 +541,15 @@ include 'includes/header.php';
                                     <td>
                                         <?php if ($b['entrega_disponivel']): ?>
                                             <span class="badge bg-success">Sim</span>
-                                        <?php else: ?>
+                                        <?php
+    else: ?>
                                             <span class="badge bg-danger">Não</span>
-                                        <?php endif; ?>
+                                        <?php
+    endif; ?>
                                     </td>
                                     <td class="text-center">
                                         <form method="POST" class="d-inline" onsubmit="return confirm('Excluir este bairro?')">
+                                            <?php echo campo_csrf(); ?>
                                             <input type="hidden" name="acao" value="delete_bairro">
                                             <input type="hidden" name="id" value="<?php echo $b['id']; ?>">
                                             <button type="submit" class="btn btn-sm btn-outline-danger">
@@ -531,7 +558,8 @@ include 'includes/header.php';
                                         </form>
                                     </td>
                                 </tr>
-                                <?php endforeach; ?>
+                                <?php
+endforeach; ?>
                             </tbody>
                         </table>
                     </div>

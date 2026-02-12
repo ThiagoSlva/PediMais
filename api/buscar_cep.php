@@ -1,7 +1,9 @@
 <?php
-declare(strict_types=1);
+declare(strict_types = 1)
+;
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+$allowed_origin = defined('SITE_URL') ? SITE_URL : '*';
+header("Access-Control-Allow-Origin: $allowed_origin");
 
 if (!isset($_GET['cep'])) {
     echo json_encode(['erro' => 'CEP não fornecido'], JSON_UNESCAPED_UNICODE);
@@ -24,19 +26,19 @@ try {
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    
+
     if ($httpCode !== 200) {
         echo json_encode(['erro' => 'Erro ao consultar CEP'], JSON_UNESCAPED_UNICODE);
         exit;
     }
-    
+
     $data = json_decode($response, true);
-    
+
     if (isset($data['erro'])) {
         echo json_encode(['erro' => 'CEP não encontrado'], JSON_UNESCAPED_UNICODE);
         exit;
     }
-    
+
     echo json_encode([
         'cep' => $data['cep'] ?? '',
         'logradouro' => $data['logradouro'] ?? '',
@@ -49,8 +51,10 @@ try {
         'ddd' => $data['ddd'] ?? '',
         'siafi' => $data['siafi'] ?? ''
     ], JSON_UNESCAPED_UNICODE);
-    
-} catch (Exception $e) {
+
+
+}
+catch (Exception $e) {
     error_log("Erro ao buscar CEP: " . $e->getMessage());
     echo json_encode(['erro' => 'Erro ao consultar CEP'], JSON_UNESCAPED_UNICODE);
 }

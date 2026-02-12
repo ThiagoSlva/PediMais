@@ -1,16 +1,23 @@
 <?php
 include 'includes/header.php';
+require_once __DIR__ . '/../includes/csrf.php';
 
 // Processar atualização de status
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao']) && $_POST['acao'] == 'atualizar_status') {
-    $pedido_id = (int)$_POST['pedido_id'];
-    $novo_status = $_POST['status'];
-    
-    $stmt = $pdo->prepare("UPDATE pedidos SET status = ? WHERE id = ?");
-    $stmt->execute([$novo_status, $pedido_id]);
-    
-    $msg = 'Status atualizado com sucesso!';
-    $msg_tipo = 'success';
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_tipo = 'danger';
+    }
+    else {
+        $pedido_id = (int)$_POST['pedido_id'];
+        $novo_status = $_POST['status'];
+
+        $stmt = $pdo->prepare("UPDATE pedidos SET status = ? WHERE id = ?");
+        $stmt->execute([$novo_status, $pedido_id]);
+
+        $msg = 'Status atualizado com sucesso!';
+        $msg_tipo = 'success';
+    } // fecha else validar_csrf
 }
 
 // Buscar pedidos pendentes e em andamento
@@ -23,13 +30,15 @@ $stmt->execute();
 $pedidos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Helper para buscar itens
-function get_itens_pedido($pdo, $pedido_id) {
+function get_itens_pedido($pdo, $pedido_id)
+{
     $stmt = $pdo->prepare("SELECT * FROM pedido_itens WHERE pedido_id = ?");
     $stmt->execute([$pedido_id]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function get_opcoes_item($pdo, $item_id) {
+function get_opcoes_item($pdo, $item_id)
+{
     $stmt = $pdo->prepare("SELECT pio.*, o.nome as opcao_nome 
                            FROM pedido_item_opcoes pio 
                            LEFT JOIN opcoes o ON pio.opcao_id = o.id 
@@ -64,7 +73,8 @@ function get_opcoes_item($pdo, $item_id) {
         <?php echo $msg; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <div class="row gy-4">
         <?php if (empty($pedidos)): ?>
@@ -76,13 +86,14 @@ function get_opcoes_item($pdo, $item_id) {
                     </div>
                 </div>
             </div>
-        <?php else: ?>
-            <?php foreach ($pedidos as $pedido): 
-                $itens = get_itens_pedido($pdo, $pedido['id']);
-                $card_border = $pedido['status'] == 'pendente' ? 'border-warning' : 'border-info';
-                $badge_class = $pedido['status'] == 'pendente' ? 'bg-warning-focus text-warning-main' : 'bg-info-focus text-info-main';
-                $status_label = $pedido['status'] == 'pendente' ? 'Pendente' : 'Em Preparo';
-            ?>
+        <?php
+else: ?>
+            <?php foreach ($pedidos as $pedido):
+        $itens = get_itens_pedido($pdo, $pedido['id']);
+        $card_border = $pedido['status'] == 'pendente' ? 'border-warning' : 'border-info';
+        $badge_class = $pedido['status'] == 'pendente' ? 'bg-warning-focus text-warning-main' : 'bg-info-focus text-info-main';
+        $status_label = $pedido['status'] == 'pendente' ? 'Pendente' : 'Em Preparo';
+?>
             <div class="col-xxl-3 col-xl-4 col-md-6">
                 <div class="card h-100 radius-12 border-top border-4 <?php echo $card_border; ?>">
                     <div class="card-header border-bottom bg-base py-16 px-24 d-flex align-items-center justify-content-between">
@@ -102,9 +113,9 @@ function get_opcoes_item($pdo, $item_id) {
                         
                         <h6 class="text-md fw-semibold mb-3 border-bottom pb-2">Itens:</h6>
                         <ul class="list-unstyled mb-0 d-flex flex-column gap-3">
-                            <?php foreach ($itens as $item): 
-                                $opcoes = get_opcoes_item($pdo, $item['id']);
-                            ?>
+                            <?php foreach ($itens as $item):
+            $opcoes = get_opcoes_item($pdo, $item['id']);
+?>
                             <li class="d-flex align-items-start gap-2">
                                 <span class="badge bg-primary-100 text-primary-600 radius-circle w-24-px h-24-px d-flex justify-content-center align-items-center flex-shrink-0">
                                     <?php echo $item['quantidade']; ?>
@@ -116,19 +127,23 @@ function get_opcoes_item($pdo, $item_id) {
                                             <iconify-icon icon="solar:info-circle-bold" class="align-middle"></iconify-icon> 
                                             Obs: <?php echo htmlspecialchars($item['observacoes']); ?>
                                         </div>
-                                    <?php endif; ?>
+                                    <?php
+            endif; ?>
                                     <?php if (!empty($opcoes)): ?>
                                         <ul class="list-unstyled mb-0 mt-1 ps-2 border-start border-2">
                                             <?php foreach ($opcoes as $opt): ?>
                                                 <li class="text-xs text-secondary-light">
                                                     + <?php echo htmlspecialchars($opt['opcao_nome']); ?>
                                                 </li>
-                                            <?php endforeach; ?>
+                                            <?php
+                endforeach; ?>
                                         </ul>
-                                    <?php endif; ?>
+                                    <?php
+            endif; ?>
                                 </div>
                             </li>
-                            <?php endforeach; ?>
+                            <?php
+        endforeach; ?>
                         </ul>
                         
                         <?php if (!empty($pedido['observacoes'])): ?>
@@ -136,10 +151,12 @@ function get_opcoes_item($pdo, $item_id) {
                             <span class="text-danger-main fw-bold text-sm d-block mb-1">Observações do Pedido:</span>
                             <p class="text-danger-main text-sm mb-0"><?php echo nl2br(htmlspecialchars($pedido['observacoes'])); ?></p>
                         </div>
-                        <?php endif; ?>
+                        <?php
+        endif; ?>
                     </div>
                     <div class="card-footer bg-base py-16 px-24 border-top">
                         <form method="POST" class="d-grid gap-2">
+                            <?php echo campo_csrf(); ?>
                             <input type="hidden" name="pedido_id" value="<?php echo $pedido['id']; ?>">
                             <input type="hidden" name="acao" value="atualizar_status">
                             
@@ -148,18 +165,22 @@ function get_opcoes_item($pdo, $item_id) {
                                     <iconify-icon icon="solar:fire-bold"></iconify-icon>
                                     Iniciar Preparo
                                 </button>
-                            <?php else: ?>
+                            <?php
+        else: ?>
                                 <button type="submit" name="status" value="pronto" class="btn btn-success d-flex align-items-center justify-content-center gap-2">
                                     <iconify-icon icon="solar:check-circle-bold"></iconify-icon>
                                     Marcar como Pronto
                                 </button>
-                            <?php endif; ?>
+                            <?php
+        endif; ?>
                         </form>
                     </div>
                 </div>
             </div>
-            <?php endforeach; ?>
-        <?php endif; ?>
+            <?php
+    endforeach; ?>
+        <?php
+endif; ?>
     </div>
 </div>
 

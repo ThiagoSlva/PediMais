@@ -2,6 +2,7 @@
 include 'includes/auth.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+require_once '../includes/csrf.php';
 
 verificar_login();
 
@@ -17,7 +18,7 @@ try {
         tempo_expiracao INT DEFAULT 5,
         mensagem_codigo TEXT
     )");
-    
+
     // Ensure initial record
     $stmt = $pdo->query("SELECT id FROM configuracao_verificacao LIMIT 1");
     if (!$stmt->fetch()) {
@@ -41,28 +42,36 @@ try {
         $pdo->exec("ALTER TABLE clientes ADD COLUMN telefone_verificado TINYINT(1) DEFAULT 0");
     }
 
-} catch (PDOException $e) {
-    // Ignore if tables exist
+}
+catch (PDOException $e) {
+// Ignore if tables exist
 }
 
 // Process Form Submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    try {
-        if (isset($_POST['acao']) && $_POST['acao'] == 'salvar_config') {
-            $ativo = isset($_POST['ativo']) ? 1 : 0;
-            $tempo = (int)$_POST['tempo_expiracao'];
-            $mensagem = $_POST['mensagem_codigo'];
-            
-            $stmt = $pdo->prepare("UPDATE configuracao_verificacao SET ativo = ?, tempo_expiracao = ?, mensagem_codigo = ? WHERE id = 1");
-            $stmt->execute([$ativo, $tempo, $mensagem]);
-            
-            $msg = 'Configurações salvas com sucesso!';
-            $msg_tipo = 'success';
-        }
-    } catch (PDOException $e) {
-        $msg = 'Erro ao salvar: ' . $e->getMessage();
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
         $msg_tipo = 'danger';
     }
+    else {
+        try {
+            if (isset($_POST['acao']) && $_POST['acao'] == 'salvar_config') {
+                $ativo = isset($_POST['ativo']) ? 1 : 0;
+                $tempo = (int)$_POST['tempo_expiracao'];
+                $mensagem = $_POST['mensagem_codigo'];
+
+                $stmt = $pdo->prepare("UPDATE configuracao_verificacao SET ativo = ?, tempo_expiracao = ?, mensagem_codigo = ? WHERE id = 1");
+                $stmt->execute([$ativo, $tempo, $mensagem]);
+
+                $msg = 'Configurações salvas com sucesso!';
+                $msg_tipo = 'success';
+            }
+        }
+        catch (PDOException $e) {
+            $msg = 'Erro ao salvar: ' . $e->getMessage();
+            $msg_tipo = 'danger';
+        }
+    } // fecha else validar_csrf
 }
 
 // Fetch Config
@@ -118,7 +127,8 @@ include 'includes/header.php';
         <?php echo $msg; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <style>
     /* Dark mode support */
@@ -139,6 +149,7 @@ include 'includes/header.php';
         </div>
         <div class="card-body p-24">
             <form method="POST">
+                <?php echo campo_csrf(); ?>
                 <input type="hidden" name="acao" value="salvar_config">
                 
                 <div class="row">
@@ -269,7 +280,8 @@ include 'includes/header.php';
                     </button>
                     <?php if (isset($_GET['busca_verificados']) && !empty($_GET['busca_verificados'])): ?>
                         <a href="verificacao_config.php" class="btn btn-outline-secondary">Limpar</a>
-                    <?php endif; ?>
+                    <?php
+endif; ?>
                 </div>
             </form>
             
@@ -280,7 +292,8 @@ include 'includes/header.php';
                         <?php echo isset($_GET['busca_verificados']) ? 'Nenhum cliente encontrado.' : 'Nenhum cliente verificado ainda.'; ?>
                     </p>
                 </div>
-            <?php else: ?>
+            <?php
+else: ?>
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
@@ -301,11 +314,13 @@ include 'includes/header.php';
                                     <span class="badge bg-success-600">Verificado</span>
                                 </td>
                             </tr>
-                            <?php endforeach; ?>
+                            <?php
+    endforeach; ?>
                         </tbody>
                     </table>
                 </div>
-            <?php endif; ?>
+            <?php
+endif; ?>
         </div>
     </div>
 

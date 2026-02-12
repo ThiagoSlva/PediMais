@@ -1,38 +1,51 @@
 <?php
 require_once 'includes/header.php';
+require_once __DIR__ . '/../includes/csrf.php';
 
 $msg = '';
 $msg_type = '';
 
 // Handle bulk deletion via POST
 if (isset($_POST['bulk_delete']) && isset($_POST['selected_ids'])) {
-    $selected_ids = $_POST['selected_ids'];
-    if (is_array($selected_ids) && count($selected_ids) > 0) {
-        $placeholders = implode(',', array_fill(0, count($selected_ids), '?'));
-        
-        // Delete related data first
-        $pdo->prepare("DELETE FROM produto_grupos WHERE produto_id IN ($placeholders)")->execute($selected_ids);
-        $pdo->prepare("DELETE FROM produto_adicionais WHERE produto_id IN ($placeholders)")->execute($selected_ids);
-        $pdo->prepare("DELETE FROM produto_itens_retirar WHERE produto_id IN ($placeholders)")->execute($selected_ids);
-        
-        // Then delete products
-        $stmt = $pdo->prepare("DELETE FROM produtos WHERE id IN ($placeholders)");
-        $stmt->execute($selected_ids);
-        
-        $count = count($selected_ids);
-        $msg = "$count produto(s) excluído(s) com sucesso!";
-        $msg_type = 'success';
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_type = 'danger';
     }
+    else {
+        $selected_ids = $_POST['selected_ids'];
+        if (is_array($selected_ids) && count($selected_ids) > 0) {
+            $placeholders = implode(',', array_fill(0, count($selected_ids), '?'));
+
+            // Delete related data first
+            $pdo->prepare("DELETE FROM produto_grupos WHERE produto_id IN ($placeholders)")->execute($selected_ids);
+            $pdo->prepare("DELETE FROM produto_adicionais WHERE produto_id IN ($placeholders)")->execute($selected_ids);
+            $pdo->prepare("DELETE FROM produto_itens_retirar WHERE produto_id IN ($placeholders)")->execute($selected_ids);
+
+            // Then delete products
+            $stmt = $pdo->prepare("DELETE FROM produtos WHERE id IN ($placeholders)");
+            $stmt->execute($selected_ids);
+
+            $count = count($selected_ids);
+            $msg = "$count produto(s) excluído(s) com sucesso!";
+            $msg_type = 'success';
+        }
+    } // fecha else validar_csrf
 }
 
 // Handle delete all
 if (isset($_POST['delete_all'])) {
-    $pdo->exec("DELETE FROM produto_grupos");
-    $pdo->exec("DELETE FROM produto_adicionais");
-    $pdo->exec("DELETE FROM produto_itens_retirar");
-    $pdo->exec("DELETE FROM produtos");
-    $msg = "Todos os produtos foram excluídos!";
-    $msg_type = 'success';
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_type = 'danger';
+    }
+    else {
+        $pdo->exec("DELETE FROM produto_grupos");
+        $pdo->exec("DELETE FROM produto_adicionais");
+        $pdo->exec("DELETE FROM produto_itens_retirar");
+        $pdo->exec("DELETE FROM produtos");
+        $msg = "Todos os produtos foram excluídos!";
+        $msg_type = 'success';
+    } // fecha else validar_csrf
 }
 
 // Handle single deletion via GET
@@ -41,12 +54,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
     $pdo->prepare("DELETE FROM produto_grupos WHERE produto_id = ?")->execute([$id]);
     $pdo->prepare("DELETE FROM produto_adicionais WHERE produto_id = ?")->execute([$id]);
     $pdo->prepare("DELETE FROM produto_itens_retirar WHERE produto_id = ?")->execute([$id]);
-    
+
     $stmt = $pdo->prepare("DELETE FROM produtos WHERE id = ?");
     if ($stmt->execute([$id])) {
         $msg = 'Produto excluído com sucesso!';
         $msg_type = 'success';
-    } else {
+    }
+    else {
         $msg = 'Erro ao excluir produto.';
         $msg_type = 'danger';
     }
@@ -151,7 +165,8 @@ if (isset($_GET['mensagem'])) {
         <?php echo htmlspecialchars($msg); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <div class="card h-100 p-0 radius-12">
         <div class="card-body p-24">
@@ -164,7 +179,8 @@ if (isset($_GET['mensagem'])) {
                         <iconify-icon icon="solar:trash-bin-2-bold" class="icon text-lg"></iconify-icon>
                         <span>Excluir Todos</span>
                     </button>
-                    <?php endif; ?>
+                    <?php
+endif; ?>
                     <a href="produtos_exportar.php" class="btn btn-outline-primary text-sm btn-sm px-12 py-12 radius-8 d-flex align-items-center gap-2">
                         <iconify-icon icon="ri:export-line" class="icon text-lg"></iconify-icon>
                         <span>Exportar CSV</span>
@@ -196,7 +212,8 @@ if (isset($_GET['mensagem'])) {
                                 <option value="<?php echo $cat['id']; ?>" <?php echo $categoria_id == $cat['id'] ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($cat['nome']); ?>
                                 </option>
-                            <?php endforeach; ?>
+                            <?php
+endforeach; ?>
                         </select>
                     </div>
                     <div class="col-md-4 d-flex align-items-end gap-2">
@@ -209,7 +226,8 @@ if (isset($_GET['mensagem'])) {
                                 <iconify-icon icon="solar:refresh-outline"></iconify-icon>
                                 Limpar
                             </a>
-                        <?php endif; ?>
+                        <?php
+endif; ?>
                     </div>
                 </div>
             </form>
@@ -233,6 +251,7 @@ if (isset($_GET['mensagem'])) {
             </div>
             
             <form method="POST" id="bulkForm">
+                <?php echo campo_csrf(); ?>
                 <input type="hidden" name="bulk_delete" value="1">
                 
                 <div class="table-responsive scroll-sm">
@@ -256,7 +275,8 @@ if (isset($_GET['mensagem'])) {
                                 <tr>
                                     <td colspan="8" class="text-center py-4">Nenhum produto encontrado.</td>
                                 </tr>
-                            <?php else: ?>
+                            <?php
+else: ?>
                                 <?php foreach ($produtos as $prod): ?>
                                 <tr data-id="<?php echo $prod['id']; ?>">
                                     <td>
@@ -266,13 +286,13 @@ if (isset($_GET['mensagem'])) {
                                     </td>
                                     <td class="fw-bold text-primary-600"><?php echo $prod['ordem']; ?></td>
                                     <td>
-                                        <?php 
-                                        $img_url = $prod['imagem_path'] ? str_replace('admin/', '', $prod['imagem_path']) : 'assets/images/sem-foto.jpg';
-                                        // Correção para caminho relativo no admin
-                                        if ($img_url && strpos($img_url, 'uploads/') === 0) {
-                                            $img_url = '../' . $img_url;
-                                        }
-                                        ?>
+                                        <?php
+        $img_url = $prod['imagem_path'] ? str_replace('admin/', '', $prod['imagem_path']) : 'assets/images/sem-foto.jpg';
+        // Correção para caminho relativo no admin
+        if ($img_url && strpos($img_url, 'uploads/') === 0) {
+            $img_url = '../' . $img_url;
+        }
+?>
                                         <img src="<?php echo htmlspecialchars($img_url); ?>" alt="<?php echo htmlspecialchars($prod['nome']); ?>" 
                                              style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;"
                                              onerror="this.src='assets/images/sem-foto.jpg'; this.onerror=null;">
@@ -280,21 +300,24 @@ if (isset($_GET['mensagem'])) {
                                     <td class="fw-semibold"><?php echo htmlspecialchars($prod['nome']); ?></td>
                                     <td><?php echo htmlspecialchars($prod['categoria_nome']); ?></td>
                                     <td>
-                                        <?php 
-                                        if ($prod['preco_promocional'] > 0) {
-                                            echo '<span class="text-decoration-line-through text-secondary-light text-sm">R$ ' . number_format($prod['preco'], 2, ',', '.') . '</span><br>';
-                                            echo '<span class="fw-semibold text-primary-600">R$ ' . number_format($prod['preco_promocional'], 2, ',', '.') . '</span>';
-                                        } else {
-                                            echo '<span class="fw-semibold text-primary-600">R$ ' . number_format($prod['preco'], 2, ',', '.') . '</span>';
-                                        }
-                                        ?>
+                                        <?php
+        if ($prod['preco_promocional'] > 0) {
+            echo '<span class="text-decoration-line-through text-secondary-light text-sm">R$ ' . number_format($prod['preco'], 2, ',', '.') . '</span><br>';
+            echo '<span class="fw-semibold text-primary-600">R$ ' . number_format($prod['preco_promocional'], 2, ',', '.') . '</span>';
+        }
+        else {
+            echo '<span class="fw-semibold text-primary-600">R$ ' . number_format($prod['preco'], 2, ',', '.') . '</span>';
+        }
+?>
                                     </td>
                                     <td>
                                         <?php if ($prod['disponivel']): ?>
                                             <span class="bg-success-focus text-success-main px-24 py-4 rounded-pill fw-medium text-sm">Disponível</span>
-                                        <?php else: ?>
+                                        <?php
+        else: ?>
                                             <span class="bg-danger-focus text-danger-main px-24 py-4 rounded-pill fw-medium text-sm">Indisponível</span>
-                                        <?php endif; ?>
+                                        <?php
+        endif; ?>
                                     </td>
                                     <td class="text-center">
                                         <div class="d-flex align-items-center gap-10 justify-content-center">
@@ -312,8 +335,10 @@ if (isset($_GET['mensagem'])) {
                                         </div>
                                     </td>
                                 </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
+                                <?php
+    endforeach; ?>
+                            <?php
+endif; ?>
                         </tbody>
                     </table>
                 </div>
@@ -327,31 +352,36 @@ if (isset($_GET['mensagem'])) {
                     <li class="page-item">
                         <a class="page-link" href="?pagina=<?php echo $pagina - 1; ?>&busca=<?php echo urlencode($busca); ?>&categoria=<?php echo $categoria_id; ?>">Anterior</a>
                     </li>
-                    <?php endif; ?>
+                    <?php
+    endif; ?>
                     
                     <?php for ($i = max(1, $pagina - 2); $i <= min($total_paginas, $pagina + 2); $i++): ?>
                     <li class="page-item <?php echo $i == $pagina ? 'active' : ''; ?>">
                         <a class="page-link" href="?pagina=<?php echo $i; ?>&busca=<?php echo urlencode($busca); ?>&categoria=<?php echo $categoria_id; ?>"><?php echo $i; ?></a>
                     </li>
-                    <?php endfor; ?>
+                    <?php
+    endfor; ?>
                     
                     <?php if ($pagina < $total_paginas): ?>
                     <li class="page-item">
                         <a class="page-link" href="?pagina=<?php echo $pagina + 1; ?>&busca=<?php echo urlencode($busca); ?>&categoria=<?php echo $categoria_id; ?>">Próxima</a>
                     </li>
-                    <?php endif; ?>
+                    <?php
+    endif; ?>
                 </ul>
                 <p class="text-center text-sm text-muted">
                     Página <?php echo $pagina; ?> de <?php echo $total_paginas; ?> (<?php echo $total_registros; ?> produtos total)
                 </p>
             </nav>
-            <?php endif; ?>
+            <?php
+endif; ?>
         </div>
     </div>
 </div>
 
 <!-- Hidden form for delete all -->
 <form method="POST" id="deleteAllForm" style="display: none;">
+    <?php echo campo_csrf(); ?>
     <input type="hidden" name="delete_all" value="1">
 </form>
 

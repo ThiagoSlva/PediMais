@@ -1,59 +1,80 @@
 <?php
+require_once '../includes/validar_senha.php';
+require_once '../includes/csrf.php';
 include 'includes/header.php';
 
 $msg = '';
 $msg_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $nome = $_POST['nome'] ?? '';
-    $telefone = $_POST['telefone'] ?? '';
-    $email = $_POST['email'] ?? '';
-    $senha = $_POST['senha'] ?? '';
-    $cep = $_POST['cep'] ?? '';
-    $rua = $_POST['endereco'] ?? ''; // Campo do form é "endereco" mas coluna é "rua"
-    $numero = $_POST['numero'] ?? '';
-    $bairro = $_POST['bairro'] ?? '';
-    $complemento = $_POST['complemento'] ?? '';
-    $referencia = $_POST['referencia'] ?? '';
-
-    // Montar endereço principal (texto completo para exibição)
-    $endereco_principal = '';
-    if ($rua) {
-        $endereco_principal = $rua;
-        if ($numero) $endereco_principal .= ', ' . $numero;
-        if ($bairro) $endereco_principal .= ' - ' . $bairro;
-    }
-
-    // Validação básica
-    if (empty($nome) || empty($telefone) || empty($senha)) {
-        $msg = 'Por favor, preencha os campos obrigatórios (Nome, Telefone, Senha).';
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
         $msg_type = 'danger';
-    } else {
-        // Verificar se telefone já existe
-        $stmt = $pdo->prepare("SELECT id FROM clientes WHERE telefone = ?");
-        $stmt->execute([$telefone]);
-        if ($stmt->rowCount() > 0) {
-            $msg = 'Este telefone já está cadastrado.';
-            $msg_type = 'danger';
-        } else {
-            // Hash da senha
-            $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
+    }
+    else {
+        $nome = $_POST['nome'] ?? '';
+        $telefone = $_POST['telefone'] ?? '';
+        $email = $_POST['email'] ?? '';
+        $senha = $_POST['senha'] ?? '';
+        $cep = $_POST['cep'] ?? '';
+        $rua = $_POST['endereco'] ?? ''; // Campo do form é "endereco" mas coluna é "rua"
+        $numero = $_POST['numero'] ?? '';
+        $bairro = $_POST['bairro'] ?? '';
+        $complemento = $_POST['complemento'] ?? '';
+        $referencia = $_POST['referencia'] ?? '';
 
-            // Inserir cliente com as colunas corretas
-            $sql = "INSERT INTO clientes (nome, telefone, email, senha, cep, rua, numero, bairro, complemento, endereco_principal, ativo, criado_em) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())";
-            $stmt = $pdo->prepare($sql);
-            if ($stmt->execute([$nome, $telefone, $email, $senha_hash, $cep, $rua, $numero, $bairro, $complemento, $endereco_principal])) {
-                $msg = 'Cliente cadastrado com sucesso!';
-                $msg_type = 'success';
-                // Limpar campos
-                $nome = $telefone = $email = $senha = $cep = $rua = $numero = $bairro = $complemento = $referencia = '';
-            } else {
-                $msg = 'Erro ao cadastrar cliente.';
+        // Montar endereço principal (texto completo para exibição)
+        $endereco_principal = '';
+        if ($rua) {
+            $endereco_principal = $rua;
+            if ($numero)
+                $endereco_principal .= ', ' . $numero;
+            if ($bairro)
+                $endereco_principal .= ' - ' . $bairro;
+        }
+
+        // Validação básica
+        if (empty($nome) || empty($telefone) || empty($senha)) {
+            $msg = 'Por favor, preencha os campos obrigatórios (Nome, Telefone, Senha).';
+            $msg_type = 'danger';
+        }
+        else {
+            // Verificar se telefone já existe
+            $stmt = $pdo->prepare("SELECT id FROM clientes WHERE telefone = ?");
+            $stmt->execute([$telefone]);
+            if ($stmt->rowCount() > 0) {
+                $msg = 'Este telefone já está cadastrado.';
                 $msg_type = 'danger';
             }
+            else {
+                // Validar política de senha
+                $erros_senha = validar_senha($senha);
+                if (!empty($erros_senha)) {
+                    $msg = implode(' ', $erros_senha);
+                    $msg_type = 'danger';
+                }
+                else {
+                    // Hash da senha
+                    $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
+
+                    // Inserir cliente com as colunas corretas
+                    $sql = "INSERT INTO clientes (nome, telefone, email, senha, cep, rua, numero, bairro, complemento, endereco_principal, ativo, criado_em) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())";
+                    $stmt = $pdo->prepare($sql);
+                    if ($stmt->execute([$nome, $telefone, $email, $senha_hash, $cep, $rua, $numero, $bairro, $complemento, $endereco_principal])) {
+                        $msg = 'Cliente cadastrado com sucesso!';
+                        $msg_type = 'success';
+                        // Limpar campos
+                        $nome = $telefone = $email = $senha = $cep = $rua = $numero = $bairro = $complemento = $referencia = '';
+                    }
+                    else {
+                        $msg = 'Erro ao cadastrar cliente.';
+                        $msg_type = 'danger';
+                    }
+                }
+            }
         }
-    }
+    } // fecha else validar_csrf
 }
 ?>
 
@@ -85,9 +106,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <?php echo $msg; ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
-            <?php endif; ?>
+            <?php
+endif; ?>
 
             <form action="" method="POST">
+                <?php echo campo_csrf(); ?>
                 <div class="row gy-4">
                     <div class="col-md-6">
                         <label for="nome" class="form-label fw-semibold text-primary-light text-sm mb-8">Nome Completo <span class="text-danger-600">*</span></label>

@@ -1,6 +1,7 @@
 <?php
 require_once 'includes/header.php';
 require_once __DIR__ . '/../includes/image_optimization.php';
+require_once __DIR__ . '/../includes/csrf.php';
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $msg = '';
@@ -28,17 +29,18 @@ $stmt_grupos->execute([$id]);
 $grupos_associados = $stmt_grupos->fetchAll(PDO::FETCH_COLUMN);
 
 // Função para download de imagem da web
-function downloadWebImage($url, $prefix = 'prod_') {
+function downloadWebImage($url, $prefix = 'prod_')
+{
     $upload_dir = __DIR__ . '/uploads/produtos/';
-    
+
     if (!is_dir($upload_dir)) {
         mkdir($upload_dir, 0777, true);
     }
-    
+
     if (!filter_var($url, FILTER_VALIDATE_URL)) {
         return false;
     }
-    
+
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL => $url,
@@ -48,109 +50,119 @@ function downloadWebImage($url, $prefix = 'prod_') {
         CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         CURLOPT_SSL_VERIFYPEER => false,
     ]);
-    
+
     $image_content = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    
+
     if ($http_code !== 200 || empty($image_content)) {
         return false;
     }
-    
+
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
     $mime_type = finfo_buffer($finfo, $image_content);
     finfo_close($finfo);
-    
+
     $allowed_types = [
         'image/jpeg' => 'jpg',
         'image/png' => 'png',
         'image/gif' => 'gif',
         'image/webp' => 'webp'
     ];
-    
+
     if (!isset($allowed_types[$mime_type])) {
         return false;
     }
-    
+
     $extension = $allowed_types[$mime_type];
     $filename = $prefix . time() . '_' . rand(1000, 9999) . '.' . $extension;
-    
+
     if (file_put_contents($upload_dir . $filename, $image_content) !== false) {
         return 'uploads/produtos/' . $filename;
     }
-    
+
     return false;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nome = $_POST['nome'];
-    $categoria_id = (int)$_POST['categoria_id'];
-    $descricao = $_POST['descricao'];
-    $preco = str_replace(',', '.', str_replace('.', '', $_POST['preco']));
-    $preco_promocional = !empty($_POST['preco_promocional']) ? str_replace(',', '.', str_replace('.', '', $_POST['preco_promocional'])) : NULL;
-    $ordem = (int)$_POST['ordem'];
-    $disponivel = isset($_POST['disponivel']) ? 1 : 0;
-
-    // Upload de imagem (web ou local)
-    $imagem_path = $produto['imagem_path'];
-    
-    // Primeiro verificar imagem da web
-    if (!empty($_POST['web_image_url'])) {
-        $new_path = downloadWebImage($_POST['web_image_url']);
-        if ($new_path) {
-            $imagem_path = $new_path;
-        } else {
-            $msg = 'Erro ao baixar imagem da web. Tente outra imagem.';
-            $msg_type = 'danger';
-        }
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_type = 'danger';
     }
-    // Se não tem imagem web, verificar upload local
-    elseif (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === 0) {
-        $upload_dir = __DIR__ . '/../uploads/produtos/';
-        $file_base = $upload_dir . 'prod_' . time();
-        
-        // Comprimir e otimizar imagem
-        $compress_result = compressAndOptimizeImage($_FILES['imagem']['tmp_name'], $file_base, 75, 1200, 1200);
-        
-        if ($compress_result['success']) {
-            $imagem_path = $compress_result['file'];
-            $msg = 'Imagem atualizada e comprimida! Redução: ' . $compress_result['compression_ratio'] . '%';
-            $msg_type = 'success';
-        } else {
-            $msg = 'Erro ao processar imagem: ' . $compress_result['error'];
-            $msg_type = 'danger';
-        }
-    }
+    else {
+        $nome = $_POST['nome'];
+        $categoria_id = (int)$_POST['categoria_id'];
+        $descricao = $_POST['descricao'];
+        $preco = str_replace(',', '.', str_replace('.', '', $_POST['preco']));
+        $preco_promocional = !empty($_POST['preco_promocional']) ? str_replace(',', '.', str_replace('.', '', $_POST['preco_promocional'])) : NULL;
+        $ordem = (int)$_POST['ordem'];
+        $disponivel = isset($_POST['disponivel']) ? 1 : 0;
 
-    if (empty($msg) || $msg_type === 'success') {
-        $sql = "UPDATE produtos SET nome = ?, categoria_id = ?, descricao = ?, preco = ?, preco_promocional = ?, ordem = ?, disponivel = ?, imagem_path = ? WHERE id = ?";
-        $params = [$nome, $categoria_id, $descricao, $preco, $preco_promocional, $ordem, $disponivel, $imagem_path, $id];
-        
-        try {
-            $stmt = $pdo->prepare($sql);
-            if ($stmt->execute($params)) {
-                // Salvar associações de grupos adicionais
-                $pdo->prepare("DELETE FROM produto_grupos WHERE produto_id = ?")->execute([$id]);
-                
-                if (!empty($_POST['grupos_adicionais'])) {
-                    $stmt_grupo = $pdo->prepare("INSERT INTO produto_grupos (produto_id, grupo_id, ordem) VALUES (?, ?, ?)");
-                    $ordem = 0;
-                    foreach ($_POST['grupos_adicionais'] as $grupo_id) {
-                        $stmt_grupo->execute([$id, (int)$grupo_id, $ordem++]);
-                    }
-                }
-                
-                echo "<script>window.location.href = 'produtos.php?mensagem=Produto atualizado com sucesso!&tipo=success';</script>";
-                exit;
-            } else {
-                $msg = 'Erro ao atualizar produto.';
+        // Upload de imagem (web ou local)
+        $imagem_path = $produto['imagem_path'];
+
+        // Primeiro verificar imagem da web
+        if (!empty($_POST['web_image_url'])) {
+            $new_path = downloadWebImage($_POST['web_image_url']);
+            if ($new_path) {
+                $imagem_path = $new_path;
+            }
+            else {
+                $msg = 'Erro ao baixar imagem da web. Tente outra imagem.';
                 $msg_type = 'danger';
             }
-        } catch (PDOException $e) {
-            $msg = 'Erro no banco de dados: ' . $e->getMessage();
-            $msg_type = 'danger';
         }
-    }
+        // Se não tem imagem web, verificar upload local
+        elseif (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === 0) {
+            $upload_dir = __DIR__ . '/../uploads/produtos/';
+            $file_base = $upload_dir . 'prod_' . time();
+
+            // Comprimir e otimizar imagem
+            $compress_result = compressAndOptimizeImage($_FILES['imagem']['tmp_name'], $file_base, 75, 1200, 1200);
+
+            if ($compress_result['success']) {
+                $imagem_path = $compress_result['file'];
+                $msg = 'Imagem atualizada e comprimida! Redução: ' . $compress_result['compression_ratio'] . '%';
+                $msg_type = 'success';
+            }
+            else {
+                $msg = 'Erro ao processar imagem: ' . $compress_result['error'];
+                $msg_type = 'danger';
+            }
+        }
+
+        if (empty($msg) || $msg_type === 'success') {
+            $sql = "UPDATE produtos SET nome = ?, categoria_id = ?, descricao = ?, preco = ?, preco_promocional = ?, ordem = ?, disponivel = ?, imagem_path = ? WHERE id = ?";
+            $params = [$nome, $categoria_id, $descricao, $preco, $preco_promocional, $ordem, $disponivel, $imagem_path, $id];
+
+            try {
+                $stmt = $pdo->prepare($sql);
+                if ($stmt->execute($params)) {
+                    // Salvar associações de grupos adicionais
+                    $pdo->prepare("DELETE FROM produto_grupos WHERE produto_id = ?")->execute([$id]);
+
+                    if (!empty($_POST['grupos_adicionais'])) {
+                        $stmt_grupo = $pdo->prepare("INSERT INTO produto_grupos (produto_id, grupo_id, ordem) VALUES (?, ?, ?)");
+                        $ordem = 0;
+                        foreach ($_POST['grupos_adicionais'] as $grupo_id) {
+                            $stmt_grupo->execute([$id, (int)$grupo_id, $ordem++]);
+                        }
+                    }
+
+                    echo "<script>window.location.href = 'produtos.php?mensagem=Produto atualizado com sucesso!&tipo=success';</script>";
+                    exit;
+                }
+                else {
+                    $msg = 'Erro ao atualizar produto.';
+                    $msg_type = 'danger';
+                }
+            }
+            catch (PDOException $e) {
+                $msg = 'Erro no banco de dados: ' . $e->getMessage();
+                $msg_type = 'danger';
+            }
+        }
+    } // fecha else validar_csrf
 }
 ?>
 
@@ -305,11 +317,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php echo htmlspecialchars($msg); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <div class="card h-100 p-0 radius-12">
         <div class="card-body p-24">
             <form method="POST" enctype="multipart/form-data" id="productForm">
+                <?php echo campo_csrf(); ?>
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold text-primary-light text-sm mb-8">Nome do Produto</label>
@@ -324,7 +338,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <option value="<?php echo $cat['id']; ?>" <?php echo $produto['categoria_id'] == $cat['id'] ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($cat['nome']); ?>
                                 </option>
-                            <?php endforeach; ?>
+                            <?php
+endforeach; ?>
                         </select>
                     </div>
                     
@@ -355,12 +370,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         <?php if ($produto['imagem_path']): ?>
                         <div class="current-image mb-3">
-                            <?php 
-                            $img_src = str_replace('admin/', '', $produto['imagem_path']);
-                            if (strpos($img_src, 'uploads/') === 0) {
-                                $img_src = '../' . $img_src;
-                            }
-                            ?>
+                            <?php
+    $img_src = str_replace('admin/', '', $produto['imagem_path']);
+    if (strpos($img_src, 'uploads/') === 0) {
+        $img_src = '../' . $img_src;
+    }
+?>
                             <img src="<?php echo $img_src; ?>" 
                                  alt="Imagem atual"
                                  onerror="this.parentElement.style.display='none'">
@@ -369,7 +384,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <p class="text-muted mb-0 small">Selecione uma nova imagem para substituir</p>
                             </div>
                         </div>
-                        <?php endif; ?>
+                        <?php
+endif; ?>
                         
                         <!-- Tabs para escolher fonte da imagem -->
                         <div class="image-source-tabs">
@@ -458,10 +474,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     </small>
                                 </div>
                             </div>
-                            <?php endforeach; ?>
+                            <?php
+    endforeach; ?>
                         </div>
                     </div>
-                    <?php endif; ?>
+                    <?php
+endif; ?>
                     
                     <div class="col-md-12 d-flex justify-content-end gap-2 mt-4">
                         <a href="produtos.php" class="btn btn-outline-secondary radius-8 px-20 py-11">Cancelar</a>

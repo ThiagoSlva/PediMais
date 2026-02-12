@@ -1,62 +1,72 @@
 <?php
 require_once 'includes/header.php';
 require_once __DIR__ . '/../includes/image_optimization.php';
+require_once __DIR__ . '/../includes/csrf.php';
 
 $msg = '';
 $msg_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nome = $_POST['nome'];
-    $descricao = isset($_POST['descricao']) ? $_POST['descricao'] : '';
-    $ordem = (int)$_POST['ordem'];
-    $ativo = isset($_POST['ativo']) ? 1 : 0;
-    $permite_meio_a_meio = isset($_POST['permite_meio_a_meio']) ? 1 : 0;
-
-    // Upload de imagem
-    $imagem = '';
-    if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === 0) {
-        $upload_dir = __DIR__ . '/../uploads/categorias/';
-        $file_base = $upload_dir . 'cat_' . time();
-        
-        // Comprimir e otimizar imagem
-        $compress_result = compressAndOptimizeImage($_FILES['imagem']['tmp_name'], $file_base, 75, 800, 800);
-        
-        if ($compress_result['success']) {
-            $imagem = $compress_result['file'];
-            $msg = 'Imagem comprimida! Redução: ' . $compress_result['compression_ratio'] . '%';
-            $msg_type = 'success';
-        } else {
-            $msg = 'Erro ao processar imagem: ' . $compress_result['error'];
-            $msg_type = 'danger';
-        }
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_type = 'danger';
     }
+    else {
+        $nome = $_POST['nome'];
+        $descricao = isset($_POST['descricao']) ? $_POST['descricao'] : '';
+        $ordem = (int)$_POST['ordem'];
+        $ativo = isset($_POST['ativo']) ? 1 : 0;
+        $permite_meio_a_meio = isset($_POST['permite_meio_a_meio']) ? 1 : 0;
 
-    // Check if descricao column exists, if not, ignore it
-    // For now, we'll try to insert without description if it fails, or just insert standard fields
-    // Let's stick to the known fields first: nome, ordem, ativo, imagem
-    
-    if (empty($msg) || $msg_type === 'success') {
-        $sql = "INSERT INTO categorias (nome, ordem, ativo, imagem, permite_meio_a_meio) VALUES (?, ?, ?, ?, ?)";
-        $params = [$nome, $ordem, $ativo, $imagem, $permite_meio_a_meio];
-        
-        // If we want to support description, we'd need to alter the table first. 
-        // I'll assume standard fields for now to be safe.
-        
-        try {
-            $stmt = $pdo->prepare($sql);
-            if ($stmt->execute($params)) {
-                // Redirect to list with success message
-                echo "<script>window.location.href = 'categorias.php?mensagem=Categoria adicionada com sucesso!&tipo=success';</script>";
-                exit;
-            } else {
-                $msg = 'Erro ao adicionar categoria.';
+        // Upload de imagem
+        $imagem = '';
+        if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === 0) {
+            $upload_dir = __DIR__ . '/../uploads/categorias/';
+            $file_base = $upload_dir . 'cat_' . time();
+
+            // Comprimir e otimizar imagem
+            $compress_result = compressAndOptimizeImage($_FILES['imagem']['tmp_name'], $file_base, 75, 800, 800);
+
+            if ($compress_result['success']) {
+                $imagem = $compress_result['file'];
+                $msg = 'Imagem comprimida! Redução: ' . $compress_result['compression_ratio'] . '%';
+                $msg_type = 'success';
+            }
+            else {
+                $msg = 'Erro ao processar imagem: ' . $compress_result['error'];
                 $msg_type = 'danger';
             }
-        } catch (PDOException $e) {
-            $msg = 'Erro no banco de dados: ' . $e->getMessage();
-            $msg_type = 'danger';
         }
-    }
+
+        // Check if descricao column exists, if not, ignore it
+        // For now, we'll try to insert without description if it fails, or just insert standard fields
+        // Let's stick to the known fields first: nome, ordem, ativo, imagem
+
+        if (empty($msg) || $msg_type === 'success') {
+            $sql = "INSERT INTO categorias (nome, ordem, ativo, imagem, permite_meio_a_meio) VALUES (?, ?, ?, ?, ?)";
+            $params = [$nome, $ordem, $ativo, $imagem, $permite_meio_a_meio];
+
+            // If we want to support description, we'd need to alter the table first. 
+            // I'll assume standard fields for now to be safe.
+
+            try {
+                $stmt = $pdo->prepare($sql);
+                if ($stmt->execute($params)) {
+                    // Redirect to list with success message
+                    echo "<script>window.location.href = 'categorias.php?mensagem=Categoria adicionada com sucesso!&tipo=success';</script>";
+                    exit;
+                }
+                else {
+                    $msg = 'Erro ao adicionar categoria.';
+                    $msg_type = 'danger';
+                }
+            }
+            catch (PDOException $e) {
+                $msg = 'Erro no banco de dados: ' . $e->getMessage();
+                $msg_type = 'danger';
+            }
+        }
+    } // fecha else validar_csrf
 }
 ?>
 
@@ -84,11 +94,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php echo htmlspecialchars($msg); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <div class="card h-100 p-0 radius-12">
         <div class="card-body p-24">
             <form method="POST" enctype="multipart/form-data">
+                <?php echo campo_csrf(); ?>
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold text-primary-light text-sm mb-8">Nome da Categoria</label>

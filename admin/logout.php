@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../includes/security_headers.php';
 session_start();
 $_SESSION = array();
 

@@ -5,11 +5,22 @@
  */
 
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
+
+// CORS: Usar domínio do sistema em vez de *
+require_once '../includes/config.php';
+$allowed_origin = defined('SITE_URL') ? SITE_URL : '*';
+header("Access-Control-Allow-Origin: $allowed_origin");
 header('Access-Control-Allow-Methods: POST, GET');
 header('Access-Control-Allow-Headers: Content-Type');
 
-require_once '../includes/config.php';
+// Rate limiting: máx 10 consultas por minuto por IP
+require_once '../includes/rate_limiter.php';
+$client_ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+if (!check_rate_limit('buscar_cliente', $client_ip, 10, 60)) {
+    http_response_code(429);
+    echo json_encode(['sucesso' => false, 'erro' => 'Muitas tentativas. Aguarde um momento.'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
 // Aceita GET para facilitar uso
 $telefone = $_GET['telefone'] ?? null;
@@ -45,16 +56,16 @@ try {
         WHERE telefone = ? OR telefone = ?
         LIMIT 1
     ");
-    
+
     // Tentar com e sem código de país
     $telefoneComDDD = $telefone;
-    $telefoneSemPais = (strlen($telefone) > 10 && str_starts_with($telefone, '55')) 
-        ? substr($telefone, 2) 
+    $telefoneSemPais = (strlen($telefone) > 10 && str_starts_with($telefone, '55'))
+        ? substr($telefone, 2)
         : $telefone;
-    
+
     $stmt->execute([$telefoneComDDD, $telefoneSemPais]);
     $cliente = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if ($cliente) {
         echo json_encode([
             'sucesso' => true,
@@ -75,17 +86,21 @@ try {
                 'telefone_verificado' => (bool)($cliente['telefone_verificado'] ?? false)
             ]
         ], JSON_UNESCAPED_UNICODE);
-    } else {
+    }
+    else {
         echo json_encode([
             'sucesso' => true,
             'encontrado' => false,
             'cliente' => null
         ], JSON_UNESCAPED_UNICODE);
     }
-    
-} catch (PDOException $e) {
+
+
+}
+catch (PDOException $e) {
+    error_log("Erro ao buscar cliente: " . $e->getMessage());
     echo json_encode([
         'sucesso' => false,
-        'erro' => 'Erro ao buscar cliente: ' . $e->getMessage()
+        'erro' => 'Erro ao buscar cliente. Por favor, tente novamente.'
     ], JSON_UNESCAPED_UNICODE);
 }

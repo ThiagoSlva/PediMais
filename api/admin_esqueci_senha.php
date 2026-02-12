@@ -5,12 +5,21 @@
  */
 
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
+$allowed_origin = defined('SITE_URL') ? SITE_URL : '*';
+header("Access-Control-Allow-Origin: $allowed_origin");
 header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Content-Type');
 
 require_once '../includes/config.php';
+require_once '../includes/rate_limiter.php';
 require_once '../includes/whatsapp_helper.php';
+
+// Rate limiting: máx 3 tentativas a cada 30 minutos
+$client_ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+if (!check_rate_limit('admin_reset', $client_ip, 3, 1800)) {
+    echo json_encode(['erro' => 'Muitas tentativas. Aguarde 30 minutos.'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 require_once '../includes/email_helper.php';
 
 // Carregar configurações de email (se existir)
@@ -36,35 +45,35 @@ try {
     $stmt = $pdo->prepare("SELECT id, nome, email FROM usuarios WHERE email = ? AND ativo = 1 LIMIT 1");
     $stmt->execute([$email]);
     $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if (!$usuario) {
         echo json_encode(['erro' => 'E-mail não encontrado ou usuário inativo'], JSON_UNESCAPED_UNICODE);
         exit;
     }
-    
+
     // Buscar telefone do estabelecimento na configuração do WhatsApp
     $stmt = $pdo->query("SELECT whatsapp_estabelecimento, ativo FROM whatsapp_config LIMIT 1");
     $config = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     $whatsapp_disponivel = $config && !empty($config['whatsapp_estabelecimento']) && $config['ativo'];
     $telefone = $whatsapp_disponivel ? $config['whatsapp_estabelecimento'] : null;
-    
+
     // Gerar nova senha aleatória (8 caracteres alfanuméricos)
     $caracteres = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     $nova_senha = '';
     for ($i = 0; $i < 8; $i++) {
         $nova_senha .= $caracteres[random_int(0, strlen($caracteres) - 1)];
     }
-    
+
     // Criar hash da senha
     $senha_hash = password_hash($nova_senha, PASSWORD_DEFAULT);
-    
+
     // Atualizar senha no banco
     $stmt = $pdo->prepare("UPDATE usuarios SET senha = ? WHERE id = ?");
     $stmt->execute([$senha_hash, $usuario['id']]);
-    
+
     $resultados = [];
-    
+
     // ========== ENVIAR VIA WHATSAPP ==========
     if ($whatsapp_disponivel) {
         $mensagem_whats = "🔐 *RECUPERAÇÃO DE SENHA*\n\n";
@@ -73,40 +82,42 @@ try {
         $mensagem_whats .= "🔑 *Nova Senha:* {$nova_senha}\n\n";
         $mensagem_whats .= "⚠️ Recomendamos alterar esta senha após o login.\n\n";
         $mensagem_whats .= "Acesse o painel administrativo para entrar.";
-        
+
         $whatsapp = new WhatsAppHelper($pdo);
         $resultado_whats = $whatsapp->sendMessage($telefone, $mensagem_whats);
         $resultados['whatsapp'] = isset($resultado_whats['success']) && $resultado_whats['success'];
-    } else {
+    }
+    else {
         $resultados['whatsapp'] = false;
     }
-    
+
     // ========== ENVIAR VIA EMAIL ==========
     $resultados['email'] = false;
     if (defined('EMAIL_SMTP_PASSWORD') && EMAIL_SMTP_PASSWORD !== 'SUA_SENHA_AQUI') {
         try {
             $emailHelper = new EmailHelper();
             $emailHelper->setPassword(EMAIL_SMTP_PASSWORD);
-            $emailHelper->setFromName('PediMais Admin');
-            
+            $emailHelper->setFromName('PedeMais Admin');
+
             $htmlEmail = EmailHelper::gerarHtmlRecuperacaoSenha($usuario['nome'], $nova_senha, 'admin');
             $textoEmail = "Olá, {$usuario['nome']}!\n\nSua nova senha é: {$nova_senha}\n\nRecomendamos alterar esta senha após o login.";
-            
+
             $resultados['email'] = $emailHelper->sendEmail(
                 $usuario['email'],
                 '🔐 Recuperação de Senha - Painel Admin',
                 $htmlEmail,
                 $textoEmail
             );
-            
+
             if (!$resultados['email']) {
                 error_log("Erro ao enviar email: " . $emailHelper->getLastError());
             }
-        } catch (Exception $e) {
+        }
+        catch (Exception $e) {
             error_log("Erro ao enviar email admin: " . $e->getMessage());
         }
     }
-    
+
     // ========== RESPOSTA ==========
     if ($resultados['whatsapp'] || $resultados['email']) {
         $canais = [];
@@ -117,18 +128,21 @@ try {
         if ($resultados['email']) {
             $canais[] = "E-mail ({$usuario['email']})";
         }
-        
+
         echo json_encode([
             'sucesso' => true,
             'mensagem' => "Nova senha enviada via " . implode(' e ', $canais)
         ], JSON_UNESCAPED_UNICODE);
-    } else {
+    }
+    else {
         echo json_encode([
             'erro' => 'Não foi possível enviar a senha. Verifique as configurações de WhatsApp e Email.'
         ], JSON_UNESCAPED_UNICODE);
     }
-    
-} catch (Exception $e) {
+
+
+}
+catch (Exception $e) {
     error_log("Erro ao recuperar senha admin: " . $e->getMessage());
     echo json_encode(['erro' => 'Erro ao processar solicitação'], JSON_UNESCAPED_UNICODE);
 }

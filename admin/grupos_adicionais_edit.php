@@ -1,6 +1,7 @@
 <?php
 require_once dirname(__DIR__) . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once dirname(__DIR__) . '/includes/csrf.php';
 
 verificar_login();
 
@@ -23,27 +24,34 @@ if (!$grupo) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $nome = filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_SPECIAL_CHARS);
-    $descricao = filter_input(INPUT_POST, 'descricao', FILTER_SANITIZE_SPECIAL_CHARS);
-    $tipo_escolha = filter_input(INPUT_POST, 'tipo_escolha', FILTER_SANITIZE_SPECIAL_CHARS);
-    $minimo_escolha = filter_input(INPUT_POST, 'minimo_escolha', FILTER_VALIDATE_INT);
-    $maximo_escolha = filter_input(INPUT_POST, 'maximo_escolha', FILTER_VALIDATE_INT);
-    $obrigatorio = isset($_POST['obrigatorio']) ? 1 : 0;
-    $ativo = isset($_POST['ativo']) ? 1 : 0;
-    $ordem = filter_input(INPUT_POST, 'ordem', FILTER_VALIDATE_INT) ?? 0;
-
-    if ($nome) {
-        $sql = "UPDATE grupos_adicionais SET nome = ?, descricao = ?, tipo_escolha = ?, minimo_escolha = ?, maximo_escolha = ?, obrigatorio = ?, ordem = ?, ativo = ? WHERE id = ?";
-        $stmt = $pdo->prepare($sql);
-        if ($stmt->execute([$nome, $descricao, $tipo_escolha, $minimo_escolha, $maximo_escolha, $obrigatorio, $ordem, $ativo, $id])) {
-            header("Location: grupos_adicionais.php?msg=updated");
-            exit;
-        } else {
-            $msg = "Erro ao atualizar grupo.";
-        }
-    } else {
-        $msg = "Preencha o nome do grupo.";
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
     }
+    else {
+        $nome = filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_SPECIAL_CHARS);
+        $descricao = filter_input(INPUT_POST, 'descricao', FILTER_SANITIZE_SPECIAL_CHARS);
+        $tipo_escolha = filter_input(INPUT_POST, 'tipo_escolha', FILTER_SANITIZE_SPECIAL_CHARS);
+        $minimo_escolha = filter_input(INPUT_POST, 'minimo_escolha', FILTER_VALIDATE_INT);
+        $maximo_escolha = filter_input(INPUT_POST, 'maximo_escolha', FILTER_VALIDATE_INT);
+        $obrigatorio = isset($_POST['obrigatorio']) ? 1 : 0;
+        $ativo = isset($_POST['ativo']) ? 1 : 0;
+        $ordem = filter_input(INPUT_POST, 'ordem', FILTER_VALIDATE_INT) ?? 0;
+
+        if ($nome) {
+            $sql = "UPDATE grupos_adicionais SET nome = ?, descricao = ?, tipo_escolha = ?, minimo_escolha = ?, maximo_escolha = ?, obrigatorio = ?, ordem = ?, ativo = ? WHERE id = ?";
+            $stmt = $pdo->prepare($sql);
+            if ($stmt->execute([$nome, $descricao, $tipo_escolha, $minimo_escolha, $maximo_escolha, $obrigatorio, $ordem, $ativo, $id])) {
+                header("Location: grupos_adicionais.php?msg=updated");
+                exit;
+            }
+            else {
+                $msg = "Erro ao atualizar grupo.";
+            }
+        }
+        else {
+            $msg = "Preencha o nome do grupo.";
+        }
+    } // fecha else validar_csrf
 }
 ?>
 <!DOCTYPE html>
@@ -92,9 +100,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <div class="card-body p-4">
                     <?php if ($msg): ?>
                         <div class="alert alert-danger"><?php echo $msg; ?></div>
-                    <?php endif; ?>
+                    <?php
+endif; ?>
 
                     <form method="POST">
+                        <?php echo campo_csrf(); ?>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Nome do Grupo</label>

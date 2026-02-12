@@ -5,8 +5,10 @@
  * URL: /admin/performance_diagnostics.php
  */
 
+require_once __DIR__ . '/../includes/security_headers.php';
 session_start();
 require_once 'includes/header.php';
+require_once __DIR__ . '/../includes/csrf.php';
 
 // Verificar permissão
 if ($_SESSION['user_type'] !== 'admin') {
@@ -35,19 +37,19 @@ foreach ($upload_dirs as $name => $dir) {
         $files = glob($dir . '*');
         $size = 0;
         $count = count($files);
-        
+
         foreach ($files as $file) {
             if (is_file($file)) {
                 $size += filesize($file);
             }
         }
-        
+
         $diagnostics['uploads'][$name] = [
             'size' => $size,
             'count' => $count,
             'size_formatted' => formatBytes($size)
         ];
-        
+
         $total_uploads_size += $size;
         $total_image_count += $count;
     }
@@ -86,45 +88,50 @@ $diagnostics['database']['categorias'] = $db_stats;
 // Processar ações
 $action_result = null;
 
-if ($_POST['action'] === 'optimize_images') {
-    // Otimizar imagens
-    $count = 0;
-    $freed = 0;
-    
-    foreach ($upload_dirs as $dir) {
-        if (!is_dir($dir)) continue;
-        
-        $files = glob($dir . '*.{jpg,jpeg,png,gif}', GLOB_BRACE);
-        foreach ($files as $file) {
-            // Verificar se já foi otimizado
-            $base = pathinfo($file, PATHINFO_DIRNAME) . '/' . pathinfo($file, PATHINFO_FILENAME);
-            if (file_exists($base . '.webp')) {
-                continue; // Já otimizado
-            }
-            
-            $result = optimizeImage($file, $base, 75, 1200);
-            if ($result['success']) {
-                $count++;
-                $freed += $result['saved_bytes'] ?? 0;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['action'])) {
+    if (!validar_csrf()) {
+        $action_result = ['success' => false, 'message' => 'Token de segurança inválido.'];
+    }
+    elseif ($_POST['action'] === 'optimize_images') {
+        // Otimizar imagens
+        $count = 0;
+        $freed = 0;
+
+        foreach ($upload_dirs as $dir) {
+            if (!is_dir($dir))
+                continue;
+
+            $files = glob($dir . '*.{jpg,jpeg,png,gif}', GLOB_BRACE);
+            foreach ($files as $file) {
+                // Verificar se já foi otimizado
+                $base = pathinfo($file, PATHINFO_DIRNAME) . '/' . pathinfo($file, PATHINFO_FILENAME);
+                if (file_exists($base . '.webp')) {
+                    continue; // Já otimizado
+                }
+
+                $result = optimizeImage($file, $base, 75, 1200);
+                if ($result['success']) {
+                    $count++;
+                    $freed += $result['saved_bytes'] ?? 0;
+                }
             }
         }
-    }
-    
-    $action_result = [
-        'success' => true,
-        'message' => "Otimizadas $count imagens. Espaço liberado: " . formatBytes($freed)
-    ];
-}
 
-if ($_POST['action'] === 'clean_old') {
-    // Limpar imagens antigas
-    $result = cleanOldImages(__DIR__ . '/uploads/produtos/', 60);
-    
-    if (!isset($result['error'])) {
         $action_result = [
             'success' => true,
-            'message' => "Removidos {$result['removed']} arquivos antigos. Espaço liberado: " . formatBytes($result['freed_bytes'])
+            'message' => "Otimizadas $count imagens. Espaço liberado: " . formatBytes($freed)
         ];
+    }
+    elseif ($_POST['action'] === 'clean_old') {
+        // Limpar imagens antigas
+        $result = cleanOldImages(__DIR__ . '/uploads/produtos/', 60);
+
+        if (!isset($result['error'])) {
+            $action_result = [
+                'success' => true,
+                'message' => "Removidos {$result['removed']} arquivos antigos. Espaço liberado: " . formatBytes($result['freed_bytes'])
+            ];
+        }
     }
 }
 
@@ -366,7 +373,8 @@ if ($_POST['action'] === 'clean_old') {
             <?php echo $action_result['message']; ?>
         </div>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
     
     <!-- Status Overview -->
     <div class="status-grid">
@@ -426,28 +434,30 @@ if ($_POST['action'] === 'clean_old') {
                 <td>Memory Limit</td>
                 <td><?php echo $diagnostics['memory_limit']; ?></td>
                 <td>
-                    <?php 
-                    $mem_val = (int)str_replace('M', '', $diagnostics['memory_limit']);
-                    if ($mem_val >= 128) {
-                        echo '<span style="color: #10b981;">✓ OK</span>';
-                    } else {
-                        echo '<span style="color: #f59e0b;">⚠ Baixo</span>';
-                    }
-                    ?>
+                    <?php
+$mem_val = (int)str_replace('M', '', $diagnostics['memory_limit']);
+if ($mem_val >= 128) {
+    echo '<span style="color: #10b981;">✓ OK</span>';
+}
+else {
+    echo '<span style="color: #f59e0b;">⚠ Baixo</span>';
+}
+?>
                 </td>
             </tr>
             <tr>
                 <td>Max Upload Size</td>
                 <td><?php echo $diagnostics['max_upload_size']; ?></td>
                 <td>
-                    <?php 
-                    $upload_val = (int)str_replace('M', '', $diagnostics['max_upload_size']);
-                    if ($upload_val >= 50) {
-                        echo '<span style="color: #10b981;">✓ OK</span>';
-                    } else {
-                        echo '<span style="color: #f59e0b;">⚠ Limitado</span>';
-                    }
-                    ?>
+                    <?php
+$upload_val = (int)str_replace('M', '', $diagnostics['max_upload_size']);
+if ($upload_val >= 50) {
+    echo '<span style="color: #10b981;">✓ OK</span>';
+}
+else {
+    echo '<span style="color: #f59e0b;">⚠ Limitado</span>';
+}
+?>
                 </td>
             </tr>
             <tr>
@@ -487,14 +497,15 @@ if ($_POST['action'] === 'clean_old') {
                 <td><?php echo $stats['total_products'] ?? $stats['total_categories']; ?></td>
                 <td><?php echo $stats['with_images']; ?></td>
                 <td>
-                    <?php 
-                    $total = $stats['total_products'] ?? $stats['total_categories'];
-                    $percent = $total > 0 ? round(($stats['with_images'] / $total) * 100) : 0;
-                    echo $percent . '%';
-                    ?>
+                    <?php
+    $total = $stats['total_products'] ?? $stats['total_categories'];
+    $percent = $total > 0 ? round(($stats['with_images'] / $total) * 100) : 0;
+    echo $percent . '%';
+?>
                 </td>
             </tr>
-            <?php endforeach; ?>
+            <?php
+endforeach; ?>
         </table>
     </div>
     
@@ -519,7 +530,8 @@ if ($_POST['action'] === 'clean_old') {
                 <td><?php echo $data['count']; ?> arquivos</td>
                 <td><?php echo $data['count'] > 0 ? formatBytes($data['size'] / $data['count']) : '-'; ?></td>
             </tr>
-            <?php endforeach; ?>
+            <?php
+endforeach; ?>
             <tr style="font-weight: 700; background: #f0f0f0;">
                 <td>TOTAL</td>
                 <td><?php echo formatBytes($total_uploads_size); ?></td>
@@ -549,17 +561,21 @@ if ($_POST['action'] === 'clean_old') {
                 <strong><?php echo $diagnostics['gd_installed'] ? '✓' : '✗'; ?> Compressão de Imagens:</strong> 
                 <?php if ($diagnostics['gd_installed']): ?>
                     Disponível. Use o botão "Otimizar Imagens" para aplicar.
-                <?php else: ?>
+                <?php
+else: ?>
                     Requer GD library no servidor. Contate seu provedor.
-                <?php endif; ?>
+                <?php
+endif; ?>
             </li>
             <li>
                 <strong><?php echo $total_uploads_size > 100 * 1024 * 1024 ? '⚠' : '✓'; ?> Tamanho Total:</strong>
                 <?php if ($total_uploads_size > 100 * 1024 * 1024): ?>
                     Acima de 100MB. Considere limpar imagens antigas.
-                <?php else: ?>
+                <?php
+else: ?>
                     Dentro do esperado.
-                <?php endif; ?>
+                <?php
+endif; ?>
             </li>
         </ul>
     </div>
@@ -574,6 +590,7 @@ if ($_POST['action'] === 'clean_old') {
         
         <div class="actions">
             <form method="POST" onsubmit="return confirm('Isso pode levar alguns minutos. Continuar?');">
+                <?php echo campo_csrf(); ?>
                 <input type="hidden" name="action" value="optimize_images">
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-compress"></i>
@@ -582,6 +599,7 @@ if ($_POST['action'] === 'clean_old') {
             </form>
             
             <form method="POST" onsubmit="return confirm('Remover imagens com mais de 60 dias?');">
+                <?php echo campo_csrf(); ?>
                 <input type="hidden" name="action" value="clean_old">
                 <button type="submit" class="btn btn-warning">
                     <i class="fas fa-trash"></i>
@@ -594,7 +612,8 @@ if ($_POST['action'] === 'clean_old') {
             <strong>⚠ Aviso:</strong> Essas operações modificam arquivos. Recomenda-se fazer backup primeiro. O processo pode levar alguns minutos dependendo da quantidade de imagens.
         </div>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
 </div>
 

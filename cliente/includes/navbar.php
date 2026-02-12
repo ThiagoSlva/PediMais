@@ -20,7 +20,7 @@ if (isset($cliente_nome) && !empty($cliente_nome)) {
                 <div style="width: 40px; height: 40px; background: var(--primary-gradient); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
                     <i class="fa-solid fa-utensils text-white"></i>
                 </div>
-                <span class="fw-bold text-gradient d-none d-sm-inline" style="font-size: 1.25rem;">PediMais</span>
+                <span class="fw-bold text-gradient d-none d-sm-inline" style="font-size: 1.25rem;">PedeMais</span>
             </a>
             
             <!-- Desktop Navigation -->
@@ -51,9 +51,11 @@ if (isset($cliente_nome) && !empty($cliente_nome)) {
                     <button class="btn p-0 border-0 bg-transparent" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <?php if (isset($cliente_foto) && $cliente_foto && file_exists('../' . $cliente_foto)): ?>
                             <img src="../<?php echo htmlspecialchars($cliente_foto); ?>" alt="Avatar" class="avatar">
-                        <?php else: ?>
+                        <?php
+else: ?>
                             <div class="avatar-initials"><?php echo $initials; ?></div>
-                        <?php endif; ?>
+                        <?php
+endif; ?>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 rounded-3 mt-2">
                         <li class="px-3 py-2 border-bottom">

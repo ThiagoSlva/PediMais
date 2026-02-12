@@ -1,37 +1,46 @@
 <?php
 require_once 'includes/header.php';
+require_once __DIR__ . '/../includes/csrf.php';
 
 $msg = '';
 $msg_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nome = $_POST['nome'];
-    $descricao = $_POST['descricao'];
-    $ordem = isset($_POST['ordem']) ? (int)$_POST['ordem'] : 0;
-    $ativo = isset($_POST['ativo']) ? 1 : 0;
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_type = 'danger';
+    }
+    else {
+        $nome = $_POST['nome'];
+        $descricao = $_POST['descricao'];
+        $ordem = isset($_POST['ordem']) ? (int)$_POST['ordem'] : 0;
+        $ativo = isset($_POST['ativo']) ? 1 : 0;
 
-    try {
-        // Tenta inserir com ordem
-        $sql = "INSERT INTO itens_retirar (nome, descricao, ordem, ativo) VALUES (?, ?, ?, ?)";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$nome, $descricao, $ordem, $ativo]);
-        
-        echo "<script>window.location.href = 'itens_retirar.php?mensagem=Item adicionado com sucesso!&tipo=success';</script>";
-        exit;
-    } catch (PDOException $e) {
-        // Se falhar (provavelmente por falta da coluna ordem), tenta sem ordem
         try {
-            $sql = "INSERT INTO itens_retirar (nome, descricao, ativo) VALUES (?, ?, ?)";
+            // Tenta inserir com ordem
+            $sql = "INSERT INTO itens_retirar (nome, descricao, ordem, ativo) VALUES (?, ?, ?, ?)";
             $stmt = $pdo->prepare($sql);
-            $stmt->execute([$nome, $descricao, $ativo]);
-            
+            $stmt->execute([$nome, $descricao, $ordem, $ativo]);
+
             echo "<script>window.location.href = 'itens_retirar.php?mensagem=Item adicionado com sucesso!&tipo=success';</script>";
             exit;
-        } catch (PDOException $e2) {
-            $msg = 'Erro ao adicionar item: ' . $e2->getMessage();
-            $msg_type = 'danger';
         }
-    }
+        catch (PDOException $e) {
+            // Se falhar (provavelmente por falta da coluna ordem), tenta sem ordem
+            try {
+                $sql = "INSERT INTO itens_retirar (nome, descricao, ativo) VALUES (?, ?, ?)";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([$nome, $descricao, $ativo]);
+
+                echo "<script>window.location.href = 'itens_retirar.php?mensagem=Item adicionado com sucesso!&tipo=success';</script>";
+                exit;
+            }
+            catch (PDOException $e2) {
+                $msg = 'Erro ao adicionar item: ' . $e2->getMessage();
+                $msg_type = 'danger';
+            }
+        }
+    } // fecha else validar_csrf
 }
 ?>
 
@@ -59,11 +68,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php echo htmlspecialchars($msg); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <div class="card h-100 p-0 radius-12">
         <div class="card-body p-24">
             <form method="POST">
+                <?php echo campo_csrf(); ?>
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold text-primary-light text-sm mb-8">Nome do Item</label>

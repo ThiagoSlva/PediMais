@@ -1,6 +1,7 @@
 <?php
 require_once 'includes/header.php';
 require_once __DIR__ . '/../includes/image_optimization.php';
+require_once __DIR__ . '/../includes/csrf.php';
 
 $msg = '';
 $msg_type = '';
@@ -9,18 +10,19 @@ $msg_type = '';
 $categorias = $pdo->query("SELECT * FROM categorias WHERE ativo = 1 ORDER BY nome ASC")->fetchAll(PDO::FETCH_ASSOC);
 
 // Função para download de imagem da web
-function downloadWebImage($url, $prefix = 'prod_') {
+function downloadWebImage($url, $prefix = 'prod_')
+{
     $upload_dir = __DIR__ . '/../uploads/produtos/';
-    
+
     if (!is_dir($upload_dir)) {
         mkdir($upload_dir, 0777, true);
     }
-    
+
     // Verificar se é uma URL válida
     if (!filter_var($url, FILTER_VALIDATE_URL)) {
         return false;
     }
-    
+
     // Download da imagem
     $ch = curl_init();
     curl_setopt_array($ch, [
@@ -31,98 +33,107 @@ function downloadWebImage($url, $prefix = 'prod_') {
         CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         CURLOPT_SSL_VERIFYPEER => false,
     ]);
-    
+
     $image_content = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    
+
     if ($http_code !== 200 || empty($image_content)) {
         return false;
     }
-    
+
     // Verificar tipo MIME
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
     $mime_type = finfo_buffer($finfo, $image_content);
     finfo_close($finfo);
-    
+
     $allowed_types = [
         'image/jpeg' => 'jpg',
         'image/png' => 'png',
         'image/gif' => 'gif',
         'image/webp' => 'webp'
     ];
-    
+
     if (!isset($allowed_types[$mime_type])) {
         return false;
     }
-    
+
     $extension = $allowed_types[$mime_type];
     $filename = $prefix . time() . '_' . rand(1000, 9999) . '.' . $extension;
-    
+
     if (file_put_contents($upload_dir . $filename, $image_content) !== false) {
         return 'uploads/produtos/' . $filename;
     }
-    
+
     return false;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nome = $_POST['nome'];
-    $categoria_id = (int)$_POST['categoria_id'];
-    $descricao = $_POST['descricao'];
-    $preco = str_replace(',', '.', $_POST['preco']);
-    $preco_promocional = !empty($_POST['preco_promocional']) ? str_replace(',', '.', $_POST['preco_promocional']) : NULL;
-    $ordem = (int)$_POST['ordem'];
-    $disponivel = isset($_POST['disponivel']) ? 1 : 0;
-
-    // Upload de imagem (local ou web)
-    $imagem_path = '';
-    
-    // Primeiro verificar se tem imagem da web
-    if (!empty($_POST['web_image_url'])) {
-        $imagem_path = downloadWebImage($_POST['web_image_url']);
-        if (!$imagem_path) {
-            $msg = 'Erro ao baixar imagem da web. Tente outra imagem.';
-            $msg_type = 'danger';
-        }
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_type = 'danger';
     }
-    // Se não tem imagem web, verificar upload local
-    elseif (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === 0) {
-        $upload_dir = __DIR__ . '/../uploads/produtos/';
-        $file_base = $upload_dir . 'prod_' . time();
-        
-        // Comprimir e otimizar imagem
-        $compress_result = compressAndOptimizeImage($_FILES['imagem']['tmp_name'], $file_base, 75, 1200, 1200);
-        
-        if ($compress_result['success']) {
-            $imagem_path = $compress_result['file'];
-            $msg = 'Imagem comprimida com sucesso! Redução: ' . $compress_result['compression_ratio'] . '%';
-            $msg_type = 'success';
-        } else {
-            $msg = 'Erro ao processar imagem: ' . $compress_result['error'];
-            $msg_type = 'danger';
-        }
-    }
+    else {
+        $nome = $_POST['nome'];
+        $categoria_id = (int)$_POST['categoria_id'];
+        $descricao = $_POST['descricao'];
+        $preco = str_replace(',', '.', $_POST['preco']);
+        $preco_promocional = !empty($_POST['preco_promocional']) ? str_replace(',', '.', $_POST['preco_promocional']) : NULL;
+        $ordem = (int)$_POST['ordem'];
+        $disponivel = isset($_POST['disponivel']) ? 1 : 0;
 
-    // Só inserir se não teve erro de upload de imagem
-    if (empty($msg) || $msg_type === 'success') {
-        $sql = "INSERT INTO produtos (nome, categoria_id, descricao, preco, preco_promocional, ordem, disponivel, imagem_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        $params = [$nome, $categoria_id, $descricao, $preco, $preco_promocional, $ordem, $disponivel, $imagem_path];
-        
-        try {
-            $stmt = $pdo->prepare($sql);
-            if ($stmt->execute($params)) {
-                echo "<script>window.location.href = 'produtos.php?mensagem=Produto adicionado com sucesso!&tipo=success';</script>";
-                exit;
-            } else {
-                $msg = 'Erro ao adicionar produto.';
+        // Upload de imagem (local ou web)
+        $imagem_path = '';
+
+        // Primeiro verificar se tem imagem da web
+        if (!empty($_POST['web_image_url'])) {
+            $imagem_path = downloadWebImage($_POST['web_image_url']);
+            if (!$imagem_path) {
+                $msg = 'Erro ao baixar imagem da web. Tente outra imagem.';
                 $msg_type = 'danger';
             }
-        } catch (PDOException $e) {
-            $msg = 'Erro no banco de dados: ' . $e->getMessage();
-            $msg_type = 'danger';
         }
-    }
+        // Se não tem imagem web, verificar upload local
+        elseif (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === 0) {
+            $upload_dir = __DIR__ . '/../uploads/produtos/';
+            $file_base = $upload_dir . 'prod_' . time();
+
+            // Comprimir e otimizar imagem
+            $compress_result = compressAndOptimizeImage($_FILES['imagem']['tmp_name'], $file_base, 75, 1200, 1200);
+
+            if ($compress_result['success']) {
+                $imagem_path = $compress_result['file'];
+                $msg = 'Imagem comprimida com sucesso! Redução: ' . $compress_result['compression_ratio'] . '%';
+                $msg_type = 'success';
+            }
+            else {
+                $msg = 'Erro ao processar imagem: ' . $compress_result['error'];
+                $msg_type = 'danger';
+            }
+        }
+
+        // Só inserir se não teve erro de upload de imagem
+        if (empty($msg) || $msg_type === 'success') {
+            $sql = "INSERT INTO produtos (nome, categoria_id, descricao, preco, preco_promocional, ordem, disponivel, imagem_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            $params = [$nome, $categoria_id, $descricao, $preco, $preco_promocional, $ordem, $disponivel, $imagem_path];
+
+            try {
+                $stmt = $pdo->prepare($sql);
+                if ($stmt->execute($params)) {
+                    echo "<script>window.location.href = 'produtos.php?mensagem=Produto adicionado com sucesso!&tipo=success';</script>";
+                    exit;
+                }
+                else {
+                    $msg = 'Erro ao adicionar produto.';
+                    $msg_type = 'danger';
+                }
+            }
+            catch (PDOException $e) {
+                $msg = 'Erro no banco de dados: ' . $e->getMessage();
+                $msg_type = 'danger';
+            }
+        }
+    } // fecha else validar_csrf
 }
 ?>
 
@@ -262,11 +273,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php echo htmlspecialchars($msg); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <div class="card h-100 p-0 radius-12">
         <div class="card-body p-24">
             <form method="POST" enctype="multipart/form-data" id="productForm">
+                <?php echo campo_csrf(); ?>
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold text-primary-light text-sm mb-8">Nome do Produto</label>
@@ -279,7 +292,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <option value="">Selecione...</option>
                             <?php foreach ($categorias as $cat): ?>
                                 <option value="<?php echo $cat['id']; ?>"><?php echo htmlspecialchars($cat['nome']); ?></option>
-                            <?php endforeach; ?>
+                            <?php
+endforeach; ?>
                         </select>
                     </div>
                     

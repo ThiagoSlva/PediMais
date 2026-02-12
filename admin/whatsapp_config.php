@@ -2,6 +2,7 @@
 include 'includes/auth.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+require_once '../includes/csrf.php';
 
 verificar_login();
 
@@ -13,7 +14,7 @@ $qrcode_base64 = '';
 try {
     $stmt = $pdo->query("SHOW COLUMNS FROM whatsapp_config");
     $existing_columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    
+
     $columns_needed = [
         'base_url' => 'VARCHAR(500)',
         'apikey' => 'VARCHAR(255)',
@@ -27,14 +28,15 @@ try {
         'ativo' => 'TINYINT(1) DEFAULT 1',
         'atualizado_em' => 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
     ];
-    
+
     foreach ($columns_needed as $col => $type) {
         if (!in_array($col, $existing_columns)) {
             $pdo->exec("ALTER TABLE whatsapp_config ADD COLUMN $col $type");
         }
     }
-} catch (PDOException $e) {
-    // Ignore migration errors
+}
+catch (PDOException $e) {
+// Ignore migration errors
 }
 
 // Default values for config
@@ -59,7 +61,11 @@ $config = array_merge($defaults, $config ?: []);
 
 // Processar formulário
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
-    if ($_POST['acao'] == 'salvar_config') {
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_tipo = 'danger';
+    }
+    elseif ($_POST['acao'] == 'salvar_config') {
         $ativo = isset($_POST['ativo']) ? 1 : 0;
         $base_url = $_POST['api_url']; // Mapeando api_url para base_url
         $apikey = $_POST['api_token']; // Mapeando api_token para apikey
@@ -89,47 +95,54 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
                                        atualizado_em = NOW() 
                                        WHERE id = ?");
                 $stmt->execute([$ativo, $base_url, $apikey, $enviar_comprovante, $notificar_status_pedido, $enviar_link_acompanhamento, $popup_finalizacao_ativo, $whatsapp_estabelecimento, $usar_mercadopago, $config['id']]);
-            } else {
+            }
+            else {
                 $stmt = $pdo->prepare("INSERT INTO whatsapp_config (ativo, base_url, apikey, enviar_comprovante, notificar_status_pedido, enviar_link_acompanhamento, popup_finalizacao_ativo, whatsapp_estabelecimento, usar_mercadopago) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$ativo, $base_url, $apikey, $enviar_comprovante, $notificar_status_pedido, $enviar_link_acompanhamento, $popup_finalizacao_ativo, $whatsapp_estabelecimento, $usar_mercadopago]);
             }
             $msg = 'Configurações salvas com sucesso!';
             $msg_tipo = 'success';
-        } catch (PDOException $e) {
+        }
+        catch (PDOException $e) {
             $msg = 'Erro ao salvar: ' . $e->getMessage();
             $msg_tipo = 'danger';
         }
-    } elseif ($_POST['acao'] == 'selecionar_instancia') {
+    }
+    elseif ($_POST['acao'] == 'selecionar_instancia') {
         $instance_name = $_POST['nome_instancia'];
         try {
             // Atualizar apenas o nome da instância
             $stmt = $pdo->query("SELECT id FROM whatsapp_config LIMIT 1");
             $config = $stmt->fetch();
-            
+
             if ($config) {
                 $stmt = $pdo->prepare("UPDATE whatsapp_config SET instance_name = ? WHERE id = ?");
                 $stmt->execute([$instance_name, $config['id']]);
-            } else {
+            }
+            else {
                 $stmt = $pdo->prepare("INSERT INTO whatsapp_config (instance_name) VALUES (?)");
                 $stmt->execute([$instance_name]);
             }
             $msg = 'Instância selecionada com sucesso!';
             $msg_tipo = 'success';
-        } catch (PDOException $e) {
+        }
+        catch (PDOException $e) {
             $msg = 'Erro ao selecionar instância: ' . $e->getMessage();
             $msg_tipo = 'danger';
         }
-    } elseif ($_POST['acao'] == 'criar_e_conectar') {
+    }
+    elseif ($_POST['acao'] == 'criar_e_conectar') {
         // Criar nova instância e gerar QR Code
         $base_url = $config['base_url'] ?? '';
         $apikey = $config['apikey'] ?? '';
-        
+
         if (empty($base_url) || empty($apikey)) {
             $msg = 'Erro: Configure a URL da API e o Token antes de criar uma instância.';
             $msg_tipo = 'danger';
-        } else {
+        }
+        else {
             $novo_nome = 'cardapix_' . uniqid();
-            
+
             // Chamar Evolution API para criar instância
             $url = rtrim($base_url, '/') . '/instance/create';
             $headers = [
@@ -141,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
                 'qrcode' => true,
                 'integration' => 'WHATSAPP-BAILEYS'
             ];
-            
+
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -151,9 +164,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
             $response = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
-            
+
             $result = json_decode($response, true);
-            
+
             if ($http_code == 201 || $http_code == 200) {
                 // Salvar nome da instância
                 $stmt = $pdo->query("SELECT id FROM whatsapp_config LIMIT 1");
@@ -162,34 +175,38 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
                     $stmt = $pdo->prepare("UPDATE whatsapp_config SET instance_name = ? WHERE id = ?");
                     $stmt->execute([$novo_nome, $conf['id']]);
                 }
-                
+
                 // Se retornou QR Code
                 if (isset($result['qrcode']['base64'])) {
                     $qrcode_base64 = $result['qrcode']['base64'];
                     $msg = 'Instância criada! Escaneie o QR Code abaixo:';
                     $msg_tipo = 'success';
-                } else {
+                }
+                else {
                     $msg = 'Instância criada com sucesso! Acesse a página de QR Code para conectar.';
                     $msg_tipo = 'success';
                 }
-                
+
                 // Reload config
                 $stmt = $pdo->query("SELECT * FROM whatsapp_config LIMIT 1");
                 $config = array_merge($defaults, $stmt->fetch(PDO::FETCH_ASSOC) ?: []);
-            } else {
+            }
+            else {
                 $msg = 'Erro ao criar instância: ' . ($result['message'] ?? $result['error'] ?? 'Erro desconhecido');
                 $msg_tipo = 'danger';
             }
         }
-    } elseif ($_POST['acao'] == 'reiniciar') {
+    }
+    elseif ($_POST['acao'] == 'reiniciar') {
         $base_url = $config['base_url'] ?? '';
         $apikey = $config['apikey'] ?? '';
         $instance_name = $config['instance_name'] ?? '';
-        
+
         if (empty($instance_name)) {
             $msg = 'Erro: Nenhuma instância configurada.';
             $msg_tipo = 'danger';
-        } else {
+        }
+        else {
             $url = rtrim($base_url, '/') . '/instance/restart/' . urlencode($instance_name);
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
@@ -198,19 +215,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
             curl_setopt($ch, CURLOPT_PUT, true);
             curl_exec($ch);
             curl_close($ch);
-            
+
             $msg = 'Conexão reiniciada com sucesso!';
             $msg_tipo = 'success';
         }
-    } elseif ($_POST['acao'] == 'desconectar') {
+    }
+    elseif ($_POST['acao'] == 'desconectar') {
         $base_url = $config['base_url'] ?? '';
         $apikey = $config['apikey'] ?? '';
         $instance_name = $config['instance_name'] ?? '';
-        
+
         if (empty($instance_name)) {
             $msg = 'Erro: Nenhuma instância configurada.';
             $msg_tipo = 'danger';
-        } else {
+        }
+        else {
             $url = rtrim($base_url, '/') . '/instance/logout/' . urlencode($instance_name);
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
@@ -219,19 +238,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
             curl_exec($ch);
             curl_close($ch);
-            
+
             $msg = 'Desconectado com sucesso!';
             $msg_tipo = 'warning';
         }
-    } elseif ($_POST['acao'] == 'deletar') {
+    }
+    elseif ($_POST['acao'] == 'deletar') {
         $base_url = $config['base_url'] ?? '';
         $apikey = $config['apikey'] ?? '';
         $instance_name = $config['instance_name'] ?? '';
-        
+
         if (empty($instance_name)) {
             $msg = 'Erro: Nenhuma instância configurada.';
             $msg_tipo = 'danger';
-        } else {
+        }
+        else {
             $url = rtrim($base_url, '/') . '/instance/delete/' . urlencode($instance_name);
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
@@ -240,20 +261,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
             curl_exec($ch);
             curl_close($ch);
-            
+
             // Limpar nome da instância do banco
             $stmt = $pdo->prepare("UPDATE whatsapp_config SET instance_name = '' WHERE id = ?");
             $stmt->execute([$config['id']]);
-            
+
             $msg = 'Instância deletada com sucesso!';
             $msg_tipo = 'success';
-            
+
             // Reload config
             $stmt = $pdo->query("SELECT * FROM whatsapp_config LIMIT 1");
             $config = array_merge($defaults, $stmt->fetch(PDO::FETCH_ASSOC) ?: []);
         }
-    } elseif ($_POST['acao'] == 'verificar_status') {
-        // Verificar status não precisa fazer nada aqui - será verificado abaixo
+    }
+    elseif ($_POST['acao'] == 'verificar_status') {
+    // Verificar status não precisa fazer nada aqui - será verificado abaixo
     }
 }
 
@@ -272,20 +294,22 @@ if (!empty($config['instance_name']) && !empty($config['base_url']) && !empty($c
     $response = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    
+
     if ($http_code == 200) {
         $result = json_decode($response, true);
         $state = $result['instance']['state'] ?? $result['state'] ?? '';
-        
+
         if ($state === 'open' || $state === 'connected') {
             $connection_status = 'conectado';
             $status_badge_class = 'bg-success-600';
             $status_text = 'Conectado ✓';
-        } elseif ($state === 'connecting') {
+        }
+        elseif ($state === 'connecting') {
             $connection_status = 'conectando';
             $status_badge_class = 'bg-warning-600';
             $status_text = 'Conectando...';
-        } elseif ($state === 'close' || $state === 'closed') {
+        }
+        elseif ($state === 'close' || $state === 'closed') {
             $connection_status = 'desconectado';
             $status_badge_class = 'bg-danger-600';
             $status_text = 'Desconectado';
@@ -345,7 +369,8 @@ include 'includes/header.php';
     <?php echo $msg; ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 </div>
-<?php endif; ?>
+<?php
+endif; ?>
 
 <?php if (!empty($qrcode_base64)): ?>
 <!-- QR Code Display -->
@@ -362,7 +387,8 @@ include 'includes/header.php';
         <p class="text-warning-600 mt-3 small"><strong>Atenção:</strong> O QR Code expira em alguns minutos. Se expirar, clique em "Criar Nova Instância + QR Code" novamente.</p>
     </div>
 </div>
-<?php endif; ?>
+<?php
+endif; ?>
 
 <!-- Card de Configuração da API -->
 <div class="card h-100 p-0 radius-12 mb-24">
@@ -374,6 +400,7 @@ include 'includes/header.php';
     </div>
     <div class="card-body p-24">
         <form method="POST">
+            <?php echo campo_csrf(); ?>
             <input type="hidden" name="acao" value="salvar_config">
             
             <div class="row gy-4">
@@ -581,6 +608,7 @@ include 'includes/header.php';
         </p>
         
         <form method="POST" class="row gy-3">
+            <?php echo campo_csrf(); ?>
             <input type="hidden" name="acao" value="selecionar_instancia">
             
             <div class="col-12">
@@ -629,6 +657,7 @@ include 'includes/header.php';
                     </p>
                 </div>
                 <form method="POST" class="d-inline">
+                    <?php echo campo_csrf(); ?>
                     <input type="hidden" name="acao" value="verificar_status">
                     <button type="submit" class="btn btn-outline-info-600 btn-sm d-flex align-items-center gap-2">
                         <iconify-icon icon="solar:refresh-bold"></iconify-icon>
@@ -642,6 +671,7 @@ include 'includes/header.php';
         <div class="row g-3">
             <div class="col-12 mb-3">
                 <form method="POST" class="d-inline w-100">
+                    <?php echo campo_csrf(); ?>
                     <input type="hidden" name="acao" value="criar_e_conectar">
                     <button type="submit" class="btn btn-success-600 w-100 btn-lg d-flex align-items-center justify-content-center gap-2">
                         <iconify-icon icon="solar:qr-code-bold-duotone"></iconify-icon>
@@ -655,6 +685,7 @@ include 'includes/header.php';
             
             <div class="col-md-6">
                 <form method="POST" class="d-inline w-100" onsubmit="return confirm('Deseja reiniciar a conexão?')">
+                    <?php echo campo_csrf(); ?>
                     <input type="hidden" name="acao" value="reiniciar">
                     <button type="submit" class="btn btn-warning-600 w-100 d-flex align-items-center justify-content-center gap-2">
                         <iconify-icon icon="solar:restart-bold"></iconify-icon>
@@ -665,6 +696,7 @@ include 'includes/header.php';
             
             <div class="col-md-6">
                 <form method="POST" class="d-inline w-100" onsubmit="return confirm('Deseja desconectar?')">
+                    <?php echo campo_csrf(); ?>
                     <input type="hidden" name="acao" value="desconectar">
                     <button type="submit" class="btn btn-danger-600 w-100 d-flex align-items-center justify-content-center gap-2">
                         <iconify-icon icon="solar:logout-3-bold"></iconify-icon>
@@ -675,6 +707,7 @@ include 'includes/header.php';
             
             <div class="col-md-6">
                 <form method="POST" class="d-inline w-100" onsubmit="return confirm('ATENÇÃO: Isso irá deletar permanentemente a instância. Deseja continuar?')">
+                    <?php echo campo_csrf(); ?>
                     <input type="hidden" name="acao" value="deletar">
                     <button type="submit" class="btn btn-outline-danger-600 w-100 d-flex align-items-center justify-content-center gap-2">
                         <iconify-icon icon="solar:trash-bin-trash-bold"></iconify-icon>

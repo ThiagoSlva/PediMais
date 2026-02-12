@@ -2,6 +2,7 @@
 include 'includes/auth.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+require_once '../includes/csrf.php';
 
 verificar_login();
 
@@ -17,28 +18,29 @@ try {
         aberto_manual TINYINT(1) DEFAULT NULL,
         mensagem_fechado TEXT
     )");
-    
+
     // Ensure columns exist and have correct types
     $stmt = $pdo->query("DESCRIBE configuracao_horarios");
     $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    
+
     if (!in_array('sistema_ativo', $columns)) {
         $pdo->exec("ALTER TABLE configuracao_horarios ADD COLUMN sistema_ativo TINYINT(1) DEFAULT 1");
     }
-    
+
     // Ensure aberto_manual allows NULL
     if (in_array('aberto_manual', $columns)) {
         $pdo->exec("ALTER TABLE configuracao_horarios MODIFY aberto_manual TINYINT(1) DEFAULT NULL");
-    } else {
+    }
+    else {
         $pdo->exec("ALTER TABLE configuracao_horarios ADD COLUMN aberto_manual TINYINT(1) DEFAULT NULL");
     }
-    
+
     // Ensure initial record exists
     $stmt = $pdo->query("SELECT id FROM configuracao_horarios LIMIT 1");
     if (!$stmt->fetch()) {
         $pdo->exec("INSERT INTO configuracao_horarios (sistema_ativo, aberto_manual, mensagem_fechado) VALUES (1, NULL, 'Estamos fechados no momento.')");
     }
-    
+
     // Ensure horarios_funcionamento table exists
     $pdo->exec("CREATE TABLE IF NOT EXISTS horarios_funcionamento (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -47,67 +49,82 @@ try {
         horario_fechamento TIME,
         ativo TINYINT(1) DEFAULT 1
     )");
-    
-} catch (PDOException $e) {
-    // Ignore errors if tables already exist/columns match
+
+
+}
+catch (PDOException $e) {
+// Ignore errors if tables already exist/columns match
 }
 
 // Process Form Submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    try {
-        if (isset($_POST['acao'])) {
-            $acao = $_POST['acao'];
-            
-            if ($acao == 'config') {
-                $sistema_ativo = isset($_POST['sistema_ativo']) ? 1 : 0;
-                $mensagem_fechado = $_POST['mensagem_fechado'];
-                
-                $stmt = $pdo->prepare("UPDATE configuracao_horarios SET sistema_ativo = ?, mensagem_fechado = ? WHERE id = 1");
-                $stmt->execute([$sistema_ativo, $mensagem_fechado]);
-                
-                $msg = 'Configuração geral atualizada!';
-                $msg_tipo = 'success';
-                
-            } elseif ($acao == 'manual') {
-                $manual = $_POST['aberto_manual'];
-                $valor = null;
-                
-                if ($manual === '1') $valor = 1;
-                elseif ($manual === '0') $valor = 0;
-                elseif ($manual === 'automatico') $valor = null;
-                
-                $stmt = $pdo->prepare("UPDATE configuracao_horarios SET aberto_manual = ? WHERE id = 1");
-                $stmt->execute([$valor]);
-                
-                $msg = 'Status manual atualizado!';
-                $msg_tipo = 'success';
-                
-            } elseif ($acao == 'horario') {
-                $dia = $_POST['dia_semana'];
-                $abertura = $_POST['horario_abertura'];
-                $fechamento = $_POST['horario_fechamento'];
-                $ativo = isset($_POST['ativo']) ? 1 : 0;
-                
-                // Check if exists
-                $stmt = $pdo->prepare("SELECT id FROM horarios_funcionamento WHERE dia_semana = ?");
-                $stmt->execute([$dia]);
-                
-                if ($stmt->fetch()) {
-                    $stmt = $pdo->prepare("UPDATE horarios_funcionamento SET horario_abertura = ?, horario_fechamento = ?, ativo = ? WHERE dia_semana = ?");
-                    $stmt->execute([$abertura, $fechamento, $ativo, $dia]);
-                } else {
-                    $stmt = $pdo->prepare("INSERT INTO horarios_funcionamento (dia_semana, horario_abertura, horario_fechamento, ativo) VALUES (?, ?, ?, ?)");
-                    $stmt->execute([$dia, $abertura, $fechamento, $ativo]);
-                }
-                
-                $msg = 'Horário atualizado com sucesso!';
-                $msg_tipo = 'success';
-            }
-        }
-    } catch (PDOException $e) {
-        $msg = 'Erro ao salvar: ' . $e->getMessage();
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
         $msg_tipo = 'danger';
     }
+    else {
+        try {
+            if (isset($_POST['acao'])) {
+                $acao = $_POST['acao'];
+
+                if ($acao == 'config') {
+                    $sistema_ativo = isset($_POST['sistema_ativo']) ? 1 : 0;
+                    $mensagem_fechado = $_POST['mensagem_fechado'];
+
+                    $stmt = $pdo->prepare("UPDATE configuracao_horarios SET sistema_ativo = ?, mensagem_fechado = ? WHERE id = 1");
+                    $stmt->execute([$sistema_ativo, $mensagem_fechado]);
+
+                    $msg = 'Configuração geral atualizada!';
+                    $msg_tipo = 'success';
+
+                }
+                elseif ($acao == 'manual') {
+                    $manual = $_POST['aberto_manual'];
+                    $valor = null;
+
+                    if ($manual === '1')
+                        $valor = 1;
+                    elseif ($manual === '0')
+                        $valor = 0;
+                    elseif ($manual === 'automatico')
+                        $valor = null;
+
+                    $stmt = $pdo->prepare("UPDATE configuracao_horarios SET aberto_manual = ? WHERE id = 1");
+                    $stmt->execute([$valor]);
+
+                    $msg = 'Status manual atualizado!';
+                    $msg_tipo = 'success';
+
+                }
+                elseif ($acao == 'horario') {
+                    $dia = $_POST['dia_semana'];
+                    $abertura = $_POST['horario_abertura'];
+                    $fechamento = $_POST['horario_fechamento'];
+                    $ativo = isset($_POST['ativo']) ? 1 : 0;
+
+                    // Check if exists
+                    $stmt = $pdo->prepare("SELECT id FROM horarios_funcionamento WHERE dia_semana = ?");
+                    $stmt->execute([$dia]);
+
+                    if ($stmt->fetch()) {
+                        $stmt = $pdo->prepare("UPDATE horarios_funcionamento SET horario_abertura = ?, horario_fechamento = ?, ativo = ? WHERE dia_semana = ?");
+                        $stmt->execute([$abertura, $fechamento, $ativo, $dia]);
+                    }
+                    else {
+                        $stmt = $pdo->prepare("INSERT INTO horarios_funcionamento (dia_semana, horario_abertura, horario_fechamento, ativo) VALUES (?, ?, ?, ?)");
+                        $stmt->execute([$dia, $abertura, $fechamento, $ativo]);
+                    }
+
+                    $msg = 'Horário atualizado com sucesso!';
+                    $msg_tipo = 'success';
+                }
+            }
+        }
+        catch (PDOException $e) {
+            $msg = 'Erro ao salvar: ' . $e->getMessage();
+            $msg_tipo = 'danger';
+        }
+    } // fecha else validar_csrf
 }
 
 // Fetch Data
@@ -154,7 +171,8 @@ include 'includes/header.php';
         <?php echo $msg; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <style>
     /* Dark mode specific styles for horarios page */
@@ -360,6 +378,7 @@ include 'includes/header.php';
         </div>
         <div class="card-body p-24">
             <form method="POST">
+                <?php echo campo_csrf(); ?>
                 <input type="hidden" name="acao" value="config">
                 
                 <div class="row">
@@ -368,12 +387,12 @@ include 'includes/header.php';
                             <div>
                                 <h6 class="mb-1">Sistema de Horários</h6>
                                 <small class="text-secondary-light">
-                                    <?php echo ($config['sistema_ativo'] ?? 1) ? 'Ativado - segue horários abaixo' : 'Desativado - sempre aberto'; ?>
+                                    <?php echo($config['sistema_ativo'] ?? 1) ? 'Ativado - segue horários abaixo' : 'Desativado - sempre aberto'; ?>
                                 </small>
                             </div>
                             <div class="form-switch">
                                 <input class="form-check-input" type="checkbox" name="sistema_ativo" id="sistema_ativo" 
-                                       <?php echo ($config['sistema_ativo'] ?? 1) ? 'checked' : ''; ?>
+                                       <?php echo($config['sistema_ativo'] ?? 1) ? 'checked' : ''; ?>
                                        onchange="this.form.submit()">
                             </div>
                         </div>
@@ -406,6 +425,7 @@ include 'includes/header.php';
         </div>
         <div class="card-body p-24">
             <form method="POST">
+                <?php echo campo_csrf(); ?>
                 <input type="hidden" name="acao" value="manual">
                 
                 <div class="alert alert-warning mb-3 d-flex align-items-center gap-2">
@@ -419,19 +439,19 @@ include 'includes/header.php';
                 <?php $loja_manual = isset($config['aberto_manual']) ? $config['aberto_manual'] : null; ?>
                 <div class="d-flex gap-3 flex-wrap">
                     <button type="submit" name="aberto_manual" value="1" 
-                            class="btn btn-success d-flex align-items-center gap-2 <?php echo ($loja_manual === 1 || $loja_manual === '1') ? 'active' : ''; ?>">
+                            class="btn btn-success d-flex align-items-center gap-2 <?php echo($loja_manual === 1 || $loja_manual === '1') ? 'active' : ''; ?>">
                         <iconify-icon icon="solar:check-circle-bold"></iconify-icon>
                         <span>ABRIR Agora</span>
                     </button>
                     
                     <button type="submit" name="aberto_manual" value="0" 
-                            class="btn btn-danger d-flex align-items-center gap-2 <?php echo ($loja_manual === 0 || $loja_manual === '0') ? 'active' : ''; ?>">
+                            class="btn btn-danger d-flex align-items-center gap-2 <?php echo($loja_manual === 0 || $loja_manual === '0') ? 'active' : ''; ?>">
                         <iconify-icon icon="solar:close-circle-bold"></iconify-icon>
                         <span>FECHAR Agora</span>
                     </button>
                     
                     <button type="submit" name="aberto_manual" value="automatico" 
-                            class="btn btn-secondary d-flex align-items-center gap-2 <?php echo ($loja_manual === null) ? 'active' : ''; ?>">
+                            class="btn btn-secondary d-flex align-items-center gap-2 <?php echo($loja_manual === null) ? 'active' : ''; ?>">
                         <iconify-icon icon="solar:refresh-outline"></iconify-icon>
                         <span>Modo Automático</span>
                     </button>
@@ -442,17 +462,20 @@ include 'includes/header.php';
                         <strong>Status Atual:</strong> 
                         <span class="text-success-600">🟢 ABERTO MANUALMENTE</span>
                     </div>
-                <?php elseif ($loja_manual === 0): ?>
+                <?php
+elseif ($loja_manual === 0): ?>
                     <div class="mt-3 p-3 rounded bg-danger-focus">
                         <strong>Status Atual:</strong> 
                         <span class="text-danger-600">🔴 FECHADO MANUALMENTE</span>
                     </div>
-                <?php else: ?>
+                <?php
+else: ?>
                     <div class="mt-3 p-3 rounded bg-primary-focus">
                         <strong>Status Atual:</strong> 
                         <span class="text-primary-600">🔄 MODO AUTOMÁTICO (Segue horários)</span>
                     </div>
-                <?php endif; ?>
+                <?php
+endif; ?>
             </form>
         </div>
     </div>
@@ -467,11 +490,11 @@ include 'includes/header.php';
         </div>
         <div class="card-body p-24">
             <div class="accordion" id="accordionHorarios">
-                <?php foreach ($dias_semana as $dia_num => $dia_nome): 
-                    $h = isset($horarios[$dia_num]) ? $horarios[$dia_num] : ['horario_abertura' => '00:00', 'horario_fechamento' => '00:00', 'ativo' => 0];
-                    $isOpen = $h['ativo'] ?? 0;
-                    $statusBadge = $isOpen ? '<span class="badge bg-success">Aberto</span>' : '<span class="badge bg-secondary">Fechado</span>';
-                ?>
+                <?php foreach ($dias_semana as $dia_num => $dia_nome):
+    $h = isset($horarios[$dia_num]) ? $horarios[$dia_num] : ['horario_abertura' => '00:00', 'horario_fechamento' => '00:00', 'ativo' => 0];
+    $isOpen = $h['ativo'] ?? 0;
+    $statusBadge = $isOpen ? '<span class="badge bg-success">Aberto</span>' : '<span class="badge bg-secondary">Fechado</span>';
+?>
                 <div class="accordion-item mb-2">
                     <h2 class="accordion-header">
                         <button class="accordion-button collapsed" 
@@ -485,7 +508,8 @@ include 'includes/header.php';
                                     <span class="text-secondary-light ms-auto me-3 text-sm">
                                         <?php echo substr($h['horario_abertura'] ?? '00:00', 0, 5) . ' às ' . substr($h['horario_fechamento'] ?? '00:00', 0, 5); ?>
                                     </span>
-                                <?php endif; ?>
+                                <?php
+    endif; ?>
                             </div>
                         </button>
                     </h2>
@@ -493,6 +517,7 @@ include 'includes/header.php';
                          class="accordion-collapse collapse">
                         <div class="accordion-body">
                             <form method="POST">
+                                <?php echo campo_csrf(); ?>
                                 <input type="hidden" name="acao" value="horario">
                                 <input type="hidden" name="dia_semana" value="<?php echo $dia_num; ?>">
                                 
@@ -529,7 +554,8 @@ include 'includes/header.php';
                         </div>
                     </div>
                 </div>
-                <?php endforeach; ?>
+                <?php
+endforeach; ?>
             </div>
         </div>
     </div>

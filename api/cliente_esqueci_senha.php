@@ -5,12 +5,21 @@
  */
 
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
+$allowed_origin = defined('SITE_URL') ? SITE_URL : '*';
+header("Access-Control-Allow-Origin: $allowed_origin");
 header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Content-Type');
 
 require_once '../includes/config.php';
+require_once '../includes/rate_limiter.php';
 require_once '../includes/whatsapp_helper.php';
+
+// Rate limiting: máx 3 tentativas a cada 30 minutos
+$client_ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+if (!check_rate_limit('cliente_reset', $client_ip, 3, 1800)) {
+    echo json_encode(['erro' => 'Muitas tentativas. Aguarde 30 minutos.'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 require_once '../includes/email_helper.php';
 
 // Carregar configurações de email (se existir)
@@ -36,35 +45,35 @@ try {
     $stmt = $pdo->prepare("SELECT id, nome, email, telefone FROM clientes WHERE email = ? AND ativo = 1 LIMIT 1");
     $stmt->execute([$email]);
     $cliente = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if (!$cliente) {
         echo json_encode(['erro' => 'E-mail não encontrado ou conta inativa'], JSON_UNESCAPED_UNICODE);
         exit;
     }
-    
+
     $telefone = $cliente['telefone'] ?? null;
-    
+
     // Verificar se WhatsApp está ativo
     $stmt = $pdo->query("SELECT ativo FROM whatsapp_config LIMIT 1");
     $whats_config = $stmt->fetch(PDO::FETCH_ASSOC);
     $whatsapp_disponivel = !empty($telefone) && $whats_config && $whats_config['ativo'];
-    
+
     // Gerar nova senha aleatória (8 caracteres alfanuméricos)
     $caracteres = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     $nova_senha = '';
     for ($i = 0; $i < 8; $i++) {
         $nova_senha .= $caracteres[random_int(0, strlen($caracteres) - 1)];
     }
-    
+
     // Criar hash da senha
     $senha_hash = password_hash($nova_senha, PASSWORD_DEFAULT);
-    
+
     // Atualizar senha no banco
     $stmt = $pdo->prepare("UPDATE clientes SET senha = ? WHERE id = ?");
     $stmt->execute([$senha_hash, $cliente['id']]);
-    
+
     $resultados = [];
-    
+
     // ========== ENVIAR VIA WHATSAPP ==========
     if ($whatsapp_disponivel) {
         $mensagem_whats = "🔐 *RECUPERAÇÃO DE SENHA*\n\n";
@@ -72,40 +81,42 @@ try {
         $mensagem_whats .= "Sua nova senha é: *{$nova_senha}*\n\n";
         $mensagem_whats .= "⚠️ Recomendamos alterar esta senha após o login.\n\n";
         $mensagem_whats .= "Obrigado! 🙏";
-        
+
         $whatsapp = new WhatsAppHelper($pdo);
         $resultado_whats = $whatsapp->sendMessage($telefone, $mensagem_whats);
         $resultados['whatsapp'] = isset($resultado_whats['success']) && $resultado_whats['success'];
-    } else {
+    }
+    else {
         $resultados['whatsapp'] = false;
     }
-    
+
     // ========== ENVIAR VIA EMAIL ==========
     $resultados['email'] = false;
     if (defined('EMAIL_SMTP_PASSWORD') && EMAIL_SMTP_PASSWORD !== 'SUA_SENHA_AQUI') {
         try {
             $emailHelper = new EmailHelper();
             $emailHelper->setPassword(EMAIL_SMTP_PASSWORD);
-            $emailHelper->setFromName('PediMais');
-            
+            $emailHelper->setFromName('PedeMais');
+
             $htmlEmail = EmailHelper::gerarHtmlRecuperacaoSenha($cliente['nome'], $nova_senha, 'cliente');
             $textoEmail = "Olá, {$cliente['nome']}!\n\nSua nova senha é: {$nova_senha}\n\nRecomendamos alterar esta senha após o login.";
-            
+
             $resultados['email'] = $emailHelper->sendEmail(
                 $cliente['email'],
-                '🔐 Recuperação de Senha - PediMais',
+                '🔐 Recuperação de Senha - PedeMais',
                 $htmlEmail,
                 $textoEmail
             );
-            
+
             if (!$resultados['email']) {
                 error_log("Erro ao enviar email cliente: " . $emailHelper->getLastError());
             }
-        } catch (Exception $e) {
+        }
+        catch (Exception $e) {
             error_log("Erro ao enviar email cliente: " . $e->getMessage());
         }
     }
-    
+
     // ========== RESPOSTA ==========
     if ($resultados['whatsapp'] || $resultados['email']) {
         $canais = [];
@@ -118,18 +129,21 @@ try {
             $email_masked = substr($email_parts[0], 0, 2) . '***@' . $email_parts[1];
             $canais[] = "E-mail ({$email_masked})";
         }
-        
+
         echo json_encode([
             'sucesso' => true,
             'mensagem' => "Nova senha enviada via " . implode(' e ', $canais)
         ], JSON_UNESCAPED_UNICODE);
-    } else {
+    }
+    else {
         echo json_encode([
             'erro' => 'Não foi possível enviar a senha. Verifique suas configurações de contato.'
         ], JSON_UNESCAPED_UNICODE);
     }
-    
-} catch (Exception $e) {
+
+
+}
+catch (Exception $e) {
     error_log("Erro ao recuperar senha cliente: " . $e->getMessage());
     echo json_encode(['erro' => 'Erro ao processar solicitação'], JSON_UNESCAPED_UNICODE);
 }

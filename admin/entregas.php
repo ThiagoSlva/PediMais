@@ -1,49 +1,59 @@
 <?php
 include 'includes/header.php';
+require_once __DIR__ . '/../includes/csrf.php';
 
 // Processar ações
 $msg = '';
 $msg_tipo = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if (isset($_POST['acao'])) {
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_tipo = 'danger';
+    }
+    elseif (isset($_POST['acao'])) {
         $acao = $_POST['acao'];
-        
+
         if ($acao == 'adicionar') {
             $nome = $_POST['nome'];
             $taxa = str_replace(',', '.', str_replace('.', '', $_POST['taxa'])); // Format currency
             $ativo = isset($_POST['ativo']) ? 1 : 0;
             $cidade_id = 1; // Default to 1 for now
-            
+
             $stmt = $pdo->prepare("INSERT INTO bairros_entrega (nome, taxa, ativo, cidade_id) VALUES (?, ?, ?, ?)");
             if ($stmt->execute([$nome, $taxa, $ativo, $cidade_id])) {
                 $msg = 'Bairro adicionado com sucesso!';
                 $msg_tipo = 'success';
-            } else {
+            }
+            else {
                 $msg = 'Erro ao adicionar bairro.';
                 $msg_tipo = 'danger';
             }
-        } elseif ($acao == 'editar') {
+        }
+        elseif ($acao == 'editar') {
             $id = $_POST['id'];
             $nome = $_POST['nome'];
             $taxa = str_replace(',', '.', str_replace('.', '', $_POST['taxa']));
             $ativo = isset($_POST['ativo']) ? 1 : 0;
-            
+
             $stmt = $pdo->prepare("UPDATE bairros_entrega SET nome = ?, taxa = ?, ativo = ? WHERE id = ?");
             if ($stmt->execute([$nome, $taxa, $ativo, $id])) {
                 $msg = 'Bairro atualizado com sucesso!';
                 $msg_tipo = 'success';
-            } else {
+            }
+            else {
                 $msg = 'Erro ao atualizar bairro.';
                 $msg_tipo = 'danger';
             }
-        } elseif ($acao == 'excluir') {
+        }
+        elseif ($acao == 'excluir') {
             $id = $_POST['id'];
             $stmt = $pdo->prepare("DELETE FROM bairros_entrega WHERE id = ?");
             if ($stmt->execute([$id])) {
                 $msg = 'Bairro excluído com sucesso!';
                 $msg_tipo = 'success';
-            } else {
+            }
+            else {
                 $msg = 'Erro ao excluir bairro.';
                 $msg_tipo = 'danger';
             }
@@ -84,7 +94,8 @@ $bairros = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <?php echo $msg; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <div class="row gy-4">
         <!-- Formulário -->
@@ -95,10 +106,12 @@ $bairros = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
                 <div class="card-body">
                     <form method="POST" action="entregas.php">
+                        <?php echo campo_csrf(); ?>
                         <input type="hidden" name="acao" value="<?php echo $editar_bairro ? 'editar' : 'adicionar'; ?>">
                         <?php if ($editar_bairro): ?>
                             <input type="hidden" name="id" value="<?php echo $editar_bairro['id']; ?>">
-                        <?php endif; ?>
+                        <?php
+endif; ?>
 
                         <div class="mb-3">
                             <label for="nome" class="form-label">Nome do Bairro</label>
@@ -114,7 +127,7 @@ $bairros = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                         <div class="mb-3 form-check">
                             <input type="checkbox" class="form-check-input" id="ativo" name="ativo" 
-                                   <?php echo ($editar_bairro && !$editar_bairro['ativo']) ? '' : 'checked'; ?>>
+                                   <?php echo($editar_bairro && !$editar_bairro['ativo']) ? '' : 'checked'; ?>>
                             <label class="form-check-label" for="ativo">Ativo</label>
                         </div>
 
@@ -124,7 +137,8 @@ $bairros = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         
                         <?php if ($editar_bairro): ?>
                             <a href="entregas.php" class="btn btn-outline-secondary w-100 mt-2">Cancelar</a>
-                        <?php endif; ?>
+                        <?php
+endif; ?>
                     </form>
                 </div>
             </div>
@@ -152,7 +166,8 @@ $bairros = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <tr>
                                         <td colspan="4" class="text-center py-4">Nenhum bairro cadastrado.</td>
                                     </tr>
-                                <?php else: ?>
+                                <?php
+else: ?>
                                     <?php foreach ($bairros as $bairro): ?>
                                     <tr>
                                         <td><?php echo htmlspecialchars($bairro['nome']); ?></td>
@@ -160,15 +175,18 @@ $bairros = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                         <td>
                                             <?php if ($bairro['ativo']): ?>
                                                 <span class="badge bg-success-focus text-success-main px-2 py-1">Ativo</span>
-                                            <?php else: ?>
+                                            <?php
+        else: ?>
                                                 <span class="badge bg-danger-focus text-danger-main px-2 py-1">Inativo</span>
-                                            <?php endif; ?>
+                                            <?php
+        endif; ?>
                                         </td>
                                         <td class="text-end">
                                             <a href="entregas.php?acao=editar&id=<?php echo $bairro['id']; ?>" class="btn btn-sm btn-primary-600 radius-8">
                                                 <iconify-icon icon="solar:pen-new-square-broken"></iconify-icon>
                                             </a>
                                             <form method="POST" action="entregas.php" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir?');">
+                                                <?php echo campo_csrf(); ?>
                                                 <input type="hidden" name="acao" value="excluir">
                                                 <input type="hidden" name="id" value="<?php echo $bairro['id']; ?>">
                                                 <button type="submit" class="btn btn-sm btn-danger-600 radius-8">
@@ -177,8 +195,10 @@ $bairros = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                             </form>
                                         </td>
                                     </tr>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
+                                    <?php
+    endforeach; ?>
+                                <?php
+endif; ?>
                             </tbody>
                         </table>
                     </div>

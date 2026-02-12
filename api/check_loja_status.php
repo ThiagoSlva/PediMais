@@ -4,7 +4,8 @@
  */
 
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
+$allowed_origin = defined('SITE_URL') ? SITE_URL : '*';
+header("Access-Control-Allow-Origin: $allowed_origin");
 
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
@@ -19,8 +20,9 @@ try {
     if ($config && !empty($config['mensagem_fechado'])) {
         $mensagem = $config['mensagem_fechado'];
     }
-} catch (Exception $e) {
-    // Ignorar
+}
+catch (Exception $e) {
+// Ignorar
 }
 
 // Buscar horário de funcionamento do dia atual
@@ -36,8 +38,9 @@ try {
             'fechamento' => substr($horario['horario_fechamento'], 0, 5)
         ];
     }
-} catch (Exception $e) {
-    // Ignorar
+}
+catch (Exception $e) {
+// Ignorar
 }
 
 echo json_encode([

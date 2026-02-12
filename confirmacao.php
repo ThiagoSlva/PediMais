@@ -166,6 +166,98 @@ $config = get_config();
         }
         .status-pendente { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
         .status-confirmado { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .status-preparando { background: rgba(99, 102, 241, 0.2); color: #6366f1; }
+        .status-enviado { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        .status-entregue { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .status-cancelado { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        
+        /* Tracking CTA Card */
+        .tracking-card {
+            animation: slideUp 0.5s ease-out 0.3s both;
+            position: relative;
+            overflow: hidden;
+        }
+        .tracking-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, transparent 70%);
+            animation: shimmer 4s ease-in-out infinite;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes shimmer {
+            0%, 100% { transform: translateX(-30%) translateY(-30%); }
+            50% { transform: translateX(30%) translateY(30%); }
+        }
+        .tracking-icon {
+            width: 56px;
+            height: 56px;
+            background: rgba(251, 191, 36, 0.15);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            animation: bellRing 2s ease-in-out infinite;
+        }
+        @keyframes bellRing {
+            0%, 100% { transform: rotate(0deg); }
+            10% { transform: rotate(8deg); }
+            20% { transform: rotate(-8deg); }
+            30% { transform: rotate(4deg); }
+            40% { transform: rotate(0deg); }
+        }
+        .tracking-features {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .tracking-feature {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,255,255,0.05);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .tracking-feature i { font-size: 0.75rem; }
+        .btn-tracking {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-tracking::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            animation: btnShine 3s ease-in-out infinite;
+        }
+        @keyframes btnShine {
+            0% { left: -100%; }
+            50% { left: 100%; }
+            100% { left: 100%; }
+        }
+        .btn-tracking:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -208,7 +300,8 @@ $config = get_config();
                 <span class="info-label">Endereço</span>
                 <span class="info-value" style="text-align: right; max-width: 60%;"><?php echo htmlspecialchars($pedido['cliente_endereco']); ?></span>
             </div>
-            <?php endif; ?>
+            <?php
+endif; ?>
             <div class="info-row">
                 <span class="info-label">Pagamento</span>
                 <span class="info-value"><?php echo htmlspecialchars($pedido['forma_pagamento_nome'] ?? 'N/A'); ?></span>
@@ -229,7 +322,8 @@ $config = get_config();
                     R$ <?php echo number_format($item['preco_unitario'] * $item['quantidade'], 2, ',', '.'); ?>
                 </div>
             </div>
-            <?php endforeach; ?>
+            <?php
+endforeach; ?>
             
             <div class="total-row">
                 <span>Total</span>
@@ -238,8 +332,8 @@ $config = get_config();
         </div>
         
         <?php
-        // Buscar histórico de pedidos deste telefone
-        $stmt_hist = $pdo->prepare("
+// Buscar histórico de pedidos deste telefone
+$stmt_hist = $pdo->prepare("
             SELECT codigo_pedido, data_pedido, valor_total, status 
             FROM pedidos 
             WHERE cliente_telefone = ? 
@@ -247,11 +341,11 @@ $config = get_config();
             ORDER BY id DESC 
             LIMIT 5
         ");
-        $stmt_hist->execute([$pedido['cliente_telefone'], $pedido['id']]);
-        $historico = $stmt_hist->fetchAll(PDO::FETCH_ASSOC);
-        
-        if (count($historico) > 0):
-        ?>
+$stmt_hist->execute([$pedido['cliente_telefone'], $pedido['id']]);
+$historico = $stmt_hist->fetchAll(PDO::FETCH_ASSOC);
+
+if (count($historico) > 0):
+?>
         <div class="card">
             <div class="card-title">
                 <i class="fa-solid fa-clock-rotate-left"></i> Seus Pedidos Recentes
@@ -275,21 +369,95 @@ $config = get_config();
                     </div>
                 </div>
             </div>
-            <?php endforeach; ?>
+            <?php
+    endforeach; ?>
         </div>
-        <?php endif; ?>
+        <?php
+endif; ?>
+        
+        <?php
+// ============================================
+// ACOMPANHAMENTO DE PEDIDOS — Smart CTA
+// ============================================
+$telefone_limpo = preg_replace('/[^0-9]/', '', $pedido['cliente_telefone'] ?? '');
+
+// Verificar se o cliente já possui conta
+$stmt_conta = $pdo->prepare("SELECT id, nome, senha FROM clientes WHERE (telefone = ? OR telefone = ?) AND ativo = 1 LIMIT 1");
+$stmt_conta->execute([$telefone_limpo, $pedido['cliente_telefone']]);
+$conta_cliente = $stmt_conta->fetch(PDO::FETCH_ASSOC);
+
+// Determinar redirecionamento  
+if ($conta_cliente && !empty($conta_cliente['senha'])) {
+    // Já tem conta com senha → Login
+    $cta_link = 'cliente/login.php';
+    $cta_texto = 'Entrar na Minha Conta';
+    $cta_subtexto = 'Acompanhe seus pedidos em tempo real';
+    $cta_icone = 'fa-solid fa-right-to-bracket';
+    $cta_tipo = 'conta_ativa';
+}
+elseif ($conta_cliente && empty($conta_cliente['senha'])) {
+    // Tem conta mas sem senha → Primeiro Acesso
+    $cta_link = 'cliente/primeiro_acesso.php';
+    $cta_texto = 'Ativar Minha Conta';
+    $cta_subtexto = 'Crie sua senha e acompanhe seus pedidos';
+    $cta_icone = 'fa-solid fa-user-shield';
+    $cta_tipo = 'primeiro_acesso';
+}
+else {
+    // Não tem conta → Cadastro
+    $cta_link = 'cliente/cadastro.php';
+    $cta_texto = 'Criar Minha Conta';
+    $cta_subtexto = 'Cadastre-se para acompanhar todos os seus pedidos';
+    $cta_icone = 'fa-solid fa-user-plus';
+    $cta_tipo = 'novo_cadastro';
+}
+?>
+        
+        <div class="card tracking-card" style="border: 1px solid rgba(99, 102, 241, 0.3); background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(34, 197, 94, 0.05));">
+            <div style="text-align: center; margin-bottom: 16px;">
+                <div class="tracking-icon">
+                    <i class="fa-solid fa-bell" style="font-size: 1.5rem; color: #fbbf24;"></i>
+                </div>
+                <h3 style="font-size: 1.1rem; margin: 12px 0 4px;">Acompanhe seu Pedido</h3>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">
+                    Receba atualizações em tempo real sobre o status do seu pedido
+                </p>
+            </div>
+            
+            <div class="tracking-features">
+                <div class="tracking-feature">
+                    <i class="fa-solid fa-clock-rotate-left" style="color: var(--primary-color);"></i>
+                    <span>Histórico completo</span>
+                </div>
+                <div class="tracking-feature">
+                    <i class="fa-solid fa-bell" style="color: #fbbf24;"></i>
+                    <span>Status em tempo real</span>
+                </div>
+                <div class="tracking-feature">
+                    <i class="fa-solid fa-star" style="color: #f472b6;"></i>
+                    <span>Programa de fidelidade</span>
+                </div>
+            </div>
+            
+            <a href="<?php echo $cta_link; ?>" class="btn btn-tracking">
+                <i class="<?php echo $cta_icone; ?>"></i> <?php echo $cta_texto; ?>
+            </a>
+            <p style="text-align: center; color: var(--text-muted); font-size: 0.8rem; margin: 8px 0 0;">
+                <?php echo $cta_subtexto; ?>
+            </p>
+        </div>
         
         <a href="index.php" class="btn btn-primary">
             <i class="fa-solid fa-home"></i> Voltar ao Cardápio
         </a>
         
-        <?php 
-        $whatsapp_numero = preg_replace('/[^0-9]/', '', $config['whatsapp'] ?? '');
-        // Adiciona código do país se não tiver
-        if (strlen($whatsapp_numero) <= 11 && substr($whatsapp_numero, 0, 2) !== '55') {
-            $whatsapp_numero = '55' . $whatsapp_numero;
-        }
-        ?>
+        <?php
+$whatsapp_numero = preg_replace('/[^0-9]/', '', $config['whatsapp'] ?? '');
+// Adiciona código do país se não tiver
+if (strlen($whatsapp_numero) <= 11 && substr($whatsapp_numero, 0, 2) !== '55') {
+    $whatsapp_numero = '55' . $whatsapp_numero;
+}
+?>
         <a href="https://wa.me/<?php echo $whatsapp_numero; ?>?text=Olá! Fiz o pedido %23<?php echo $pedido['codigo_pedido']; ?>" target="_blank" class="btn btn-outline">
             <i class="fa-brands fa-whatsapp"></i> Falar no WhatsApp
         </a>

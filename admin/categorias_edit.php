@@ -1,6 +1,7 @@
 <?php
 require_once 'includes/header.php';
 require_once __DIR__ . '/../includes/image_optimization.php';
+require_once __DIR__ . '/../includes/csrf.php';
 
 // Migration: Adicionar coluna permite_meio_a_meio se não existir
 try {
@@ -8,20 +9,21 @@ try {
     if ($stmt->rowCount() == 0) {
         $pdo->exec("ALTER TABLE categorias ADD COLUMN permite_meio_a_meio TINYINT(1) DEFAULT 0");
     }
-    
+
     // Criar tabela de configuração de pizzas se não existir
     $pdo->exec("CREATE TABLE IF NOT EXISTS configuracao_pizzas (
         id INT AUTO_INCREMENT PRIMARY KEY,
         tipo_cobranca ENUM('maior_valor', 'media') DEFAULT 'maior_valor'
     )");
-    
+
     // Garantir registro inicial
     $check = $pdo->query("SELECT id FROM configuracao_pizzas LIMIT 1");
     if (!$check->fetch()) {
         $pdo->exec("INSERT INTO configuracao_pizzas (tipo_cobranca) VALUES ('maior_valor')");
     }
-} catch (Exception $e) {
-    // Silently handle
+}
+catch (Exception $e) {
+// Silently handle
 }
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -39,47 +41,56 @@ if (!$categoria) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nome = $_POST['nome'];
-    $ordem = (int)$_POST['ordem'];
-    $ativo = isset($_POST['ativo']) ? 1 : 0;
-    $permite_meio_a_meio = isset($_POST['permite_meio_a_meio']) ? 1 : 0;
-
-    // Upload de imagem
-    $imagem = $categoria['imagem']; // Manter imagem atual por padrão
-    if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === 0) {
-        $upload_dir = __DIR__ . '/../uploads/categorias/';
-        $file_base = $upload_dir . 'cat_' . time();
-        
-        // Comprimir e otimizar imagem
-        $compress_result = compressAndOptimizeImage($_FILES['imagem']['tmp_name'], $file_base, 75, 800, 800);
-        
-        if ($compress_result['success']) {
-            $imagem = $compress_result['file'];
-            $msg = 'Categoria atualizada! Imagem comprimida com redução de ' . $compress_result['compression_ratio'] . '%';
-            $msg_type = 'success';
-        } else {
-            $msg = 'Erro ao processar imagem: ' . $compress_result['error'];
-            $msg_type = 'danger';
-        }
-    }
-
-    $sql = "UPDATE categorias SET nome = ?, ordem = ?, ativo = ?, imagem = ?, permite_meio_a_meio = ? WHERE id = ?";
-    $params = [$nome, $ordem, $ativo, $imagem, $permite_meio_a_meio, $id];
-    
-    try {
-        $stmt = $pdo->prepare($sql);
-        if ($stmt->execute($params)) {
-            // Redirect to list with success message
-            echo "<script>window.location.href = 'categorias.php?mensagem=Categoria atualizada com sucesso!&tipo=success';</script>";
-            exit;
-        } else {
-            $msg = 'Erro ao atualizar categoria.';
-            $msg_type = 'danger';
-        }
-    } catch (PDOException $e) {
-        $msg = 'Erro no banco de dados: ' . $e->getMessage();
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
         $msg_type = 'danger';
     }
+    else {
+        $nome = $_POST['nome'];
+        $ordem = (int)$_POST['ordem'];
+        $ativo = isset($_POST['ativo']) ? 1 : 0;
+        $permite_meio_a_meio = isset($_POST['permite_meio_a_meio']) ? 1 : 0;
+
+        // Upload de imagem
+        $imagem = $categoria['imagem']; // Manter imagem atual por padrão
+        if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === 0) {
+            $upload_dir = __DIR__ . '/../uploads/categorias/';
+            $file_base = $upload_dir . 'cat_' . time();
+
+            // Comprimir e otimizar imagem
+            $compress_result = compressAndOptimizeImage($_FILES['imagem']['tmp_name'], $file_base, 75, 800, 800);
+
+            if ($compress_result['success']) {
+                $imagem = $compress_result['file'];
+                $msg = 'Categoria atualizada! Imagem comprimida com redução de ' . $compress_result['compression_ratio'] . '%';
+                $msg_type = 'success';
+            }
+            else {
+                $msg = 'Erro ao processar imagem: ' . $compress_result['error'];
+                $msg_type = 'danger';
+            }
+        }
+
+        $sql = "UPDATE categorias SET nome = ?, ordem = ?, ativo = ?, imagem = ?, permite_meio_a_meio = ? WHERE id = ?";
+        $params = [$nome, $ordem, $ativo, $imagem, $permite_meio_a_meio, $id];
+
+        try {
+            $stmt = $pdo->prepare($sql);
+            if ($stmt->execute($params)) {
+                // Redirect to list with success message
+                echo "<script>window.location.href = 'categorias.php?mensagem=Categoria atualizada com sucesso!&tipo=success';</script>";
+                exit;
+            }
+            else {
+                $msg = 'Erro ao atualizar categoria.';
+                $msg_type = 'danger';
+            }
+        }
+        catch (PDOException $e) {
+            $msg = 'Erro no banco de dados: ' . $e->getMessage();
+            $msg_type = 'danger';
+        }
+    } // fecha else validar_csrf
 }
 ?>
 
@@ -107,11 +118,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php echo htmlspecialchars($msg); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <div class="card h-100 p-0 radius-12">
         <div class="card-body p-24">
             <form method="POST" enctype="multipart/form-data">
+                <?php echo campo_csrf(); ?>
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold text-primary-light text-sm mb-8">Nome da Categoria</label>
@@ -126,21 +139,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="col-md-12">
                         <label class="form-label fw-semibold text-primary-light text-sm mb-8">Imagem</label>
                         <input type="file" class="form-control radius-8" name="imagem" accept="image/*">
-                        <?php if ($categoria['imagem']): 
-                            // O caminho no banco é relativo à raiz (ex: uploads/categorias/xxx.jpg)
-                            // Estamos em /admin, então precisamos subir um nível
-                            $img_src = str_replace('admin/', '', $categoria['imagem']);
-                            if (!str_starts_with($img_src, 'http') && !str_starts_with($img_src, '../')) {
-                                $img_src = '../' . $img_src;
-                            }
-                        ?>
+                        <?php if ($categoria['imagem']):
+    // O caminho no banco é relativo à raiz (ex: uploads/categorias/xxx.jpg)
+    // Estamos em /admin, então precisamos subir um nível
+    $img_src = str_replace('admin/', '', $categoria['imagem']);
+    if (!str_starts_with($img_src, 'http') && !str_starts_with($img_src, '../')) {
+        $img_src = '../' . $img_src;
+    }
+?>
                             <div class="mt-2">
                                 <small class="text-secondary-light">Imagem atual:</small><br>
                                 <img src="<?php echo htmlspecialchars($img_src); ?>" 
                                      style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; margin-top: 5px;"
                                      onerror="this.style.display='none'">
                             </div>
-                        <?php endif; ?>
+                        <?php
+endif; ?>
                     </div>
                     
                     <div class="col-md-6">
@@ -152,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     <div class="col-md-6">
                         <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" role="switch" id="permite_meio_a_meio" name="permite_meio_a_meio" <?php echo ($categoria['permite_meio_a_meio'] ?? 0) ? 'checked' : ''; ?>>
+                            <input class="form-check-input" type="checkbox" role="switch" id="permite_meio_a_meio" name="permite_meio_a_meio" <?php echo($categoria['permite_meio_a_meio'] ?? 0) ? 'checked' : ''; ?>>
                             <label class="form-check-label fw-medium text-secondary-light" for="permite_meio_a_meio">
                                 🍕 Permite Pizza Meio a Meio
                             </label>

@@ -5,31 +5,32 @@
  */
 
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
+$allowed_origin = defined('SITE_URL') ? SITE_URL : '*';
+header("Access-Control-Allow-Origin: $allowed_origin");
 
 require_once __DIR__ . '/../includes/config.php';
 
 try {
     $telefone = filter_input(INPUT_GET, 'telefone', FILTER_SANITIZE_STRING);
-    
+
     if (!$telefone) {
         echo json_encode(['sucesso' => false, 'erro' => 'Telefone não informado']);
         exit;
     }
-    
+
     // Limpar telefone (remover formatação)
     $telefone = preg_replace('/\D/', '', $telefone);
-    
+
     // Buscar cliente pelo telefone
     $stmt = $pdo->prepare("SELECT id FROM clientes WHERE REPLACE(REPLACE(REPLACE(REPLACE(telefone, '(', ''), ')', ''), '-', ''), ' ', '') = ?");
     $stmt->execute([$telefone]);
     $cliente = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if (!$cliente) {
         echo json_encode(['sucesso' => true, 'enderecos' => [], 'mensagem' => 'Cliente não encontrado']);
         exit;
     }
-    
+
     // Buscar endereços do cliente
     $stmt = $pdo->prepare("
         SELECT id, apelido, cep, rua, numero, complemento, bairro, cidade, estado, principal
@@ -39,7 +40,7 @@ try {
     ");
     $stmt->execute([$cliente['id']]);
     $enderecos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     // Formatar endereços para exibição
     foreach ($enderecos as &$end) {
         $end['endereco_completo'] = trim(
@@ -50,14 +51,16 @@ try {
         );
         $end['principal'] = (bool)$end['principal'];
     }
-    
+
     echo json_encode([
         'sucesso' => true,
         'cliente_id' => $cliente['id'],
         'enderecos' => $enderecos,
         'total' => count($enderecos)
     ]);
-    
-} catch (PDOException $e) {
+
+
+}
+catch (PDOException $e) {
     echo json_encode(['sucesso' => false, 'erro' => 'Erro ao buscar endereços: ' . $e->getMessage()]);
 }

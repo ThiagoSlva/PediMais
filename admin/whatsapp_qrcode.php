@@ -2,6 +2,7 @@
 include 'includes/auth.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+require_once '../includes/csrf.php';
 
 verificar_login();
 
@@ -14,7 +15,8 @@ $apikey = $config['apikey'] ?? '';
 $instance_name = $config['instance_name'] ?? '';
 
 // Helper para chamadas API
-function evolution_request($endpoint, $method = 'GET', $data = [], $base_url, $apikey) {
+function evolution_request($endpoint, $method = 'GET', $data = [], $base_url, $apikey)
+{
     $url = rtrim($base_url, '/') . $endpoint;
     $headers = [
         'Content-Type: application/json',
@@ -25,11 +27,12 @@ function evolution_request($endpoint, $method = 'GET', $data = [], $base_url, $a
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    
+
     if ($method === 'POST') {
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    } elseif ($method === 'DELETE') {
+    }
+    elseif ($method === 'DELETE') {
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
     }
 
@@ -47,9 +50,13 @@ $msg_tipo = '';
 
 // Ações
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if (isset($_POST['acao']) && $_POST['acao'] == 'criar_instancia') {
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_tipo = 'danger';
+    }
+    elseif (isset($_POST['acao']) && $_POST['acao'] == 'criar_instancia') {
         $novo_nome = $_POST['nome_instancia'] ?: 'cardapix_' . uniqid();
-        
+
         $res = evolution_request('/instance/create', 'POST', [
             'instanceName' => $novo_nome,
             'qrcode' => true,
@@ -61,18 +68,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $stmt = $pdo->prepare("UPDATE whatsapp_config SET instance_name = ? WHERE id = ?");
             $stmt->execute([$novo_nome, $config['id']]);
             $instance_name = $novo_nome;
-            
+
             // Se retornou QR Code direto
             if (isset($res['body']['qrcode']['base64'])) {
                 $qrcode_base64 = $res['body']['qrcode']['base64'];
             }
             $msg = 'Instância criada com sucesso!';
             $msg_tipo = 'success';
-        } else {
+        }
+        else {
             $msg = 'Erro ao criar instância: ' . ($res['body']['message'] ?? 'Erro desconhecido');
             $msg_tipo = 'danger';
         }
-    } elseif (isset($_POST['acao']) && $_POST['acao'] == 'logout') {
+    }
+    elseif (isset($_POST['acao']) && $_POST['acao'] == 'logout') {
         $res = evolution_request("/instance/logout/$instance_name", 'DELETE', [], $base_url, $apikey);
         $msg = 'Desconectado com sucesso.';
         $msg_tipo = 'warning';
@@ -83,15 +92,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 if ($base_url && $apikey && $instance_name) {
     // 1. Verificar Status da Conexão
     $res = evolution_request("/instance/connectionState/$instance_name", 'GET', [], $base_url, $apikey);
-    
+
     if ($res['code'] == 200) {
         $state = $res['body']['instance']['state'] ?? 'close';
-        
+
         if ($state === 'open') {
             $status = 'conectado';
-        } elseif ($state === 'close' || $state === 'connecting') {
+        }
+        elseif ($state === 'close' || $state === 'connecting') {
             $status = 'desconectado';
-            
+
             // 2. Buscar QR Code (se não tiver vindo da criação)
             if (empty($qrcode_base64)) {
                 $res_qr = evolution_request("/instance/connect/$instance_name", 'GET', [], $base_url, $apikey);
@@ -100,7 +110,8 @@ if ($base_url && $apikey && $instance_name) {
                 }
             }
         }
-    } else {
+    }
+    else {
         $status = 'erro_api';
         $msg = 'Erro ao verificar status da instância. Verifique a URL e API Key.';
         $msg_tipo = 'danger';
@@ -130,7 +141,8 @@ include 'includes/header.php';
         <?php echo $msg; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <div class="row gy-4">
         <!-- Configuração -->
@@ -145,11 +157,14 @@ include 'includes/header.php';
                     <p><strong>Status:</strong> 
                         <?php if ($status == 'conectado'): ?>
                             <span class="badge bg-success">Conectado</span>
-                        <?php elseif ($status == 'desconectado'): ?>
+                        <?php
+elseif ($status == 'desconectado'): ?>
                             <span class="badge bg-warning">Desconectado</span>
-                        <?php else: ?>
+                        <?php
+else: ?>
                             <span class="badge bg-danger">Erro/Desconhecido</span>
-                        <?php endif; ?>
+                        <?php
+endif; ?>
                     </p>
                     
                     <div class="mt-4">
@@ -160,13 +175,15 @@ include 'includes/header.php';
                         
                         <?php if ($status == 'conectado'): ?>
                         <form method="POST">
+                            <?php echo campo_csrf(); ?>
                             <input type="hidden" name="acao" value="logout">
                             <button type="submit" class="btn btn-danger w-100">
                                 <iconify-icon icon="solar:logout-3-bold-duotone"></iconify-icon>
                                 Desconectar
                             </button>
                         </form>
-                        <?php endif; ?>
+                        <?php
+endif; ?>
                     </div>
                 </div>
             </div>
@@ -186,12 +203,14 @@ include 'includes/header.php';
                         <p class="text-secondary-light">Configure a URL e o Token da Evolution API primeiro.</p>
                         <a href="whatsapp_config.php" class="btn btn-primary">Ir para Configurações</a>
 
-                    <?php elseif (!$instance_name): ?>
+                    <?php
+elseif (!$instance_name): ?>
                         <iconify-icon icon="logos:whatsapp-icon" class="text-6xl mb-3" style="font-size: 4rem;"></iconify-icon>
                         <h5>Nenhuma Instância Criada</h5>
                         <p class="text-secondary-light">Crie uma instância para gerar o QR Code.</p>
                         
                         <form method="POST" class="w-100 max-w-sm" style="max-width: 300px;">
+                            <?php echo campo_csrf(); ?>
                             <input type="hidden" name="acao" value="criar_instancia">
                             <div class="mb-3 text-start">
                                 <label class="form-label">Nome da Instância (Opcional)</label>
@@ -202,12 +221,14 @@ include 'includes/header.php';
                             </button>
                         </form>
 
-                    <?php elseif ($status == 'conectado'): ?>
+                    <?php
+elseif ($status == 'conectado'): ?>
                         <iconify-icon icon="solar:check-circle-bold-duotone" class="text-success text-6xl mb-3" style="font-size: 5rem;"></iconify-icon>
                         <h4 class="text-success">WhatsApp Conectado!</h4>
                         <p class="text-secondary-light">O sistema está pronto para enviar mensagens.</p>
 
-                    <?php elseif ($qrcode_base64): ?>
+                    <?php
+elseif ($qrcode_base64): ?>
                         <h5 class="mb-3">Escaneie o QR Code</h5>
                         <div class="p-3 bg-white border radius-8 d-inline-block">
                             <img src="<?php echo $qrcode_base64; ?>" alt="QR Code WhatsApp" style="max-width: 250px;">
@@ -220,7 +241,8 @@ include 'includes/header.php';
                             }, 10000);
                         </script>
 
-                    <?php else: ?>
+                    <?php
+else: ?>
                         <div class="spinner-border text-primary mb-3" role="status"></div>
                         <h5>Carregando...</h5>
                         <p class="text-secondary-light">Buscando QR Code ou status da conexão.</p>
@@ -229,7 +251,8 @@ include 'includes/header.php';
                                 window.location.reload();
                             }, 3000);
                         </script>
-                    <?php endif; ?>
+                    <?php
+endif; ?>
 
                 </div>
             </div>

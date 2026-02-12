@@ -4,7 +4,8 @@
  * Usado pelo CardapiX Desktop Printer
  */
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+$allowed_origin = defined('SITE_URL') ? SITE_URL : '*';
+header("Access-Control-Allow-Origin: $allowed_origin");
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Authorization, Content-Type');
 
@@ -48,14 +49,18 @@ if (!$pedido_id) {
 try {
     $stmt = $pdo->prepare("UPDATE pedidos SET impresso = 1, data_impressao = NOW() WHERE id = ?");
     $stmt->execute([$pedido_id]);
-    
+
     if ($stmt->rowCount() > 0) {
         echo json_encode(['success' => true, 'message' => 'Pedido marcado como impresso']);
-    } else {
+    }
+    else {
         echo json_encode(['success' => false, 'error' => 'Pedido não encontrado']);
     }
-    
-} catch (Exception $e) {
+
+
+}
+catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    error_log('Erro mark_printed: ' . $e->getMessage());
+    echo json_encode(['success' => false, 'error' => 'Erro interno. Tente novamente.']);
 }

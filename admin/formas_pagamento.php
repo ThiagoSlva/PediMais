@@ -2,6 +2,7 @@
 include 'includes/auth.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+require_once '../includes/csrf.php';
 
 verificar_login();
 
@@ -20,51 +21,61 @@ try {
         ordem INT DEFAULT 0,
         ativo TINYINT(1) DEFAULT 1
     )");
-} catch (PDOException $e) {
-    // Table might already exist
+}
+catch (PDOException $e) {
+// Table might already exist
 }
 
 // Process Form Submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    try {
-        if (isset($_POST['acao'])) {
-            $acao = $_POST['acao'];
-            
-            if ($acao == 'salvar') {
-                $id = (int)$_POST['id'];
-                $nome = $_POST['nome'];
-                $tipo = $_POST['tipo'];
-                $aceita_troco = isset($_POST['aceita_troco']) ? 1 : 0;
-                $chave_pix = $_POST['chave_pix'] ?? '';
-                $icone = $_POST['icone'];
-                $ordem = (int)$_POST['ordem'];
-                $ativo = isset($_POST['ativo']) ? 1 : 0;
-                
-                if ($id > 0) {
-                    // Update
-                    $stmt = $pdo->prepare("UPDATE formas_pagamento SET nome = ?, tipo = ?, aceita_troco = ?, chave_pix = ?, icone = ?, ordem = ?, ativo = ? WHERE id = ?");
-                    $stmt->execute([$nome, $tipo, $aceita_troco, $chave_pix, $icone, $ordem, $ativo, $id]);
-                    $msg = 'Forma de pagamento atualizada com sucesso!';
-                } else {
-                    // Insert
-                    $stmt = $pdo->prepare("INSERT INTO formas_pagamento (nome, tipo, aceita_troco, chave_pix, icone, ordem, ativo) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                    $stmt->execute([$nome, $tipo, $aceita_troco, $chave_pix, $icone, $ordem, $ativo]);
-                    $msg = 'Forma de pagamento adicionada com sucesso!';
-                }
-                $msg_tipo = 'success';
-                
-            } elseif ($acao == 'deletar') {
-                $id = (int)$_POST['id'];
-                $stmt = $pdo->prepare("DELETE FROM formas_pagamento WHERE id = ?");
-                $stmt->execute([$id]);
-                $msg = 'Forma de pagamento excluída!';
-                $msg_tipo = 'success';
-            }
-        }
-    } catch (PDOException $e) {
-        $msg = 'Erro ao salvar: ' . $e->getMessage();
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
         $msg_tipo = 'danger';
     }
+    else {
+        try {
+            if (isset($_POST['acao'])) {
+                $acao = $_POST['acao'];
+
+                if ($acao == 'salvar') {
+                    $id = (int)$_POST['id'];
+                    $nome = $_POST['nome'];
+                    $tipo = $_POST['tipo'];
+                    $aceita_troco = isset($_POST['aceita_troco']) ? 1 : 0;
+                    $chave_pix = $_POST['chave_pix'] ?? '';
+                    $icone = $_POST['icone'];
+                    $ordem = (int)$_POST['ordem'];
+                    $ativo = isset($_POST['ativo']) ? 1 : 0;
+
+                    if ($id > 0) {
+                        // Update
+                        $stmt = $pdo->prepare("UPDATE formas_pagamento SET nome = ?, tipo = ?, aceita_troco = ?, chave_pix = ?, icone = ?, ordem = ?, ativo = ? WHERE id = ?");
+                        $stmt->execute([$nome, $tipo, $aceita_troco, $chave_pix, $icone, $ordem, $ativo, $id]);
+                        $msg = 'Forma de pagamento atualizada com sucesso!';
+                    }
+                    else {
+                        // Insert
+                        $stmt = $pdo->prepare("INSERT INTO formas_pagamento (nome, tipo, aceita_troco, chave_pix, icone, ordem, ativo) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                        $stmt->execute([$nome, $tipo, $aceita_troco, $chave_pix, $icone, $ordem, $ativo]);
+                        $msg = 'Forma de pagamento adicionada com sucesso!';
+                    }
+                    $msg_tipo = 'success';
+
+                }
+                elseif ($acao == 'deletar') {
+                    $id = (int)$_POST['id'];
+                    $stmt = $pdo->prepare("DELETE FROM formas_pagamento WHERE id = ?");
+                    $stmt->execute([$id]);
+                    $msg = 'Forma de pagamento excluída!';
+                    $msg_tipo = 'success';
+                }
+            }
+        }
+        catch (PDOException $e) {
+            $msg = 'Erro ao salvar: ' . $e->getMessage();
+            $msg_tipo = 'danger';
+        }
+    } // fecha else validar_csrf
 }
 
 // Fetch Data for Edit
@@ -103,7 +114,8 @@ include 'includes/header.php';
         <?php echo $msg; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <style>
     /* Dark mode support */
@@ -147,6 +159,7 @@ include 'includes/header.php';
                 </div>
                 <div class="card-body p-24">
                     <form method="POST" action="formas_pagamento.php">
+                        <?php echo campo_csrf(); ?>
                         <input type="hidden" name="acao" value="salvar">
                         <input type="hidden" name="id" value="<?php echo $edit_data ? $edit_data['id'] : '0'; ?>">
                         
@@ -159,18 +172,18 @@ include 'includes/header.php';
                         <div class="mb-20">
                             <label class="form-label fw-semibold">Tipo</label>
                             <select class="form-select" name="tipo" id="tipo" onchange="toggleCamposEspecificos()">
-                                <option value="dinheiro" <?php echo ($edit_data && $edit_data['tipo'] == 'dinheiro') ? 'selected' : ''; ?>>Dinheiro</option>
-                                <option value="credito" <?php echo ($edit_data && $edit_data['tipo'] == 'credito') ? 'selected' : ''; ?>>Cartão de Crédito</option>
-                                <option value="debito" <?php echo ($edit_data && $edit_data['tipo'] == 'debito') ? 'selected' : ''; ?>>Cartão de Débito</option>
-                                <option value="pix" <?php echo ($edit_data && $edit_data['tipo'] == 'pix') ? 'selected' : ''; ?>>PIX</option>
-                                <option value="outro" <?php echo ($edit_data && $edit_data['tipo'] == 'outro') ? 'selected' : ''; ?>>Outro</option>
+                                <option value="dinheiro" <?php echo($edit_data && $edit_data['tipo'] == 'dinheiro') ? 'selected' : ''; ?>>Dinheiro</option>
+                                <option value="credito" <?php echo($edit_data && $edit_data['tipo'] == 'credito') ? 'selected' : ''; ?>>Cartão de Crédito</option>
+                                <option value="debito" <?php echo($edit_data && $edit_data['tipo'] == 'debito') ? 'selected' : ''; ?>>Cartão de Débito</option>
+                                <option value="pix" <?php echo($edit_data && $edit_data['tipo'] == 'pix') ? 'selected' : ''; ?>>PIX</option>
+                                <option value="outro" <?php echo($edit_data && $edit_data['tipo'] == 'outro') ? 'selected' : ''; ?>>Outro</option>
                             </select>
                         </div>
                         
                         <div class="mb-20" id="campo-troco" style="display: none;">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="aceita_troco" id="aceita_troco" 
-                                       <?php echo ($edit_data && $edit_data['aceita_troco']) ? 'checked' : ''; ?>>
+                                       <?php echo($edit_data && $edit_data['aceita_troco']) ? 'checked' : ''; ?>>
                                 <label class="form-check-label">Aceita Troco? (opcional para cliente)</label>
                             </div>
                         </div>
@@ -209,7 +222,7 @@ include 'includes/header.php';
                         <div class="mb-20">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="ativo" 
-                                       <?php echo (!$edit_data || $edit_data['ativo']) ? 'checked' : ''; ?>>
+                                       <?php echo(!$edit_data || $edit_data['ativo']) ? 'checked' : ''; ?>>
                                 <label class="form-check-label">Ativo</label>
                             </div>
                         </div>
@@ -221,7 +234,8 @@ include 'includes/header.php';
                             </button>
                             <?php if ($edit_data): ?>
                                 <a href="formas_pagamento.php" class="btn btn-outline-secondary">Cancelar</a>
-                            <?php endif; ?>
+                            <?php
+endif; ?>
                         </div>
                     </form>
                 </div>
@@ -273,14 +287,17 @@ include 'includes/header.php';
                                                 <iconify-icon icon="solar:check-circle-bold" style="font-size: 14px; color: #10b981;"></iconify-icon>
                                                 <small class="text-success">Aceita troco</small>
                                             </div>
-                                        <?php elseif ($f['tipo'] == 'pix' && !empty($f['chave_pix'])): ?>
+                                        <?php
+    elseif ($f['tipo'] == 'pix' && !empty($f['chave_pix'])): ?>
                                             <div class="d-flex align-items-center gap-1">
                                                 <iconify-icon icon="solar:qr-code-bold" style="font-size: 14px;"></iconify-icon>
                                                 <small class="text-primary text-truncate" style="max-width: 150px;"><?php echo htmlspecialchars($f['chave_pix']); ?></small>
                                             </div>
-                                        <?php else: ?>
+                                        <?php
+    else: ?>
                                             <span class="text-secondary-light">—</span>
-                                        <?php endif; ?>
+                                        <?php
+    endif; ?>
                                     </td>
                                     <td>
                                         <?php if ($f['ativo']): ?>
@@ -288,12 +305,14 @@ include 'includes/header.php';
                                                 <iconify-icon icon="solar:check-circle-bold" style="font-size: 12px;"></iconify-icon>
                                                 Ativo
                                             </span>
-                                        <?php else: ?>
+                                        <?php
+    else: ?>
                                             <span class="badge bg-danger-focus text-danger-main d-inline-flex align-items-center gap-1">
                                                 <iconify-icon icon="solar:close-circle-bold" style="font-size: 12px;"></iconify-icon>
                                                 Inativo
                                             </span>
-                                        <?php endif; ?>
+                                        <?php
+    endif; ?>
                                     </td>
                                     <td>
                                         <div class="d-flex gap-2 justify-content-end">
@@ -301,6 +320,7 @@ include 'includes/header.php';
                                                 <iconify-icon icon="solar:pen-bold" style="font-size: 16px; line-height: 1;"></iconify-icon>
                                             </a>
                                             <form method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir esta forma de pagamento?')">
+                                                <?php echo campo_csrf(); ?>
                                                 <input type="hidden" name="acao" value="deletar">
                                                 <input type="hidden" name="id" value="<?php echo $f['id']; ?>">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center" title="Excluir" style="width: 36px; height: 36px; padding: 0;">
@@ -310,7 +330,8 @@ include 'includes/header.php';
                                         </div>
                                     </td>
                                 </tr>
-                                <?php endforeach; ?>
+                                <?php
+endforeach; ?>
                             </tbody>
                         </table>
                     </div>

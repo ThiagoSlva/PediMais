@@ -1,14 +1,17 @@
 <?php
+require_once __DIR__ . '/../../includes/security_headers.php';
 session_start();
 
-function verificar_login_cliente() {
+function verificar_login_cliente()
+{
     if (!isset($_SESSION['cliente_id'])) {
         header('Location: login.php');
         exit;
     }
 }
 
-function get_cliente_atual() {
+function get_cliente_atual()
+{
     if (isset($_SESSION['cliente_id'])) {
         return [
             'id' => $_SESSION['cliente_id'],

@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/header.php';
+require_once __DIR__ . '/../includes/csrf.php';
 verificar_permissao();
 
 $msg = '';
@@ -25,8 +26,9 @@ try {
         $pdo->exec("INSERT IGNORE INTO ai_config (id, provider, gemini_api_key, gemini_modelo, ativo) 
                     SELECT 1, 'gemini', api_key, COALESCE(modelo, 'gemini-2.0-flash'), ativo FROM gemini_config WHERE id = 1");
     }
-} catch (PDOException $e) {
-    // Old table doesn't exist, ignore
+}
+catch (PDOException $e) {
+// Old table doesn't exist, ignore
 }
 
 // Insert default row if not exists
@@ -51,25 +53,32 @@ $openai_modelos = [
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $provider = $_POST['provider'] ?? 'gemini';
-    $gemini_api_key = trim($_POST['gemini_api_key'] ?? '');
-    $gemini_modelo = trim($_POST['gemini_modelo'] ?? 'gemini-2.0-flash');
-    $openai_api_key = trim($_POST['openai_api_key'] ?? '');
-    $openai_modelo = trim($_POST['openai_modelo'] ?? 'gpt-4o-mini');
-    $ativo = isset($_POST['ativo']) ? 1 : 0;
-    
-    try {
-        $stmt = $pdo->prepare("UPDATE ai_config SET 
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_type = 'danger';
+    }
+    else {
+        $provider = $_POST['provider'] ?? 'gemini';
+        $gemini_api_key = trim($_POST['gemini_api_key'] ?? '');
+        $gemini_modelo = trim($_POST['gemini_modelo'] ?? 'gemini-2.0-flash');
+        $openai_api_key = trim($_POST['openai_api_key'] ?? '');
+        $openai_modelo = trim($_POST['openai_modelo'] ?? 'gpt-4o-mini');
+        $ativo = isset($_POST['ativo']) ? 1 : 0;
+
+        try {
+            $stmt = $pdo->prepare("UPDATE ai_config SET 
             provider = ?, gemini_api_key = ?, gemini_modelo = ?, 
             openai_api_key = ?, openai_modelo = ?, ativo = ? 
             WHERE id = 1");
-        $stmt->execute([$provider, $gemini_api_key, $gemini_modelo, $openai_api_key, $openai_modelo, $ativo]);
-        $msg = 'Configurações salvas com sucesso!';
-        $msg_type = 'success';
-    } catch (PDOException $e) {
-        $msg = 'Erro ao salvar: ' . $e->getMessage();
-        $msg_type = 'danger';
-    }
+            $stmt->execute([$provider, $gemini_api_key, $gemini_modelo, $openai_api_key, $openai_modelo, $ativo]);
+            $msg = 'Configurações salvas com sucesso!';
+            $msg_type = 'success';
+        }
+        catch (PDOException $e) {
+            $msg = 'Erro ao salvar: ' . $e->getMessage();
+            $msg_type = 'danger';
+        }
+    } // fecha else validar_csrf
 }
 
 // Load current config
@@ -140,16 +149,18 @@ $config = $pdo->query("SELECT * FROM ai_config WHERE id = 1")->fetch(PDO::FETCH_
         <?php echo htmlspecialchars($msg); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <form method="POST">
+        <?php echo campo_csrf(); ?>
         <!-- Provider Selection -->
         <div class="row mb-4">
             <div class="col-12">
                 <h6 class="fw-semibold mb-3">Escolha o Provedor de IA</h6>
             </div>
             <div class="col-md-6 mb-3">
-                <div class="provider-card <?php echo ($config['provider'] ?? 'gemini') === 'gemini' ? 'active' : ''; ?>" 
+                <div class="provider-card <?php echo($config['provider'] ?? 'gemini') === 'gemini' ? 'active' : ''; ?>" 
                      onclick="selectProvider('gemini')">
                     <div class="text-center">
                         <iconify-icon icon="ri:gemini-fill" class="provider-icon gemini-gradient"></iconify-icon>
@@ -161,7 +172,7 @@ $config = $pdo->query("SELECT * FROM ai_config WHERE id = 1")->fetch(PDO::FETCH_
                 </div>
             </div>
             <div class="col-md-6 mb-3">
-                <div class="provider-card <?php echo ($config['provider'] ?? '') === 'openai' ? 'active' : ''; ?>" 
+                <div class="provider-card <?php echo($config['provider'] ?? '') === 'openai' ? 'active' : ''; ?>" 
                      onclick="selectProvider('openai')">
                     <div class="text-center">
                         <iconify-icon icon="simple-icons:openai" class="provider-icon openai-color"></iconify-icon>
@@ -179,7 +190,7 @@ $config = $pdo->query("SELECT * FROM ai_config WHERE id = 1")->fetch(PDO::FETCH_
         <div class="row">
             <div class="col-lg-8">
                 <!-- Gemini Settings -->
-                <div class="card radius-12 mb-4 provider-settings <?php echo ($config['provider'] ?? 'gemini') === 'gemini' ? 'active' : ''; ?>" id="gemini-settings">
+                <div class="card radius-12 mb-4 provider-settings <?php echo($config['provider'] ?? 'gemini') === 'gemini' ? 'active' : ''; ?>" id="gemini-settings">
                     <div class="card-header border-bottom bg-base py-16 px-24">
                         <h6 class="text-lg fw-semibold mb-0">
                             <iconify-icon icon="ri:gemini-fill" class="gemini-gradient me-2"></iconify-icon>
@@ -202,10 +213,11 @@ $config = $pdo->query("SELECT * FROM ai_config WHERE id = 1")->fetch(PDO::FETCH_
                             <label class="form-label fw-semibold text-primary-light text-sm mb-8">Modelo</label>
                             <select class="form-select radius-8" name="gemini_modelo" id="gemini_modelo">
                                 <?php foreach ($gemini_modelos as $value => $label): ?>
-                                <option value="<?php echo $value; ?>" <?php echo ($config['gemini_modelo'] ?? '') === $value ? 'selected' : ''; ?>>
+                                <option value="<?php echo $value; ?>" <?php echo($config['gemini_modelo'] ?? '') === $value ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($label); ?>
                                 </option>
-                                <?php endforeach; ?>
+                                <?php
+endforeach; ?>
                             </select>
                         </div>
                         <button type="button" class="btn btn-outline-info radius-8" onclick="testConnection('gemini')">
@@ -216,7 +228,7 @@ $config = $pdo->query("SELECT * FROM ai_config WHERE id = 1")->fetch(PDO::FETCH_
                 </div>
 
                 <!-- OpenAI Settings -->
-                <div class="card radius-12 mb-4 provider-settings <?php echo ($config['provider'] ?? '') === 'openai' ? 'active' : ''; ?>" id="openai-settings">
+                <div class="card radius-12 mb-4 provider-settings <?php echo($config['provider'] ?? '') === 'openai' ? 'active' : ''; ?>" id="openai-settings">
                     <div class="card-header border-bottom bg-base py-16 px-24">
                         <h6 class="text-lg fw-semibold mb-0">
                             <iconify-icon icon="simple-icons:openai" class="openai-color me-2"></iconify-icon>
@@ -239,10 +251,11 @@ $config = $pdo->query("SELECT * FROM ai_config WHERE id = 1")->fetch(PDO::FETCH_
                             <label class="form-label fw-semibold text-primary-light text-sm mb-8">Modelo</label>
                             <select class="form-select radius-8" name="openai_modelo" id="openai_modelo">
                                 <?php foreach ($openai_modelos as $value => $label): ?>
-                                <option value="<?php echo $value; ?>" <?php echo ($config['openai_modelo'] ?? '') === $value ? 'selected' : ''; ?>>
+                                <option value="<?php echo $value; ?>" <?php echo($config['openai_modelo'] ?? '') === $value ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($label); ?>
                                 </option>
-                                <?php endforeach; ?>
+                                <?php
+endforeach; ?>
                             </select>
                         </div>
                         <button type="button" class="btn btn-outline-info radius-8" onclick="testConnection('openai')">
@@ -257,7 +270,7 @@ $config = $pdo->query("SELECT * FROM ai_config WHERE id = 1")->fetch(PDO::FETCH_
                     <div class="card-body p-24">
                         <div class="form-check form-switch mb-20">
                             <input class="form-check-input" type="checkbox" id="ativo" name="ativo" 
-                                   <?php echo ($config['ativo'] ?? 1) ? 'checked' : ''; ?>>
+                                   <?php echo($config['ativo'] ?? 1) ? 'checked' : ''; ?>>
                             <label class="form-check-label fw-medium" for="ativo">
                                 Integração de IA Ativa
                             </label>

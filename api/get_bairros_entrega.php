@@ -5,7 +5,8 @@
  */
 
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
+$allowed_origin = defined('SITE_URL') ? SITE_URL : '*';
+header("Access-Control-Allow-Origin: $allowed_origin");
 
 require_once '../includes/config.php';
 
@@ -13,7 +14,7 @@ try {
     // Buscar configuração de entrega
     $stmt = $pdo->query("SELECT * FROM configuracao_entrega LIMIT 1");
     $config = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if (!$config) {
         // Configuração padrão se não existir
         $config = [
@@ -27,11 +28,11 @@ try {
             'taxa_retirada' => 0
         ];
     }
-    
+
     // Buscar cidades ativas
     $stmt = $pdo->query("SELECT * FROM cidades WHERE ativo = 1 ORDER BY nome ASC");
     $cidades = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     // Buscar bairros ativos
     $stmt = $pdo->query("
         SELECT b.*, c.nome as cidade_nome, c.estado as cidade_estado 
@@ -41,31 +42,31 @@ try {
         ORDER BY c.nome ASC, b.nome ASC
     ");
     $bairros = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     // Organizar bairros por cidade
     $cidades_com_bairros = [];
     foreach ($cidades as $cidade) {
-        $bairros_cidade = array_filter($bairros, function($b) use ($cidade) {
+        $bairros_cidade = array_filter($bairros, function ($b) use ($cidade) {
             return (int)$b['cidade_id'] === (int)$cidade['id'];
         });
-        
+
         if (!empty($bairros_cidade)) {
             $cidades_com_bairros[] = [
                 'id' => $cidade['id'],
                 'nome' => $cidade['nome'],
                 'estado' => $cidade['estado'],
-                'bairros' => array_values(array_map(function($b) {
-                    return [
-                        'id' => $b['id'],
-                        'nome' => $b['nome'],
-                        'valor_entrega' => floatval($b['valor_entrega']),
-                        'gratis_acima_de' => $b['gratis_acima_de'] ? floatval($b['gratis_acima_de']) : null
-                    ];
-                }, $bairros_cidade))
+                'bairros' => array_values(array_map(function ($b) {
+                return [
+                'id' => $b['id'],
+                'nome' => $b['nome'],
+                'valor_entrega' => floatval($b['valor_entrega']),
+                'gratis_acima_de' => $b['gratis_acima_de'] ? floatval($b['gratis_acima_de']) : null
+                ];
+            }, $bairros_cidade))
             ];
         }
     }
-    
+
     echo json_encode([
         'sucesso' => true,
         'config' => [
@@ -82,8 +83,10 @@ try {
         'total_cidades' => count($cidades_com_bairros),
         'total_bairros' => count($bairros)
     ], JSON_UNESCAPED_UNICODE);
-    
-} catch (Exception $e) {
+
+
+}
+catch (Exception $e) {
     echo json_encode([
         'sucesso' => false,
         'erro' => 'Erro ao buscar bairros: ' . $e->getMessage()

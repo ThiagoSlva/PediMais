@@ -1,54 +1,69 @@
 <?php
 require_once '../includes/config.php';
+require_once '../includes/validar_senha.php';
+require_once '../includes/csrf.php';
 session_start();
 
 $erro = '';
 $sucesso = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $nome = trim($_POST['nome'] ?? '');
-    $email = trim($_POST['email'] ?? '');
-    $telefone = trim($_POST['telefone'] ?? '');
-    $senha = $_POST['senha'] ?? '';
-    $confirmar_senha = $_POST['confirmar_senha'] ?? '';
+    if (!validar_csrf()) {
+        $erro = 'Token de segurança inválido. Recarregue a página.';
+    }
+    else {
+        $nome = trim($_POST['nome'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $telefone = trim($_POST['telefone'] ?? '');
+        $senha = $_POST['senha'] ?? '';
+        $confirmar_senha = $_POST['confirmar_senha'] ?? '';
 
-    // Validações
-    if (empty($nome) || empty($email) || empty($telefone) || empty($senha)) {
-        $erro = 'Por favor, preencha todos os campos obrigatórios.';
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $erro = 'E-mail inválido.';
-    } elseif (strlen($senha) < 6) {
-        $erro = 'A senha deve ter no mínimo 6 caracteres.';
-    } elseif ($senha !== $confirmar_senha) {
-        $erro = 'As senhas não conferem.';
-    } else {
-        // Limpar telefone primeiro
-        $telefone_limpo = preg_replace('/[^0-9]/', '', $telefone);
-        
-        // Verificar se telefone já existe (ANTES do email para priorizar)
-        $stmt = $pdo->prepare("SELECT id FROM clientes WHERE telefone = ? OR telefone = ?");
-        $stmt->execute([$telefone_limpo, $telefone]);
-        if ($stmt->fetch()) {
-            $erro = 'Este telefone já está cadastrado. <a href="login.php">Faça login</a>';
-        } else {
-            // Verificar se e-mail já existe
-            $stmt = $pdo->prepare("SELECT id FROM clientes WHERE email = ?");
-            $stmt->execute([$email]);
+        // Validações
+        if (empty($nome) || empty($email) || empty($telefone) || empty($senha)) {
+            $erro = 'Por favor, preencha todos os campos obrigatórios.';
+        }
+        elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $erro = 'E-mail inválido.';
+        }
+        elseif (!senha_atende_requisitos($senha)) {
+            $erros_senha = validar_senha($senha);
+            $erro = implode(' ', $erros_senha);
+        }
+        elseif ($senha !== $confirmar_senha) {
+            $erro = 'As senhas não conferem.';
+        }
+        else {
+            // Limpar telefone primeiro
+            $telefone_limpo = preg_replace('/[^0-9]/', '', $telefone);
+
+            // Verificar se telefone já existe (ANTES do email para priorizar)
+            $stmt = $pdo->prepare("SELECT id FROM clientes WHERE telefone = ? OR telefone = ?");
+            $stmt->execute([$telefone_limpo, $telefone]);
             if ($stmt->fetch()) {
-                $erro = 'Este e-mail já está cadastrado. <a href="login.php">Faça login</a>';
-            } else {
-                // Criar cliente
-                $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
-                $stmt = $pdo->prepare("INSERT INTO clientes (nome, email, telefone, senha, ativo, criado_em) VALUES (?, ?, ?, ?, 1, NOW())");
-                
-                if ($stmt->execute([$nome, $email, $telefone_limpo, $senha_hash])) {
-                    $sucesso = 'Conta criada com sucesso! Você já pode fazer login.';
-                } else {
-                    $erro = 'Erro ao criar conta. Tente novamente.';
+                $erro = 'Este telefone já está cadastrado. <a href="login.php">Faça login</a>';
+            }
+            else {
+                // Verificar se e-mail já existe
+                $stmt = $pdo->prepare("SELECT id FROM clientes WHERE email = ?");
+                $stmt->execute([$email]);
+                if ($stmt->fetch()) {
+                    $erro = 'Este e-mail já está cadastrado. <a href="login.php">Faça login</a>';
+                }
+                else {
+                    // Criar cliente
+                    $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
+                    $stmt = $pdo->prepare("INSERT INTO clientes (nome, email, telefone, senha, ativo, criado_em) VALUES (?, ?, ?, ?, 1, NOW())");
+
+                    if ($stmt->execute([$nome, $email, $telefone_limpo, $senha_hash])) {
+                        $sucesso = 'Conta criada com sucesso! Você já pode fazer login.';
+                    }
+                    else {
+                        $erro = 'Erro ao criar conta. Tente novamente.';
+                    }
                 }
             }
         }
-    }
+    } // fecha else validar_csrf
 }
 ?>
 <!DOCTYPE html>
@@ -182,16 +197,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         <?php if ($erro): ?>
             <div class="error"><?php echo $erro; ?></div>
-        <?php endif; ?>
+        <?php
+endif; ?>
         
         <?php if ($sucesso): ?>
             <div class="success"><?php echo $sucesso; ?></div>
             <div class="links">
                 <p><a href="login.php"><i class="fa-solid fa-sign-in-alt"></i> Fazer Login</a></p>
             </div>
-        <?php else: ?>
+        <?php
+else: ?>
         
         <form method="POST">
+            <?php echo campo_csrf(); ?>
             <div class="form-group">
                 <label><i class="fa-solid fa-user"></i> Nome Completo *</label>
                 <input type="text" name="nome" required placeholder="Seu nome" value="<?php echo htmlspecialchars($_POST['nome'] ?? ''); ?>">
@@ -206,7 +224,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             <div class="form-group">
                 <label><i class="fa-solid fa-lock"></i> Senha *</label>
-                <input type="password" name="senha" required placeholder="Mínimo 6 caracteres" minlength="6">
+                <input type="password" name="senha" required placeholder="Mín 8 chars, maiúscula, minúscula e número" minlength="8">
             </div>
             <div class="form-group">
                 <label><i class="fa-solid fa-lock"></i> Confirmar Senha *</label>
@@ -215,7 +233,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <button type="submit" class="btn"><i class="fa-solid fa-check"></i> Criar Conta</button>
         </form>
         
-        <?php endif; ?>
+        <?php
+endif; ?>
         
         <div class="links">
             <p>Já tem uma conta? <a href="login.php">Faça login</a></p>

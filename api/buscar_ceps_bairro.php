@@ -4,9 +4,11 @@
  * Busca CEPs de um bairro específico via ViaCEP
  */
 
-declare(strict_types=1);
+declare(strict_types = 1)
+;
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
+$allowed_origin = defined('SITE_URL') ? SITE_URL : '*';
+header("Access-Control-Allow-Origin: $allowed_origin");
 
 $bairro = $_GET['bairro'] ?? '';
 $cidade = $_GET['cidade'] ?? '';

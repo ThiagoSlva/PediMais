@@ -1,4 +1,6 @@
 <?php
+require_once '../includes/validar_senha.php';
+require_once '../includes/csrf.php';
 include 'includes/header.php';
 
 if (!isset($_GET['id']) || empty($_GET['id'])) {
@@ -22,60 +24,76 @@ if (!$cliente) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $nome = $_POST['nome'];
-    $telefone = $_POST['telefone'];
-    $email = $_POST['email'];
-    $senha = $_POST['senha'];
-    $cep = $_POST['cep'];
-    $endereco = $_POST['endereco'];
-    $numero = $_POST['numero'];
-    $bairro = $_POST['bairro'];
-    $cidade = $_POST['cidade'] ?? '';
-    $estado = $_POST['estado'] ?? '';
-    $complemento = $_POST['complemento'];
-
-    // Validação básica
-    if (empty($nome) || empty($telefone)) {
-        $msg = 'Por favor, preencha os campos obrigatórios (Nome, Telefone).';
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
         $msg_type = 'danger';
-    } else {
-        // Verificar se telefone já existe (excluindo o próprio cliente)
-        $stmt = $pdo->prepare("SELECT id FROM clientes WHERE telefone = ? AND id != ?");
-        $stmt->execute([$telefone, $id]);
-        if ($stmt->rowCount() > 0) {
-            $msg = 'Este telefone já está cadastrado para outro cliente.';
-            $msg_type = 'danger';
-        } else {
-            // Atualizar senha se fornecida
-            if (!empty($senha)) {
-                $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
-                $stmt = $pdo->prepare("UPDATE clientes SET nome=?, telefone=?, email=?, senha=?, cep=?, rua=?, numero=?, bairro=?, cidade=?, estado=?, complemento=? WHERE id=?");
-                $params = [$nome, $telefone, $email, $senha_hash, $cep, $endereco, $numero, $bairro, $cidade, $estado, $complemento, $id];
-            } else {
-                $stmt = $pdo->prepare("UPDATE clientes SET nome=?, telefone=?, email=?, cep=?, rua=?, numero=?, bairro=?, cidade=?, estado=?, complemento=? WHERE id=?");
-                $params = [$nome, $telefone, $email, $cep, $endereco, $numero, $bairro, $cidade, $estado, $complemento, $id];
-            }
+    }
+    else {
+        $nome = $_POST['nome'];
+        $telefone = $_POST['telefone'];
+        $email = $_POST['email'];
+        $senha = $_POST['senha'];
+        $cep = $_POST['cep'];
+        $endereco = $_POST['endereco'];
+        $numero = $_POST['numero'];
+        $bairro = $_POST['bairro'];
+        $cidade = $_POST['cidade'] ?? '';
+        $estado = $_POST['estado'] ?? '';
+        $complemento = $_POST['complemento'];
 
-            if ($stmt->execute($params)) {
-                $msg = 'Cliente atualizado com sucesso!';
-                $msg_type = 'success';
-                // Atualizar dados na variável para refletir no formulário
-                $cliente['nome'] = $nome;
-                $cliente['telefone'] = $telefone;
-                $cliente['email'] = $email;
-                $cliente['cep'] = $cep;
-                $cliente['rua'] = $endereco;
-                $cliente['numero'] = $numero;
-                $cliente['bairro'] = $bairro;
-                $cliente['cidade'] = $cidade;
-                $cliente['estado'] = $estado;
-                $cliente['complemento'] = $complemento;
-            } else {
-                $msg = 'Erro ao atualizar cliente.';
+        // Validação básica
+        if (empty($nome) || empty($telefone)) {
+            $msg = 'Por favor, preencha os campos obrigatórios (Nome, Telefone).';
+            $msg_type = 'danger';
+        }
+        else {
+            // Verificar se telefone já existe (excluindo o próprio cliente)
+            $stmt = $pdo->prepare("SELECT id FROM clientes WHERE telefone = ? AND id != ?");
+            $stmt->execute([$telefone, $id]);
+            if ($stmt->rowCount() > 0) {
+                $msg = 'Este telefone já está cadastrado para outro cliente.';
                 $msg_type = 'danger';
             }
+            else {
+                // Atualizar senha se fornecida
+                if (!empty($senha)) {
+                    $erros_senha = validar_senha($senha);
+                    if (!empty($erros_senha)) {
+                        $msg = implode(' ', $erros_senha);
+                        $msg_type = 'danger';
+                    }
+                    else {
+                        $senha_hash = password_hash($senha, PASSWORD_DEFAULT);
+                        $stmt = $pdo->prepare("UPDATE clientes SET nome=?, telefone=?, email=?, senha=?, cep=?, rua=?, numero=?, bairro=?, cidade=?, estado=?, complemento=? WHERE id=?");
+                        $params = [$nome, $telefone, $email, $senha_hash, $cep, $endereco, $numero, $bairro, $cidade, $estado, $complemento, $id];
+                    }
+                }
+                else {
+                    $stmt = $pdo->prepare("UPDATE clientes SET nome=?, telefone=?, email=?, cep=?, rua=?, numero=?, bairro=?, cidade=?, estado=?, complemento=? WHERE id=?");
+                    $params = [$nome, $telefone, $email, $cep, $endereco, $numero, $bairro, $cidade, $estado, $complemento, $id];
+                }
+
+                if (empty($msg) && isset($stmt) && $stmt->execute($params)) {
+                    $msg = 'Cliente atualizado com sucesso!';
+                    $msg_type = 'success';
+                    $cliente['nome'] = $nome;
+                    $cliente['telefone'] = $telefone;
+                    $cliente['email'] = $email;
+                    $cliente['cep'] = $cep;
+                    $cliente['rua'] = $endereco;
+                    $cliente['numero'] = $numero;
+                    $cliente['bairro'] = $bairro;
+                    $cliente['cidade'] = $cidade;
+                    $cliente['estado'] = $estado;
+                    $cliente['complemento'] = $complemento;
+                }
+                elseif (empty($msg)) {
+                    $msg = 'Erro ao atualizar cliente.';
+                    $msg_type = 'danger';
+                }
+            }
         }
-    }
+    } // fecha else validar_csrf
 }
 ?>
 
@@ -107,9 +125,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <?php echo $msg; ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
-            <?php endif; ?>
+            <?php
+endif; ?>
 
             <form action="" method="POST">
+                <?php echo campo_csrf(); ?>
                 <div class="row gy-4">
                     <div class="col-md-6">
                         <label for="nome" class="form-label fw-semibold text-primary-light text-sm mb-8">Nome Completo <span class="text-danger-600">*</span></label>
@@ -172,11 +192,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     <!-- Endereços Adicionais Salvos -->
     <?php
-    // Buscar endereços salvos da tabela cliente_enderecos
-    $stmtEnderecos = $pdo->prepare("SELECT * FROM cliente_enderecos WHERE cliente_id = ? ORDER BY principal DESC, criado_em DESC");
-    $stmtEnderecos->execute([$id]);
-    $enderecosSalvos = $stmtEnderecos->fetchAll(PDO::FETCH_ASSOC);
-    ?>
+// Buscar endereços salvos da tabela cliente_enderecos
+$stmtEnderecos = $pdo->prepare("SELECT * FROM cliente_enderecos WHERE cliente_id = ? ORDER BY principal DESC, criado_em DESC");
+$stmtEnderecos->execute([$id]);
+$enderecosSalvos = $stmtEnderecos->fetchAll(PDO::FETCH_ASSOC);
+?>
     
     <?php if (!empty($enderecosSalvos)): ?>
     <div class="card h-100 p-0 radius-12 mt-4">
@@ -206,9 +226,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <td>
                                 <?php if ($end['principal']): ?>
                                     <span class="badge bg-success">Sim</span>
-                                <?php else: ?>
+                                <?php
+        else: ?>
                                     <span class="badge bg-secondary">Não</span>
-                                <?php endif; ?>
+                                <?php
+        endif; ?>
                             </td>
                             <td>
                                 <a href="cliente_endereco_delete.php?id=<?php echo $end['id']; ?>&cliente_id=<?php echo $id; ?>" 
@@ -218,13 +240,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 </a>
                             </td>
                         </tr>
-                        <?php endforeach; ?>
+                        <?php
+    endforeach; ?>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 </div>
 
 <script>

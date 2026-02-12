@@ -1,11 +1,12 @@
 <?php
+require_once 'includes/security_headers.php';
 session_start();
 require_once 'includes/functions.php';
 
 // Sistema de Analytics - Rastreamento de Visitantes
 require_once 'includes/analytics_tracker.php';
 if (function_exists('track_visitor')) {
-    track_visitor('Cardápio');
+  track_visitor('Cardápio');
 }
 
 $config = get_config();
@@ -18,35 +19,36 @@ $loja_aberta = loja_aberta();
 // Verificar se cliente está logado
 $cliente_logado = null;
 if (isset($_SESSION['cliente_id'])) {
-    require_once 'includes/config.php';
-    $stmt = $pdo->prepare("SELECT * FROM clientes WHERE id = ?");
-    $stmt->execute([$_SESSION['cliente_id']]);
-    $cliente_logado = $stmt->fetch(PDO::FETCH_ASSOC);
+  require_once 'includes/config.php';
+  $stmt = $pdo->prepare("SELECT * FROM clientes WHERE id = ?");
+  $stmt->execute([$_SESSION['cliente_id']]);
+  $cliente_logado = $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
 // Define theme colors based on tema field
 $temas = [
-    'verde' => ['#4caf50', '#45a049'],
-    'azul' => ['#2196F3', '#1976D2'],
-    'roxo' => ['#9C27B0', '#7B1FA2'],
-    'rosa' => ['#E91E63', '#C2185B'],
-    'laranja' => ['#FF9800', '#F57C00'],
-    'vermelho' => ['#F44336', '#D32F2F'],
-    'teal' => ['#009688', '#00796B'],
-    'indigo' => ['#3F51B5', '#303F9F'],
-    'amber' => ['#FFC107', '#FFA000'],
-    'cyan' => ['#00BCD4', '#0097A7'],
-    'deep-purple' => ['#673AB7', '#512DA8'],
-    'pink' => ['#EC407A', '#C2185B'],
+  'verde' => ['#4caf50', '#45a049'],
+  'azul' => ['#2196F3', '#1976D2'],
+  'roxo' => ['#9C27B0', '#7B1FA2'],
+  'rosa' => ['#E91E63', '#C2185B'],
+  'laranja' => ['#FF9800', '#F57C00'],
+  'vermelho' => ['#F44336', '#D32F2F'],
+  'teal' => ['#009688', '#00796B'],
+  'indigo' => ['#3F51B5', '#303F9F'],
+  'amber' => ['#FFC107', '#FFA000'],
+  'cyan' => ['#00BCD4', '#0097A7'],
+  'deep-purple' => ['#673AB7', '#512DA8'],
+  'pink' => ['#EC407A', '#C2185B'],
 ];
 
 $tema = $config['tema'] ?? 'roxo';
 if ($tema === 'custom') {
-    $cor_principal = $config['cor_principal'] ?? '#9C27B0';
-    $cor_secundaria = $config['cor_secundaria'] ?? '#7B1FA2';
-} else {
-    $cor_principal = $temas[$tema][0] ?? '#9C27B0';
-    $cor_secundaria = $temas[$tema][1] ?? '#7B1FA2';
+  $cor_principal = $config['cor_principal'] ?? '#9C27B0';
+  $cor_secundaria = $config['cor_secundaria'] ?? '#7B1FA2';
+}
+else {
+  $cor_principal = $temas[$tema][0] ?? '#9C27B0';
+  $cor_secundaria = $temas[$tema][1] ?? '#7B1FA2';
 }
 
 // Tema de Layout (Shioki, etc)
@@ -65,7 +67,8 @@ $tema_layout = $config['tema_layout'] ?? 'default';
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <?php if ($tema_layout === 'shioki'): ?>
 <link href="assets/css/shioki.css" rel="stylesheet">
-<?php endif; ?>
+<?php
+endif; ?>
 <style>
 :root {
   --primary-color: <?php echo $cor_principal; ?>;
@@ -647,9 +650,11 @@ img[data-src] {
     <span>
         <?php if ($loja_aberta): ?>
             <i class="fa-solid fa-clock"></i> Aberto agora
-        <?php else: ?>
+        <?php
+else: ?>
             <i class="fa-solid fa-lock"></i> Fechado
-        <?php endif; ?>
+        <?php
+endif; ?>
     </span>
 </div>
 
@@ -661,59 +666,64 @@ img[data-src] {
     
     <!-- Promoções -->
     <?php
-    // Contar produtos em promoção
-    // ⚡ OTIMIZAÇÃO: Produtos já estão carregados em $cat_promo['produtos'], sem query adicional
-    $qtd_promo = 0;
-    foreach ($categorias as $cat_promo) {
-        foreach ($cat_promo['produtos'] as $pp) {
-            if ($pp['preco_promocional'] > 0) $qtd_promo++;
-        }
-    }
-    ?>
+// Contar produtos em promoção
+// ⚡ OTIMIZAÇÃO: Produtos já estão carregados em $cat_promo['produtos'], sem query adicional
+$qtd_promo = 0;
+foreach ($categorias as $cat_promo) {
+  foreach ($cat_promo['produtos'] as $pp) {
+    if ($pp['preco_promocional'] > 0)
+      $qtd_promo++;
+  }
+}
+?>
     <a href="#promocoes" onclick="filtrarPromocoes()" class="action-btn btn-promo" style="position: relative;">
         <i class="fa-solid fa-percent"></i>
         <?php if ($qtd_promo > 0): ?>
         <span class="badge-count"><?php echo $qtd_promo; ?></span>
-        <?php endif; ?>
+        <?php
+endif; ?>
     </a>
 
     <!-- Instagram -->
-    <?php if (!empty($config['instagram'] ?? '')): 
-        $instagram = trim($config['instagram']);
-        if (strpos($instagram, 'http') === false && strpos($instagram, 'instagram.com') === false) {
-            $instagram = ltrim($instagram, '@');
-            $instagram = 'https://instagram.com/' . $instagram;
-        }
-    ?>
+    <?php if (!empty($config['instagram'] ?? '')):
+  $instagram = trim($config['instagram']);
+  if (strpos($instagram, 'http') === false && strpos($instagram, 'instagram.com') === false) {
+    $instagram = ltrim($instagram, '@');
+    $instagram = 'https://instagram.com/' . $instagram;
+  }
+?>
     <a href="<?php echo $instagram; ?>" target="_blank" class="action-btn btn-instagram">
         <i class="fa-brands fa-instagram"></i>
     </a>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <!-- Facebook -->
-    <?php if (!empty($config['facebook'] ?? '')): 
-        $facebook = trim($config['facebook']);
-        if (strpos($facebook, 'http') === false && strpos($facebook, 'facebook.com') === false) {
-            $facebook = 'https://facebook.com/' . $facebook;
-        }
-    ?>
+    <?php if (!empty($config['facebook'] ?? '')):
+  $facebook = trim($config['facebook']);
+  if (strpos($facebook, 'http') === false && strpos($facebook, 'facebook.com') === false) {
+    $facebook = 'https://facebook.com/' . $facebook;
+  }
+?>
     <a href="<?php echo $facebook; ?>" target="_blank" class="action-btn btn-facebook">
         <i class="fa-brands fa-facebook-f"></i>
     </a>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <!-- WhatsApp -->
-    <?php if (!empty($config['whatsapp'] ?? '')): 
-        $whatsapp_numero = preg_replace('/[^0-9]/', '', $config['whatsapp']);
-        // Adiciona código do país se não tiver
-        if (strlen($whatsapp_numero) <= 11 && substr($whatsapp_numero, 0, 2) !== '55') {
-            $whatsapp_numero = '55' . $whatsapp_numero;
-        }
-    ?>
+    <?php if (!empty($config['whatsapp'] ?? '')):
+  $whatsapp_numero = preg_replace('/[^0-9]/', '', $config['whatsapp']);
+  // Adiciona código do país se não tiver
+  if (strlen($whatsapp_numero) <= 11 && substr($whatsapp_numero, 0, 2) !== '55') {
+    $whatsapp_numero = '55' . $whatsapp_numero;
+  }
+?>
     <a href="https://wa.me/<?php echo $whatsapp_numero; ?>" target="_blank" class="action-btn btn-whatsapp">
         <i class="fa-brands fa-whatsapp"></i>
     </a>
-    <?php endif; ?>
+    <?php
+endif; ?>
     
     <!-- Theme Toggle -->
     <button type="button" onclick="toggleFrontendTheme()" class="action-btn btn-theme" id="theme-toggle-frontend" title="Alternar modo claro/escuro">
@@ -808,22 +818,24 @@ img[data-src] {
             <img 
                 loading="lazy"
                 src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23f3f4f6' width='100' height='100'/%3E%3C/svg%3E"
-                data-src="<?php echo ($cat['imagem'] && !str_ends_with($cat['imagem'], '.jpg') && !str_ends_with($cat['imagem'], '.png') && !str_ends_with($cat['imagem'], '.gif')) ? $cat['imagem'] . '.jpg' : ($cat['imagem'] ?: 'admin/assets/images/sem-foto.jpg'); ?>" 
+                data-src="<?php echo($cat['imagem'] && !str_ends_with($cat['imagem'], '.jpg') && !str_ends_with($cat['imagem'], '.png') && !str_ends_with($cat['imagem'], '.gif')) ? $cat['imagem'] . '.jpg' : ($cat['imagem'] ?: 'admin/assets/images/sem-foto.jpg'); ?>" 
                 alt="<?php echo $cat['nome']; ?>"
                 class="lazy-img">
             <span class="category-name"><?php echo $cat['nome']; ?></span>
         </div>
-        <?php endforeach; ?>
+        <?php
+endforeach; ?>
     </div>
 </div>
 
 <!-- Products Accordion -->
 <div class="accordion">
-    <?php foreach ($categorias as $cat): 
-        // ⚡ OTIMIZAÇÃO: Produtos já vêm carregados, sem fazer query adicional
-        $produtos = $cat['produtos'];
-        if (empty($produtos)) continue;
-    ?>
+    <?php foreach ($categorias as $cat):
+  // ⚡ OTIMIZAÇÃO: Produtos já vêm carregados, sem fazer query adicional
+  $produtos = $cat['produtos'];
+  if (empty($produtos))
+    continue;
+?>
     <div class="accordion-item" data-category-id="<?php echo $cat['id']; ?>">
         <div class="accordion-header">
             <span>
@@ -833,46 +845,51 @@ img[data-src] {
             <i class="fa-solid fa-chevron-down"></i>
         </div>
         <div class="accordion-content">
-            <?php foreach ($produtos as $prod): 
-                // ⚡ OTIMIZAÇÃO: Rating já vem carregado, sem fazer query adicional
-                $rating = $prod['rating'];
-            ?>
+            <?php foreach ($produtos as $prod):
+    // ⚡ OTIMIZAÇÃO: Rating já vem carregado, sem fazer query adicional
+    $rating = $prod['rating'];
+?>
             <div class="product-card" onclick="abrirProduto(<?php echo $prod['id']; ?>)">
                 <div class="product-info">
                     <h4><?php echo $prod['nome']; ?></h4>
                     <?php if ($rating && $rating['total'] > 0): ?>
                     <div class="product-rating" style="display: flex; align-items: center; gap: 5px; margin: 3px 0;">
                         <span style="color: #ffc107; font-size: 0.85rem;">
-                            <?php for($i = 1; $i <= 5; $i++): ?>
+                            <?php for ($i = 1; $i <= 5; $i++): ?>
                                 <span style="color: <?php echo $i <= $rating['estrelas'] ? '#ffc107' : '#ddd'; ?>;">★</span>
-                            <?php endfor; ?>
+                            <?php
+      endfor; ?>
                         </span>
                         <span style="color: #888; font-size: 0.75rem;">(<?php echo $rating['total']; ?>)</span>
                     </div>
-                    <?php endif; ?>
+                    <?php
+    endif; ?>
                     <p class="description"><?php echo $prod['descricao']; ?></p>
                     <p class="price">
-                        <?php 
-                        if ($prod['preco_promocional'] > 0) {
-                            echo '<span style="text-decoration: line-through; color: #999; font-size: 0.8rem;">' . formatar_moeda($prod['preco']) . '</span> ';
-                            echo formatar_moeda($prod['preco_promocional']);
-                        } else {
-                            echo formatar_moeda($prod['preco']);
-                        }
-                        ?>
+                        <?php
+    if ($prod['preco_promocional'] > 0) {
+      echo '<span style="text-decoration: line-through; color: #999; font-size: 0.8rem;">' . formatar_moeda($prod['preco']) . '</span> ';
+      echo formatar_moeda($prod['preco_promocional']);
+    }
+    else {
+      echo formatar_moeda($prod['preco']);
+    }
+?>
                     </p>
                 </div>
                 <img 
                     loading="lazy"
                     src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 95 95'%3E%3Crect fill='%23f3f4f6' width='95' height='95'/%3E%3C/svg%3E"
-                    data-src="<?php echo ($prod['imagem_path'] && !str_ends_with($prod['imagem_path'], '.jpg') && !str_ends_with($prod['imagem_path'], '.png') && !str_ends_with($prod['imagem_path'], '.gif')) ? $prod['imagem_path'] . '.jpg' : ($prod['imagem_path'] ?: 'admin/assets/images/sem-foto.jpg'); ?>" 
+                    data-src="<?php echo($prod['imagem_path'] && !str_ends_with($prod['imagem_path'], '.jpg') && !str_ends_with($prod['imagem_path'], '.png') && !str_ends_with($prod['imagem_path'], '.gif')) ? $prod['imagem_path'] . '.jpg' : ($prod['imagem_path'] ?: 'admin/assets/images/sem-foto.jpg'); ?>" 
                     alt="<?php echo $prod['nome']; ?>"
                     class="lazy-img">
             </div>
-            <?php endforeach; ?>
+            <?php
+  endforeach; ?>
         </div>
     </div>
-    <?php endforeach; ?>
+    <?php
+endforeach; ?>
 </div>
 
 <?php
@@ -882,10 +899,10 @@ $av_config = $stmt_av_config->fetch(PDO::FETCH_ASSOC);
 
 // Se mostrar avaliações no site está ativo, buscar avaliações
 if ($av_config && $av_config['mostrar_no_site']):
-    $stmt_avaliacoes = $pdo->query("SELECT * FROM avaliacoes WHERE avaliacao > 0 AND ativo = 1 ORDER BY data_avaliacao DESC LIMIT 10");
-    $avaliacoes_site = $stmt_avaliacoes->fetchAll(PDO::FETCH_ASSOC);
-    
-    if (count($avaliacoes_site) > 0):
+  $stmt_avaliacoes = $pdo->query("SELECT * FROM avaliacoes WHERE avaliacao > 0 AND ativo = 1 ORDER BY data_avaliacao DESC LIMIT 10");
+  $avaliacoes_site = $stmt_avaliacoes->fetchAll(PDO::FETCH_ASSOC);
+
+  if (count($avaliacoes_site) > 0):
 ?>
 <!-- Seção de Avaliações -->
 <div class="reviews-section" style="margin: 30px 10px 100px 10px;">
@@ -894,9 +911,9 @@ if ($av_config && $av_config['mostrar_no_site']):
     </h3>
     
     <div class="reviews-carousel" style="overflow-x: auto; display: flex; gap: 15px; padding: 10px 5px; scroll-snap-type: x mandatory;">
-        <?php foreach ($avaliacoes_site as $av): 
-            $primeiro_nome = explode(' ', trim($av['cliente_nome']))[0];
-        ?>
+        <?php foreach ($avaliacoes_site as $av):
+      $primeiro_nome = explode(' ', trim($av['cliente_nome']))[0];
+?>
         <div class="review-card" style="flex: 0 0 280px; background: var(--surface-card); border-radius: 16px; padding: 20px; box-shadow: var(--card-shadow); scroll-snap-align: start;">
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
                 <div style="width: 45px; height: 45px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 1.1rem;">
@@ -905,9 +922,10 @@ if ($av_config && $av_config['mostrar_no_site']):
                 <div>
                     <strong style="color: var(--text-primary); font-size: 1rem;"><?php echo htmlspecialchars($primeiro_nome); ?></strong>
                     <div style="color: #ffc107; font-size: 0.9rem;">
-                        <?php for($i = 1; $i <= 5; $i++): ?>
+                        <?php for ($i = 1; $i <= 5; $i++): ?>
                             <i class="fa-solid fa-star" style="color: <?php echo $i <= ($av['avaliacao'] ?? 0) ? '#ffc107' : '#e0e0e0'; ?>;"></i>
-                        <?php endfor; ?>
+                        <?php
+      endfor; ?>
                     </div>
                 </div>
             </div>
@@ -915,17 +933,20 @@ if ($av_config && $av_config['mostrar_no_site']):
             <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5; margin: 0;">
                 "<?php echo htmlspecialchars(mb_substr($av['descricao'], 0, 120)); ?><?php echo mb_strlen($av['descricao']) > 120 ? '...' : ''; ?>"
             </p>
-            <?php endif; ?>
+            <?php
+      endif; ?>
             <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 10px;">
                 <?php echo date('d/m/Y', strtotime($av['data_avaliacao'])); ?>
             </p>
         </div>
-        <?php endforeach; ?>
+        <?php
+    endforeach; ?>
     </div>
 </div>
-<?php 
-    endif;
-endif; 
+<?php
+  endif;
+endif;
+
 ?>
 
 <!-- Modal Produto Bottom Sheet -->
@@ -1186,7 +1207,8 @@ window.clienteLogado = {
 };
 console.log('👤 Cliente logado:', window.clienteLogado.nome);
 </script>
-<?php endif; ?>
+<?php
+endif; ?>
 
 <!-- Theme Toggle Script -->
 <script>

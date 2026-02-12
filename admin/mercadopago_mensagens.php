@@ -2,6 +2,7 @@
 include 'includes/auth.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+require_once '../includes/csrf.php';
 
 verificar_login();
 
@@ -13,13 +14,13 @@ try {
     // Ensure message templates exist for Mercado Pago (IDs 149 and 150)
     $templates = [
         149 => [
-            'tipo' => 'aguardando_pagamento', 
-            'titulo' => 'Aguardando Pagamento PIX', 
+            'tipo' => 'aguardando_pagamento',
+            'titulo' => 'Aguardando Pagamento PIX',
             'mensagem' => "Olá, {nome}! Recebemos o seu pedido e estamos aguardando o pagamento 😃.\n\nVocê tem {minutos} minutos para pagar o valor de R$ {valor} usando o Pix Copia e Cola ou o QR Code abaixo. Após esse prazo, o pedido será cancelado automaticamente."
         ],
         150 => [
-            'tipo' => 'pagamento_recebido', 
-            'titulo' => 'Pagamento Recebido', 
+            'tipo' => 'pagamento_recebido',
+            'titulo' => 'Pagamento Recebido',
             'mensagem' => "🎉 O pagamento do seu pedido foi confirmado! Em breve vamos iniciar a preparação e manter você atualizado(a)."
         ]
     ];
@@ -32,34 +33,43 @@ try {
             // Insert with specific ID
             $stmt = $pdo->prepare("INSERT INTO whatsapp_mensagens (id, tipo, titulo, mensagem, ativo) VALUES (?, ?, ?, ?, 1)");
             $stmt->execute([$id, $data['tipo'], $data['titulo'], $data['mensagem']]);
-        } else {
+        }
+        else {
             // Ensure 'titulo' column exists (handled in previous file, but safe to double check or assume it's there now)
             // Update title if needed to match our internal logic, but respect user content
-             $pdo->prepare("UPDATE whatsapp_mensagens SET titulo = ? WHERE id = ?")->execute([$data['titulo'], $id]);
+            $pdo->prepare("UPDATE whatsapp_mensagens SET titulo = ? WHERE id = ?")->execute([$data['titulo'], $id]);
         }
     }
 
-} catch (PDOException $e) {
-    // Ignore errors or log them
+}
+catch (PDOException $e) {
+// Ignore errors or log them
 }
 // ---------------------------------------------
 
 // Processar formulário
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['id'])) {
-    try {
-        $id = (int)$_POST['id'];
-        $mensagem = $_POST['mensagem'];
-        $ativo = isset($_POST['ativo']) ? 1 : 0;
-        
-        $stmt = $pdo->prepare("UPDATE whatsapp_mensagens SET mensagem = ?, ativo = ?, atualizado_em = NOW() WHERE id = ?");
-        $stmt->execute([$mensagem, $ativo, $id]);
-        
-        $msg = 'Mensagem atualizada com sucesso!';
-        $msg_tipo = 'success';
-    } catch (PDOException $e) {
-        $msg = 'Erro ao atualizar mensagem: ' . $e->getMessage();
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
         $msg_tipo = 'danger';
     }
+    else {
+        try {
+            $id = (int)$_POST['id'];
+            $mensagem = $_POST['mensagem'];
+            $ativo = isset($_POST['ativo']) ? 1 : 0;
+
+            $stmt = $pdo->prepare("UPDATE whatsapp_mensagens SET mensagem = ?, ativo = ?, atualizado_em = NOW() WHERE id = ?");
+            $stmt->execute([$mensagem, $ativo, $id]);
+
+            $msg = 'Mensagem atualizada com sucesso!';
+            $msg_tipo = 'success';
+        }
+        catch (PDOException $e) {
+            $msg = 'Erro ao atualizar mensagem: ' . $e->getMessage();
+            $msg_tipo = 'danger';
+        }
+    } // fecha else validar_csrf
 }
 
 // Buscar mensagens do Mercado Pago (IDs 149 e 150)
@@ -193,7 +203,8 @@ html[data-theme="dark"] small {
         <?php echo $msg; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
     
     <!-- Variáveis Disponíveis -->
     <div class="card h-100 p-0 radius-12 mb-24">
@@ -219,33 +230,36 @@ html[data-theme="dark"] small {
     </div>
 
     <!-- Templates de Mensagens -->
-    <?php 
-    $displayOrder = [149, 150];
-    foreach ($displayOrder as $id): 
-        if (!isset($mensagens[$id])) continue;
-        $m = $mensagens[$id];
-        $badgeClass = $m['ativo'] ? 'bg-success' : 'bg-danger';
-        $badgeText = $m['ativo'] ? 'Ativo' : 'Inativo';
-        
-        // Icon logic
-        $icon = 'solar:chat-round-line-bold-duotone';
-        $iconColor = 'text-primary-600';
-        if ($id == 149) {
-            $icon = 'solar:clock-circle-bold-duotone';
-            $iconColor = 'text-warning-600';
-        } elseif ($id == 150) {
-            $icon = 'solar:check-circle-bold-duotone';
-            $iconColor = 'text-success-600';
-        }
-        
-        // Description logic
-        $description = '';
-        if ($id == 149) {
-            $description = 'Enviada após finalizar pedido, aguardando pagamento PIX';
-        } elseif ($id == 150) {
-            $description = 'Enviada automaticamente quando o pagamento é confirmado';
-        }
-    ?>
+    <?php
+$displayOrder = [149, 150];
+foreach ($displayOrder as $id):
+    if (!isset($mensagens[$id]))
+        continue;
+    $m = $mensagens[$id];
+    $badgeClass = $m['ativo'] ? 'bg-success' : 'bg-danger';
+    $badgeText = $m['ativo'] ? 'Ativo' : 'Inativo';
+
+    // Icon logic
+    $icon = 'solar:chat-round-line-bold-duotone';
+    $iconColor = 'text-primary-600';
+    if ($id == 149) {
+        $icon = 'solar:clock-circle-bold-duotone';
+        $iconColor = 'text-warning-600';
+    }
+    elseif ($id == 150) {
+        $icon = 'solar:check-circle-bold-duotone';
+        $iconColor = 'text-success-600';
+    }
+
+    // Description logic
+    $description = '';
+    if ($id == 149) {
+        $description = 'Enviada após finalizar pedido, aguardando pagamento PIX';
+    }
+    elseif ($id == 150) {
+        $description = 'Enviada automaticamente quando o pagamento é confirmado';
+    }
+?>
     <div class="card h-100 p-0 radius-12 mb-24">
         <div class="card-header border-bottom bg-base py-16 px-24">
             <div class="d-flex justify-content-between align-items-center">
@@ -260,13 +274,7 @@ html[data-theme="dark"] small {
         </div>
         <div class="card-body p-24">
             <form method="POST" action="">
-                <?php 
-                // Generate CSRF token if not exists
-                if (!isset($_SESSION['csrf_token'])) {
-                    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-                }
-                ?>
-                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                <?php echo campo_csrf(); ?>
                 <input type="hidden" name="id" value="<?php echo $id; ?>">
                 
                 <div class="mb-3">
@@ -305,7 +313,8 @@ html[data-theme="dark"] small {
             </form>
         </div>
     </div>
-    <?php endforeach; ?>
+    <?php
+endforeach; ?>
     
 </div>
 

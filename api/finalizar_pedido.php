@@ -5,7 +5,8 @@
  */
 
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
+$allowed_origin = defined('SITE_URL') ? SITE_URL : '*';
+header("Access-Control-Allow-Origin: $allowed_origin");
 header('Access-Control-Allow-Methods: POST');
 header('Access-Control-Allow-Headers: Content-Type');
 
@@ -28,10 +29,11 @@ if (!loja_aberta()) {
         $stmt_msg = $pdo->query("SELECT mensagem_fechado FROM configuracao_horarios LIMIT 1");
         $config_horario = $stmt_msg->fetch(PDO::FETCH_ASSOC);
         $mensagem = $config_horario['mensagem_fechado'] ?? 'Estamos fechados no momento.';
-    } catch (Exception $e) {
+    }
+    catch (Exception $e) {
         $mensagem = 'Estamos fechados no momento.';
     }
-    
+
     echo json_encode([
         'erro' => $mensagem,
         'loja_fechada' => true
@@ -46,13 +48,13 @@ if (!empty($cliente_telefone_temp)) {
         // Verificar se sistema de verificação está ativo
         $stmt_verif = $pdo->query("SELECT ativo FROM configuracao_verificacao LIMIT 1");
         $config_verif = $stmt_verif->fetch(PDO::FETCH_ASSOC);
-        
+
         if ($config_verif && $config_verif['ativo']) {
             // Verificar se cliente existe e está verificado
             $stmt_cliente = $pdo->prepare("SELECT telefone_verificado FROM clientes WHERE telefone = ? LIMIT 1");
             $stmt_cliente->execute([$cliente_telefone_temp]);
             $cliente_check = $stmt_cliente->fetch(PDO::FETCH_ASSOC);
-            
+
             // Se cliente não existe ou não está verificado
             if (!$cliente_check || !$cliente_check['telefone_verificado']) {
                 echo json_encode([
@@ -63,7 +65,8 @@ if (!empty($cliente_telefone_temp)) {
                 exit;
             }
         }
-    } catch (Exception $e) {
+    }
+    catch (Exception $e) {
         // Se houver erro na verificação, permitir pedido
         error_log("Erro ao verificar telefone: " . $e->getMessage());
     }
@@ -77,7 +80,7 @@ try {
     $cliente_telefone = preg_replace('/[^0-9]/', '', $dados['telefone'] ?? '');
     $cliente_email = trim($dados['email'] ?? '');
     $cliente_endereco = trim($dados['endereco'] ?? '');
-    
+
     if (empty($cliente_nome) || empty($cliente_telefone)) {
         echo json_encode(['erro' => 'Nome e telefone são obrigatórios'], JSON_UNESCAPED_UNICODE);
         exit;
@@ -88,7 +91,7 @@ try {
     $stmt->execute([$cliente_telefone]);
     $cliente_existente = $stmt->fetch();
     $cliente_novo = false;
-    
+
     // Obter dados detalhados do endereço
     $endereco_detalhado = $dados['endereco_detalhado'] ?? null;
 
@@ -110,11 +113,13 @@ try {
                 $endereco_detalhado['complemento'] ?? '',
                 $cliente_id
             ]);
-        } else {
+        }
+        else {
             $stmt = $pdo->prepare("UPDATE clientes SET nome = ?, email = ?, endereco_principal = ? WHERE id = ?");
             $stmt->execute([$cliente_nome, $cliente_email, $cliente_endereco, $cliente_id]);
         }
-    } else {
+    }
+    else {
         // Criar novo cliente com endereço detalhado
         if ($endereco_detalhado && !empty($endereco_detalhado['rua'])) {
             $stmt = $pdo->prepare("INSERT INTO clientes (nome, telefone, email, endereco_principal, 
@@ -129,7 +134,8 @@ try {
                 $endereco_detalhado['uf'] ?? '',
                 $endereco_detalhado['complemento'] ?? ''
             ]);
-        } else {
+        }
+        else {
             $stmt = $pdo->prepare("INSERT INTO clientes (nome, telefone, email, endereco_principal) VALUES (?, ?, ?, ?)");
             $stmt->execute([$cliente_nome, $cliente_telefone, $cliente_email, $cliente_endereco]);
         }
@@ -143,7 +149,7 @@ try {
     $salvar_endereco = $dados['salvar_endereco'] ?? false;
     // $endereco_detalhado já foi definido acima na linha ~91
     $tipo_entrega = $dados['tipo_entrega'] ?? 'balcao';
-    
+
     // Cliente novo + delivery = salvar automaticamente
     $deve_salvar = false;
     if ($cliente_novo && $tipo_entrega === 'delivery' && !empty($cliente_endereco)) {
@@ -162,10 +168,11 @@ try {
                 'uf' => ''
             ];
         }
-    } elseif ($salvar_endereco && $endereco_detalhado) {
+    }
+    elseif ($salvar_endereco && $endereco_detalhado) {
         $deve_salvar = true;
     }
-    
+
     if ($deve_salvar && $endereco_detalhado && !empty($endereco_detalhado['rua'])) {
         try {
             // Verificar se esse endereço já existe para o cliente
@@ -175,11 +182,11 @@ try {
                 LIMIT 1
             ");
             $stmt->execute([
-                $cliente_id, 
-                $endereco_detalhado['rua'] ?? '', 
+                $cliente_id,
+                $endereco_detalhado['rua'] ?? '',
                 $endereco_detalhado['numero'] ?? ''
             ]);
-            
+
             if (!$stmt->fetch()) {
                 // Endereço não existe, criar
                 $stmt = $pdo->prepare("
@@ -197,10 +204,11 @@ try {
                     $endereco_detalhado['bairro'] ?? '',
                     $endereco_detalhado['cidade'] ?? '',
                     $endereco_detalhado['uf'] ?? '',
-                    $cliente_novo ? 1 : 0  // Marcar como principal se for o primeiro
+                    $cliente_novo ? 1 : 0 // Marcar como principal se for o primeiro
                 ]);
             }
-        } catch (Exception $e) {
+        }
+        catch (Exception $e) {
             error_log("Erro ao salvar endereço: " . $e->getMessage());
         }
     }
@@ -222,17 +230,17 @@ try {
     foreach ($carrinho as $item) {
         $preco_item = floatval($item['preco'] ?? 0);
         $quantidade = (int)($item['quantidade'] ?? 1);
-        
+
         // Adicionais
         if (!empty($item['adicionais'])) {
             foreach ($item['adicionais'] as $adicional) {
                 $preco_item += floatval($adicional['preco'] ?? 0);
             }
         }
-        
+
         $valor_subtotal += $preco_item * $quantidade;
     }
-    
+
     $valor_total = $valor_subtotal + $taxa_entrega;
 
     // Gerar código do pedido
@@ -249,7 +257,8 @@ try {
         $stmt_gateway = $pdo->query("SELECT gateway_ativo FROM gateway_settings LIMIT 1");
         $gateway_settings = $stmt_gateway->fetch();
         $gateway_ativo = $gateway_settings['gateway_ativo'] ?? 'none';
-    } catch (PDOException $e) {
+    }
+    catch (PDOException $e) {
         // Tabela pode não existir ainda, verificar config antiga do MP
         $stmt_mp_check = $pdo->query("SELECT ativo FROM mercadopago_config LIMIT 1");
         $mp_cfg = $stmt_mp_check->fetch();
@@ -260,15 +269,15 @@ try {
 
     // Lógica Híbrida: Aceitar tipo 'mercadopago' OU tipo 'pix' (se gateway ativo)
     $pagamento_online = 0;
-    
+
     if ($forma_pagamento && $gateway_ativo !== 'none') {
         if ($forma_pagamento['tipo'] === 'mercadopago' || $forma_pagamento['tipo'] === 'pix') {
             $pagamento_online = 1;
         }
     }
 
-    // DEBUG TEMPORÁRIO
-    error_log("💰 Finalizando Pedido - FormaID: $forma_pagamento_id, Tipo: " . ($forma_pagamento['tipo'] ?? 'null') . ", Online: $pagamento_online");
+
+
 
     // Buscar primeira lane do Kanban
     $stmt_lane = $pdo->query("SELECT id FROM kanban_lanes ORDER BY ordem ASC LIMIT 1");
@@ -315,14 +324,14 @@ try {
     $qr_code_data = null;
     if ($pagamento_online) {
         $descricao = "Pedido #$codigo_pedido - $cliente_nome";
-        
+
         if ($gateway_ativo === 'mercadopago') {
             // Usar Mercado Pago
             require_once '../includes/mercadopago_helper.php';
             $mpHelper = new MercadoPagoHelper($pdo);
-            
+
             $payment_result = $mpHelper->createPayment($pedido_id, $valor_total, $cliente_email, $cliente_nome, $descricao);
-            
+
             if ($payment_result['success']) {
                 // Salvar dados do pagamento
                 $stmt_mp_log = $pdo->prepare("INSERT INTO mercadopago_pagamentos (pedido_id, payment_id, qr_code, qr_code_base64, ticket_url, status, valor, expiracao) VALUES (?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 MINUTE))");
@@ -345,17 +354,19 @@ try {
                     'qr_code_base64' => $payment_result['qr_code_base64'],
                     'ticket_url' => $payment_result['ticket_url']
                 ];
-            } else {
+            }
+            else {
                 error_log("Erro ao gerar PIX Mercado Pago para pedido $pedido_id: " . $payment_result['error']);
             }
-            
-        } elseif ($gateway_ativo === 'asaas') {
+
+        }
+        elseif ($gateway_ativo === 'asaas') {
             // Usar Asaas
             require_once '../includes/asaas_helper.php';
             $asaasHelper = new AsaasHelper($pdo);
-            
+
             $payment_result = $asaasHelper->createPixPayment($pedido_id, $valor_total, $descricao);
-            
+
             if ($payment_result['success']) {
                 // Salvar dados do pagamento
                 $stmt_asaas_log = $pdo->prepare("INSERT INTO asaas_pagamentos (pedido_id, payment_id, qr_code, qr_code_base64, status, valor, expiracao) VALUES (?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 MINUTE))");
@@ -377,9 +388,10 @@ try {
                     'qr_code_base64' => $payment_result['qr_code_base64'],
                     'ticket_url' => null
                 ];
-                
+
                 error_log("✅ PIX Asaas gerado com sucesso para pedido $pedido_id");
-            } else {
+            }
+            else {
                 error_log("❌ Erro ao gerar PIX Asaas para pedido $pedido_id: " . ($payment_result['error'] ?? 'Erro desconhecido'));
                 if (isset($payment_result['details'])) {
                     error_log("📋 Detalhes do erro: " . json_encode($payment_result['details']));
@@ -395,7 +407,7 @@ try {
     try {
         require_once '../includes/whatsapp_helper.php';
         $whatsapp = new WhatsAppHelper($pdo);
-        
+
         // Dados do pedido para notificação
         $pedido_notif = [
             'id' => $pedido_id,
@@ -411,20 +423,22 @@ try {
             'observacoes' => $observacoes,
             'troco_para' => $dados['troco_para'] ?? 0
         ];
-        
+
         // Se for pagamento PIX online, enviar código copia e cola para o cliente
         if ($pagamento_online && $qr_code_data && $whatsapp->shouldSendPixNotification()) {
             $whatsapp->sendPixPayment($pedido_notif, $qr_code_data, 30);
-        } else {
+        }
+        else {
             // Enviar apenas comprovante normal para pedidos sem PIX online
             $whatsapp->sendOrderConfirmation($pedido_notif);
         }
-        
+
         // Notificar estabelecimento
         $whatsapp->notifyEstablishment($pedido_notif);
-        
+
         $whatsapp_result = true;
-    } catch (Exception $e) {
+    }
+    catch (Exception $e) {
         error_log("Erro WhatsApp: " . $e->getMessage());
         $whatsapp_result = false;
     }
@@ -439,10 +453,11 @@ try {
         'whatsapp_enviado' => $whatsapp_result
     ], JSON_UNESCAPED_UNICODE);
 
-} catch (PDOException $e) {
+}
+catch (PDOException $e) {
     $pdo->rollBack();
     error_log("Erro ao finalizar pedido: " . $e->getMessage());
     echo json_encode([
-        'erro' => 'Erro ao processar pedido: ' . $e->getMessage()
+        'erro' => 'Erro ao processar pedido. Por favor, tente novamente.'
     ], JSON_UNESCAPED_UNICODE);
 }

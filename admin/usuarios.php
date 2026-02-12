@@ -2,6 +2,8 @@
 include 'includes/auth.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+require_once '../includes/validar_senha.php';
+require_once '../includes/csrf.php';
 
 verificar_login();
 
@@ -12,70 +14,96 @@ $msg_tipo = '';
 
 // 1. Adicionar Usuário
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['adicionar'])) {
-    try {
-        $nome = $_POST['nome'];
-        $email = $_POST['email'];
-        $senha = password_hash($_POST['senha'], PASSWORD_DEFAULT);
-        $nivel = $_POST['nivel_acesso'];
-        $ativo = 1; // Padrão ativo ao criar
-
-        // Verificar se email já existe
-        $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE email = ?");
-        $stmt->execute([$email]);
-        if ($stmt->fetch()) {
-            throw new Exception("Este e-mail já está cadastrado.");
-        }
-
-        $stmt = $pdo->prepare("INSERT INTO usuarios (nome, email, senha, nivel_acesso, ativo) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute([$nome, $email, $senha, $nivel, $ativo]);
-
-        $msg = 'Usuário adicionado com sucesso!';
-        $msg_tipo = 'success';
-    } catch (Exception $e) {
-        $msg = 'Erro ao adicionar usuário: ' . $e->getMessage();
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
         $msg_tipo = 'danger';
     }
+    else {
+        try {
+            $nome = $_POST['nome'];
+            $email = $_POST['email'];
+
+            // Validar política de senha
+            $erros_senha = validar_senha($_POST['senha']);
+            if (!empty($erros_senha)) {
+                throw new Exception(implode(' ', $erros_senha));
+            }
+
+            $senha = password_hash($_POST['senha'], PASSWORD_DEFAULT);
+            $nivel = $_POST['nivel_acesso'];
+            $ativo = 1; // Padrão ativo ao criar
+
+            // Verificar se email já existe
+            $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE email = ?");
+            $stmt->execute([$email]);
+            if ($stmt->fetch()) {
+                throw new Exception("Este e-mail já está cadastrado.");
+            }
+
+            $stmt = $pdo->prepare("INSERT INTO usuarios (nome, email, senha, nivel_acesso, ativo) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$nome, $email, $senha, $nivel, $ativo]);
+
+            $msg = 'Usuário adicionado com sucesso!';
+            $msg_tipo = 'success';
+        }
+        catch (Exception $e) {
+            $msg = 'Erro ao adicionar usuário: ' . $e->getMessage();
+            $msg_tipo = 'danger';
+        }
+    } // fecha else validar_csrf
 }
 
 // 2. Editar Usuário
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['editar_usuario'])) {
-    try {
-        $id = (int)$_POST['usuario_id'];
-        $nome = $_POST['editar_nome'];
-        $email = $_POST['editar_email'];
-        $nivel = $_POST['editar_nivel_acesso'];
-        $ativo = isset($_POST['editar_ativo']) ? 1 : 0;
-
-        // Verificar se email já existe (exceto para o próprio usuário)
-        $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE email = ? AND id != ?");
-        $stmt->execute([$email, $id]);
-        if ($stmt->fetch()) {
-            throw new Exception("Este e-mail já está em uso por outro usuário.");
-        }
-
-        // Se senha foi informada, atualiza. Senão, mantém.
-        if (!empty($_POST['editar_senha'])) {
-            $senha = password_hash($_POST['editar_senha'], PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("UPDATE usuarios SET nome = ?, email = ?, senha = ?, nivel_acesso = ?, ativo = ? WHERE id = ?");
-            $stmt->execute([$nome, $email, $senha, $nivel, $ativo, $id]);
-        } else {
-            $stmt = $pdo->prepare("UPDATE usuarios SET nome = ?, email = ?, nivel_acesso = ?, ativo = ? WHERE id = ?");
-            $stmt->execute([$nome, $email, $nivel, $ativo, $id]);
-        }
-
-        $msg = 'Usuário atualizado com sucesso!';
-        $msg_tipo = 'success';
-    } catch (Exception $e) {
-        $msg = 'Erro ao atualizar usuário: ' . $e->getMessage();
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
         $msg_tipo = 'danger';
     }
+    else {
+        try {
+            $id = (int)$_POST['usuario_id'];
+            $nome = $_POST['editar_nome'];
+            $email = $_POST['editar_email'];
+            $nivel = $_POST['editar_nivel_acesso'];
+            $ativo = isset($_POST['editar_ativo']) ? 1 : 0;
+
+            // Verificar se email já existe (exceto para o próprio usuário)
+            $stmt = $pdo->prepare("SELECT id FROM usuarios WHERE email = ? AND id != ?");
+            $stmt->execute([$email, $id]);
+            if ($stmt->fetch()) {
+                throw new Exception("Este e-mail já está em uso por outro usuário.");
+            }
+
+            // Se senha foi informada, atualiza. Senão, mantém.
+            if (!empty($_POST['editar_senha'])) {
+                $erros_senha = validar_senha($_POST['editar_senha']);
+                if (!empty($erros_senha)) {
+                    throw new Exception(implode(' ', $erros_senha));
+                }
+                $senha = password_hash($_POST['editar_senha'], PASSWORD_DEFAULT);
+                $stmt = $pdo->prepare("UPDATE usuarios SET nome = ?, email = ?, senha = ?, nivel_acesso = ?, ativo = ? WHERE id = ?");
+                $stmt->execute([$nome, $email, $senha, $nivel, $ativo, $id]);
+            }
+            else {
+                $stmt = $pdo->prepare("UPDATE usuarios SET nome = ?, email = ?, nivel_acesso = ?, ativo = ? WHERE id = ?");
+                $stmt->execute([$nome, $email, $nivel, $ativo, $id]);
+            }
+
+            $msg = 'Usuário atualizado com sucesso!';
+            $msg_tipo = 'success';
+        }
+        catch (Exception $e) {
+            $msg = 'Erro ao atualizar usuário: ' . $e->getMessage();
+            $msg_tipo = 'danger';
+        }
+    } // fecha else validar_csrf
 }
 
 // 3. Deletar Usuário
 if (isset($_GET['deletar'])) {
     try {
         $id = (int)$_GET['deletar'];
-        
+
         // Impedir deletar o próprio usuário logado
         if ($id == $_SESSION['usuario_id']) {
             throw new Exception("Você não pode deletar sua própria conta.");
@@ -86,7 +114,8 @@ if (isset($_GET['deletar'])) {
 
         $msg = 'Usuário deletado com sucesso!';
         $msg_tipo = 'success';
-    } catch (Exception $e) {
+    }
+    catch (Exception $e) {
         $msg = 'Erro ao deletar usuário: ' . $e->getMessage();
         $msg_tipo = 'danger';
     }
@@ -430,7 +459,8 @@ html[data-theme="dark"] .alert {
         <?php echo $msg; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <div class="row gy-4">
         <div class="col-lg-5">
@@ -443,13 +473,7 @@ html[data-theme="dark"] .alert {
                 </div>
                 <div class="card-body p-24">
                     <form method="POST">
-                        <?php 
-                        // Generate CSRF token if not exists
-                        if (!isset($_SESSION['csrf_token'])) {
-                            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-                        }
-                        ?>
-                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">                    
+                        <?php echo campo_csrf(); ?>                    
                         <div class="mb-20">
                             <label class="form-label fw-semibold text-primary-light text-sm mb-8">Nome Completo *</label>
                             <input type="text" name="nome" class="form-control radius-8" required placeholder="Digite o nome completo">
@@ -462,8 +486,8 @@ html[data-theme="dark"] .alert {
                         
                         <div class="mb-20">
                             <label class="form-label fw-semibold text-primary-light text-sm mb-8">Senha *</label>
-                            <input type="password" name="senha" class="form-control radius-8" required minlength="6" placeholder="Mínimo 6 caracteres">
-                            <small class="text-secondary-light">Mínimo 6 caracteres</small>
+                            <input type="password" name="senha" class="form-control radius-8" required minlength="8" placeholder="Mín 8 chars, maiúsc, minúsc e número">
+                            <small class="text-secondary-light">Mín 8 caracteres, com maiúscula, minúscula e número</small>
                         </div>
                         
                         <div class="mb-20">
@@ -510,33 +534,33 @@ html[data-theme="dark"] .alert {
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($usuarios as $u): 
-                                    $inicial = strtoupper(substr($u['nome'], 0, 1));
-                                    $nivelClass = 'bg-secondary-focus text-secondary-main';
-                                    $nivelIcon = 'solar:user-bold';
-                                    $nivel = $u['nivel'] ?? $u['nivel_acesso'] ?? 'user';
-                                    $nivelNome = ucfirst($nivel);
-                                    
-                                    switch($nivel) {
-                                        case 'admin': 
-                                            $nivelClass = 'bg-danger-focus text-danger-main'; 
-                                            $nivelIcon = 'solar:crown-bold-duotone';
-                                            $nivelNome = 'Admin';
-                                            break;
-                                        case 'gerente': 
-                                            $nivelClass = 'bg-primary-focus text-primary-main'; 
-                                            $nivelIcon = 'solar:chart-bold-duotone';
-                                            break;
-                                        case 'cozinha': 
-                                            $nivelClass = 'bg-warning-focus text-warning-main'; 
-                                            $nivelIcon = 'solar:chef-hat-bold-duotone';
-                                            break;
-                                        case 'entregador': 
-                                            $nivelClass = 'bg-info-focus text-info-main'; 
-                                            $nivelIcon = 'solar:delivery-bold-duotone';
-                                            break;
-                                    }
-                                ?>
+                                <?php foreach ($usuarios as $u):
+    $inicial = strtoupper(substr($u['nome'], 0, 1));
+    $nivelClass = 'bg-secondary-focus text-secondary-main';
+    $nivelIcon = 'solar:user-bold';
+    $nivel = $u['nivel'] ?? $u['nivel_acesso'] ?? 'user';
+    $nivelNome = ucfirst($nivel);
+
+    switch ($nivel) {
+        case 'admin':
+            $nivelClass = 'bg-danger-focus text-danger-main';
+            $nivelIcon = 'solar:crown-bold-duotone';
+            $nivelNome = 'Admin';
+            break;
+        case 'gerente':
+            $nivelClass = 'bg-primary-focus text-primary-main';
+            $nivelIcon = 'solar:chart-bold-duotone';
+            break;
+        case 'cozinha':
+            $nivelClass = 'bg-warning-focus text-warning-main';
+            $nivelIcon = 'solar:chef-hat-bold-duotone';
+            break;
+        case 'entregador':
+            $nivelClass = 'bg-info-focus text-info-main';
+            $nivelIcon = 'solar:delivery-bold-duotone';
+            break;
+    }
+?>
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center gap-2">
@@ -561,12 +585,14 @@ html[data-theme="dark"] .alert {
                                                 <iconify-icon icon="solar:check-circle-bold" style="font-size: 12px;"></iconify-icon>
                                                 Ativo
                                             </span>
-                                        <?php else: ?>
+                                        <?php
+    else: ?>
                                             <span class="badge bg-danger-focus text-danger-main d-inline-flex align-items-center gap-1">
                                                 <iconify-icon icon="solar:close-circle-bold" style="font-size: 12px;"></iconify-icon>
                                                 Inativo
                                             </span>
-                                        <?php endif; ?>
+                                        <?php
+    endif; ?>
                                     </td>
                                     <td>
                                         <div class="d-flex align-items-center justify-content-end gap-2">
@@ -583,18 +609,21 @@ html[data-theme="dark"] .alert {
                                             
                                             <?php if ($u['id'] == $_SESSION['usuario_id']): ?>
                                                 <span class="badge bg-primary-focus text-primary-main">Você</span>
-                                            <?php else: ?>
+                                            <?php
+    else: ?>
                                                 <a href="?deletar=<?php echo $u['id']; ?>" 
                                                    class="btn btn-sm btn-danger d-inline-flex align-items-center gap-1"
                                                    onclick="return confirm('Tem certeza que deseja deletar este usuário?')">
                                                     <iconify-icon icon="solar:trash-bin-outline" style="font-size: 14px; line-height: 1;"></iconify-icon>
                                                     <span>Deletar</span>
                                                 </a>
-                                            <?php endif; ?>
+                                            <?php
+    endif; ?>
                                         </div>
                                     </td>
                                 </tr>
-                                <?php endforeach; ?>
+                                <?php
+endforeach; ?>
                             </tbody>
                         </table>
                     </div>
@@ -609,7 +638,7 @@ html[data-theme="dark"] .alert {
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="POST" id="formEditarUsuario">
-                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                <?php echo campo_csrf(); ?>
                 <input type="hidden" name="editar_usuario" value="1">
                 <input type="hidden" name="usuario_id" id="editar_usuario_id">
                 <div class="modal-header">
@@ -645,8 +674,8 @@ html[data-theme="dark"] .alert {
                     </div>
                     <div class="mb-20">
                         <label for="editar_senha" class="form-label fw-semibold text-primary-light text-sm mb-8">Nova Senha (opcional)</label>
-                        <input type="password" class="form-control radius-8" name="editar_senha" id="editar_senha" minlength="6" placeholder="Deixe vazio para manter a atual">
-                        <small class="text-secondary-light">Informe apenas se desejar alterar a senha do usuário (mínimo 6 caracteres).</small>
+                        <input type="password" class="form-control radius-8" name="editar_senha" id="editar_senha" minlength="8" placeholder="Deixe vazio para manter a atual">
+                        <small class="text-secondary-light">Mín 8 caracteres, com maiúscula, minúscula e número.</small>
                     </div>
                 </div>
                 <div class="modal-footer d-flex justify-content-between border-top">

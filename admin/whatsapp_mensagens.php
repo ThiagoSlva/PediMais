@@ -2,6 +2,7 @@
 include 'includes/auth.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+require_once '../includes/csrf.php';
 
 verificar_login();
 
@@ -13,7 +14,7 @@ try {
     // 1. Check/Add columns to whatsapp_config
     $stmt = $pdo->query("DESCRIBE whatsapp_config");
     $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    
+
     if (!in_array('tempo_preparo_padrao', $columns)) {
         $pdo->exec("ALTER TABLE whatsapp_config ADD COLUMN tempo_preparo_padrao INT DEFAULT 30");
     }
@@ -47,7 +48,8 @@ try {
             // Insert with specific ID
             $stmt = $pdo->prepare("INSERT INTO whatsapp_mensagens (id, tipo, titulo, mensagem, ativo) VALUES (?, ?, ?, ?, 1)");
             $stmt->execute([$id, $data['tipo'], $data['titulo'], $data['mensagem']]);
-        } else {
+        }
+        else {
             // Optional: Update title/type if needed, but usually we respect user changes to content
             // We ensure 'titulo' column exists first? 
             // The original schema might not have 'titulo'. Let's check.
@@ -55,57 +57,66 @@ try {
             $stmt = $pdo->query("DESCRIBE whatsapp_mensagens");
             $msgColumns = $stmt->fetchAll(PDO::FETCH_COLUMN);
             if (!in_array('titulo', $msgColumns)) {
-                 $pdo->exec("ALTER TABLE whatsapp_mensagens ADD COLUMN titulo VARCHAR(255) DEFAULT ''");
-                 // Update titles
-                 $pdo->prepare("UPDATE whatsapp_mensagens SET titulo = ? WHERE id = ?")->execute([$data['titulo'], $id]);
+                $pdo->exec("ALTER TABLE whatsapp_mensagens ADD COLUMN titulo VARCHAR(255) DEFAULT ''");
+                // Update titles
+                $pdo->prepare("UPDATE whatsapp_mensagens SET titulo = ? WHERE id = ?")->execute([$data['titulo'], $id]);
             }
         }
     }
 
-} catch (PDOException $e) {
-    // Ignore errors or log them (e.g. duplicate column)
+}
+catch (PDOException $e) {
+// Ignore errors or log them (e.g. duplicate column)
 }
 // ---------------------------------------------
 
 // Processar formulários
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['acao'])) {
-    
-    // 1. Salvar Configurações de Tempo
-    if ($_POST['acao'] == 'salvar_configs') {
-        try {
-            $tempo_preparo = (int)$_POST['whatsapp_tempo_preparo_padrao'];
-            $tempo_entrega = (int)$_POST['whatsapp_tempo_entrega_padrao'];
-            
-            // Update the first row of whatsapp_config
-            $stmt = $pdo->prepare("UPDATE whatsapp_config SET tempo_preparo_padrao = ?, tempo_entrega_padrao = ? LIMIT 1");
-            $stmt->execute([$tempo_preparo, $tempo_entrega]);
-            
-            $msg = 'Configurações de tempo salvas com sucesso!';
-            $msg_tipo = 'success';
-        } catch (PDOException $e) {
-            $msg = 'Erro ao salvar configurações: ' . $e->getMessage();
-            $msg_tipo = 'danger';
-        }
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_tipo = 'danger';
     }
-    
-    // 2. Atualizar Mensagem Individual
-    elseif ($_POST['acao'] == 'atualizar_mensagem') {
-        try {
-            $id = (int)$_POST['id'];
-            $titulo = $_POST['titulo'];
-            $mensagem = $_POST['mensagem'];
-            $ativo = isset($_POST['ativo']) ? 1 : 0;
-            
-            $stmt = $pdo->prepare("UPDATE whatsapp_mensagens SET titulo = ?, mensagem = ?, ativo = ?, atualizado_em = NOW() WHERE id = ?");
-            $stmt->execute([$titulo, $mensagem, $ativo, $id]);
-            
-            $msg = 'Mensagem atualizada com sucesso!';
-            $msg_tipo = 'success';
-        } catch (PDOException $e) {
-            $msg = 'Erro ao atualizar mensagem: ' . $e->getMessage();
-            $msg_tipo = 'danger';
+    else {
+
+        // 1. Salvar Configurações de Tempo
+        if ($_POST['acao'] == 'salvar_configs') {
+            try {
+                $tempo_preparo = (int)$_POST['whatsapp_tempo_preparo_padrao'];
+                $tempo_entrega = (int)$_POST['whatsapp_tempo_entrega_padrao'];
+
+                // Update the first row of whatsapp_config
+                $stmt = $pdo->prepare("UPDATE whatsapp_config SET tempo_preparo_padrao = ?, tempo_entrega_padrao = ? LIMIT 1");
+                $stmt->execute([$tempo_preparo, $tempo_entrega]);
+
+                $msg = 'Configurações de tempo salvas com sucesso!';
+                $msg_tipo = 'success';
+            }
+            catch (PDOException $e) {
+                $msg = 'Erro ao salvar configurações: ' . $e->getMessage();
+                $msg_tipo = 'danger';
+            }
         }
-    }
+
+        // 2. Atualizar Mensagem Individual
+        elseif ($_POST['acao'] == 'atualizar_mensagem') {
+            try {
+                $id = (int)$_POST['id'];
+                $titulo = $_POST['titulo'];
+                $mensagem = $_POST['mensagem'];
+                $ativo = isset($_POST['ativo']) ? 1 : 0;
+
+                $stmt = $pdo->prepare("UPDATE whatsapp_mensagens SET titulo = ?, mensagem = ?, ativo = ?, atualizado_em = NOW() WHERE id = ?");
+                $stmt->execute([$titulo, $mensagem, $ativo, $id]);
+
+                $msg = 'Mensagem atualizada com sucesso!';
+                $msg_tipo = 'success';
+            }
+            catch (PDOException $e) {
+                $msg = 'Erro ao atualizar mensagem: ' . $e->getMessage();
+                $msg_tipo = 'danger';
+            }
+        }
+    } // fecha else validar_csrf
 }
 
 // Buscar configurações atuais
@@ -282,7 +293,8 @@ html[data-theme="dark"] small {
         <?php echo $msg; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
     
     <!-- Card de Configurações Gerais -->
     <div class="card h-100 p-0 radius-12 mb-24">
@@ -294,6 +306,7 @@ html[data-theme="dark"] small {
         </div>
         <div class="card-body p-24">
             <form method="POST">
+                <?php echo campo_csrf(); ?>
                 <input type="hidden" name="acao" value="salvar_configs">
                 
                 <div class="row gy-3">
@@ -386,18 +399,19 @@ html[data-theme="dark"] small {
         </div>
         <div class="card-body p-24">
             <div class="accordion" id="accordionMensagens">
-                <?php 
-                // Define order of IDs as per user request
-                $displayOrder = [1, 2, 3, 4, 46, 5, 6, 7, 8, 9, 12, 10, 11, 45];
-                
-                foreach ($displayOrder as $id): 
-                    if (!isset($mensagens[$id])) continue;
-                    $m = $mensagens[$id];
-                    $isOpen = ($id == 1) ? 'show' : '';
-                    $isCollapsed = ($id == 1) ? '' : 'collapsed';
-                    $badgeClass = $m['ativo'] ? 'bg-success-600' : 'bg-danger-600';
-                    $badgeText = $m['ativo'] ? 'Ativo' : 'Inativo';
-                ?>
+                <?php
+// Define order of IDs as per user request
+$displayOrder = [1, 2, 3, 4, 46, 5, 6, 7, 8, 9, 12, 10, 11, 45];
+
+foreach ($displayOrder as $id):
+    if (!isset($mensagens[$id]))
+        continue;
+    $m = $mensagens[$id];
+    $isOpen = ($id == 1) ? 'show' : '';
+    $isCollapsed = ($id == 1) ? '' : 'collapsed';
+    $badgeClass = $m['ativo'] ? 'bg-success-600' : 'bg-danger-600';
+    $badgeText = $m['ativo'] ? 'Ativo' : 'Inativo';
+?>
                 <div class="accordion-item border radius-8 mb-3">
                     <h2 class="accordion-header">
                         <button class="accordion-button <?php echo $isCollapsed; ?>" 
@@ -420,6 +434,7 @@ html[data-theme="dark"] small {
                          data-bs-parent="#accordionMensagens">
                         <div class="accordion-body">
                             <form method="POST">
+                                <?php echo campo_csrf(); ?>
                                 <input type="hidden" name="acao" value="atualizar_mensagem">
                                 <input type="hidden" name="id" value="<?php echo $id; ?>">
                                 
@@ -462,7 +477,8 @@ html[data-theme="dark"] small {
                         </div>
                     </div>
                 </div>
-                <?php endforeach; ?>
+                <?php
+endforeach; ?>
             </div>
         </div>
     </div>

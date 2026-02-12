@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/header.php';
+require_once __DIR__ . '/../includes/csrf.php';
 
 // Migration: Criar tabela de configuração de pizzas se não existir
 try {
@@ -7,25 +8,32 @@ try {
         id INT AUTO_INCREMENT PRIMARY KEY,
         tipo_cobranca ENUM('maior_valor', 'media') DEFAULT 'maior_valor'
     )");
-    
+
     // Garantir registro inicial
     $check = $pdo->query("SELECT id FROM configuracao_pizzas LIMIT 1");
     if (!$check->fetch()) {
         $pdo->exec("INSERT INTO configuracao_pizzas (tipo_cobranca) VALUES ('maior_valor')");
     }
-} catch (Exception $e) {
-    // Silently handle
+}
+catch (Exception $e) {
+// Silently handle
 }
 
 // Processar configuração de pizza
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'config_pizza') {
-    $tipo_cobranca = $_POST['tipo_cobranca'] ?? 'maior_valor';
-    if (in_array($tipo_cobranca, ['maior_valor', 'media'])) {
-        $stmt = $pdo->prepare("UPDATE configuracao_pizzas SET tipo_cobranca = ? WHERE id = 1");
-        $stmt->execute([$tipo_cobranca]);
-        $msg = 'Configuração de pizza atualizada!';
-        $msg_type = 'success';
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_type = 'danger';
     }
+    else {
+        $tipo_cobranca = $_POST['tipo_cobranca'] ?? 'maior_valor';
+        if (in_array($tipo_cobranca, ['maior_valor', 'media'])) {
+            $stmt = $pdo->prepare("UPDATE configuracao_pizzas SET tipo_cobranca = ? WHERE id = 1");
+            $stmt->execute([$tipo_cobranca]);
+            $msg = 'Configuração de pizza atualizada!';
+            $msg_type = 'success';
+        }
+    } // fecha else validar_csrf
 }
 
 // Buscar configuração atual
@@ -35,7 +43,7 @@ $config_pizza = $config_pizza_stmt->fetch(PDO::FETCH_ASSOC);
 // Ações
 if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])) {
     $id = (int)$_GET['id'];
-    
+
     // Verificar se há produtos desta categoria com itens de pedido vinculados
     $stmt_check = $pdo->prepare("
         SELECT COUNT(*) as total 
@@ -45,26 +53,29 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])
     ");
     $stmt_check->execute([$id]);
     $has_orders = $stmt_check->fetch(PDO::FETCH_ASSOC)['total'] > 0;
-    
+
     if ($has_orders) {
         $msg = 'Não é possível excluir esta categoria. Ela possui produtos que fazem parte de pedidos. Você pode desativá-la em vez de excluí-la.';
         $msg_type = 'warning';
-    } else {
+    }
+    else {
         try {
             // Primeiro excluir produtos da categoria (se não houver pedidos)
             $stmt_produtos = $pdo->prepare("DELETE FROM produtos WHERE categoria_id = ?");
             $stmt_produtos->execute([$id]);
-            
+
             // Depois excluir a categoria
             $stmt = $pdo->prepare("DELETE FROM categorias WHERE id = ?");
             if ($stmt->execute([$id])) {
                 $msg = 'Categoria e seus produtos excluídos com sucesso!';
                 $msg_type = 'success';
-            } else {
+            }
+            else {
                 $msg = 'Erro ao excluir categoria.';
                 $msg_type = 'danger';
             }
-        } catch (PDOException $e) {
+        }
+        catch (PDOException $e) {
             $msg = 'Erro ao excluir categoria. Verifique se não há dados vinculados.';
             $msg_type = 'danger';
         }
@@ -114,7 +125,8 @@ if (isset($_GET['mensagem'])) {
         <?php echo htmlspecialchars($msg); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <!-- Configuração de Pizza Meio a Meio -->
     <div class="card h-100 p-0 radius-12 mb-4">
@@ -123,15 +135,16 @@ if (isset($_GET['mensagem'])) {
         </div>
         <div class="card-body">
             <form method="POST" action="categorias.php">
+                <?php echo campo_csrf(); ?>
                 <input type="hidden" name="action" value="config_pizza">
                 
                 <p class="text-secondary-light mb-3">Como calcular o preço quando o cliente escolher pizza meio a meio?</p>
                 
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <div class="form-check" style="padding: 15px; background: <?php echo ($config_pizza['tipo_cobranca'] ?? 'maior_valor') === 'maior_valor' ? 'rgba(74, 102, 249, 0.1)' : 'transparent'; ?>; border-radius: 10px; border: 2px solid <?php echo ($config_pizza['tipo_cobranca'] ?? 'maior_valor') === 'maior_valor' ? '#4a66f9' : '#2d3446'; ?>;">
+                        <div class="form-check" style="padding: 15px; background: <?php echo($config_pizza['tipo_cobranca'] ?? 'maior_valor') === 'maior_valor' ? 'rgba(74, 102, 249, 0.1)' : 'transparent'; ?>; border-radius: 10px; border: 2px solid <?php echo($config_pizza['tipo_cobranca'] ?? 'maior_valor') === 'maior_valor' ? '#4a66f9' : '#2d3446'; ?>;">
                             <input class="form-check-input" type="radio" name="tipo_cobranca" id="maior_valor" value="maior_valor" 
-                                   <?php echo ($config_pizza['tipo_cobranca'] ?? 'maior_valor') === 'maior_valor' ? 'checked' : ''; ?>>
+                                   <?php echo($config_pizza['tipo_cobranca'] ?? 'maior_valor') === 'maior_valor' ? 'checked' : ''; ?>>
                             <label class="form-check-label fw-semibold" for="maior_valor">
                                 📈 Cobrar pelo <strong>Maior Valor</strong>
                             </label>
@@ -139,9 +152,9 @@ if (isset($_GET['mensagem'])) {
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="form-check" style="padding: 15px; background: <?php echo ($config_pizza['tipo_cobranca'] ?? 'maior_valor') === 'media' ? 'rgba(74, 102, 249, 0.1)' : 'transparent'; ?>; border-radius: 10px; border: 2px solid <?php echo ($config_pizza['tipo_cobranca'] ?? 'maior_valor') === 'media' ? '#4a66f9' : '#2d3446'; ?>;">
+                        <div class="form-check" style="padding: 15px; background: <?php echo($config_pizza['tipo_cobranca'] ?? 'maior_valor') === 'media' ? 'rgba(74, 102, 249, 0.1)' : 'transparent'; ?>; border-radius: 10px; border: 2px solid <?php echo($config_pizza['tipo_cobranca'] ?? 'maior_valor') === 'media' ? '#4a66f9' : '#2d3446'; ?>;">
                             <input class="form-check-input" type="radio" name="tipo_cobranca" id="media" value="media"
-                                   <?php echo ($config_pizza['tipo_cobranca'] ?? 'maior_valor') === 'media' ? 'checked' : ''; ?>>
+                                   <?php echo($config_pizza['tipo_cobranca'] ?? 'maior_valor') === 'media' ? 'checked' : ''; ?>>
                             <label class="form-check-label fw-semibold" for="media">
                                 📊 Cobrar pela <strong>Média</strong>
                             </label>
@@ -196,7 +209,8 @@ if (isset($_GET['mensagem'])) {
                                 <iconify-icon icon="solar:refresh-outline"></iconify-icon>
                                 Limpar
                             </a>
-                        <?php endif; ?>
+                        <?php
+endif; ?>
                     </div>
                 </div>
             </form>
@@ -218,24 +232,26 @@ if (isset($_GET['mensagem'])) {
                             <tr>
                                 <td colspan="6" class="text-center py-4">Nenhuma categoria encontrada.</td>
                             </tr>
-                        <?php else: ?>
+                        <?php
+else: ?>
                             <?php foreach ($categorias as $cat): ?>
                             <tr>
                                 <td class="fw-bold text-primary-600"><?php echo $cat['ordem']; ?></td>
                                 <td>
-                                    <?php 
-                                    // O caminho salvo no banco é 'uploads/categorias/xxx.jpg' (relativo à raiz)
-                                    // No admin, precisamos de '../uploads/categorias/xxx.jpg'
-                                    $img_url = $cat['imagem'] ? str_replace('admin/', '', $cat['imagem']) : '';
-                                    
-                                    if ($img_url) {
-                                        if (!str_starts_with($img_url, 'http') && !str_starts_with($img_url, '../')) {
-                                            $img_url = '../' . $img_url;
-                                        }
-                                    } else {
-                                        $img_url = 'assets/images/sem-foto.jpg';
-                                    }
-                                    ?>
+                                    <?php
+        // O caminho salvo no banco é 'uploads/categorias/xxx.jpg' (relativo à raiz)
+        // No admin, precisamos de '../uploads/categorias/xxx.jpg'
+        $img_url = $cat['imagem'] ? str_replace('admin/', '', $cat['imagem']) : '';
+
+        if ($img_url) {
+            if (!str_starts_with($img_url, 'http') && !str_starts_with($img_url, '../')) {
+                $img_url = '../' . $img_url;
+            }
+        }
+        else {
+            $img_url = 'assets/images/sem-foto.jpg';
+        }
+?>
                                     <img src="<?php echo htmlspecialchars($img_url); ?>" alt="<?php echo htmlspecialchars($cat['nome']); ?>" 
                                          style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;"
                                          onerror="this.src='assets/images/sem-foto.jpg'; this.onerror=null;">
@@ -247,9 +263,11 @@ if (isset($_GET['mensagem'])) {
                                 <td>
                                     <?php if ($cat['ativo']): ?>
                                         <span class="bg-success-focus text-success-main px-24 py-4 rounded-pill fw-medium text-sm">Ativa</span>
-                                    <?php else: ?>
+                                    <?php
+        else: ?>
                                         <span class="bg-danger-focus text-danger-main px-24 py-4 rounded-pill fw-medium text-sm">Inativa</span>
-                                    <?php endif; ?>
+                                    <?php
+        endif; ?>
                                 </td>
                                 <td class="text-center">
                                     <div class="d-flex align-items-center gap-10 justify-content-center">
@@ -267,8 +285,10 @@ if (isset($_GET['mensagem'])) {
                                     </div>
                                 </td>
                             </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
+                            <?php
+    endforeach; ?>
+                        <?php
+endif; ?>
                     </tbody>
                 </table>
             </div>

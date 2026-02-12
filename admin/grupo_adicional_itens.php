@@ -1,6 +1,7 @@
 <?php
 require_once dirname(__DIR__) . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once dirname(__DIR__) . '/includes/csrf.php';
 
 verificar_login();
 
@@ -22,6 +23,11 @@ if (!$grupo) {
 
 // Handle deletion
 if (isset($_POST['delete_id'])) {
+    if (!validar_csrf()) {
+        // Token inválido, redirecionar
+        header("Location: grupo_adicional_itens.php?grupo_id=$grupo_id&msg=csrf_error");
+        exit;
+    }
     $id = filter_input(INPUT_POST, 'delete_id', FILTER_VALIDATE_INT);
     if ($id) {
         $stmt = $pdo->prepare("DELETE FROM grupo_adicional_itens WHERE id = ?");
@@ -95,7 +101,8 @@ $itens = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <div class="card-body">
                     <?php if (isset($_GET['msg']) && $_GET['msg'] == 'deleted'): ?>
                         <div class="alert alert-success">Item excluído com sucesso!</div>
-                    <?php endif; ?>
+                    <?php
+endif; ?>
 
                     <div class="alert alert-info">
                         <strong>Informações do Grupo:</strong> 
@@ -126,22 +133,27 @@ $itens = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <td>
                                         <?php if ($item['preco_adicional'] > 0): ?>
                                             <span class="text-primary fw-bold">+ R$ <?php echo number_format($item['preco_adicional'], 2, ',', '.'); ?></span>
-                                        <?php else: ?>
+                                        <?php
+    else: ?>
                                             <span class="text-success">Grátis</span>
-                                        <?php endif; ?>
+                                        <?php
+    endif; ?>
                                     </td>
                                     <td>
                                         <?php if ($item['ativo']): ?>
                                             <span class="badge bg-success">Ativo</span>
-                                        <?php else: ?>
+                                        <?php
+    else: ?>
                                             <span class="badge bg-danger">Inativo</span>
-                                        <?php endif; ?>
+                                        <?php
+    endif; ?>
                                     </td>
                                     <td class="text-end">
                                         <a href="grupo_adicional_itens_edit.php?id=<?php echo $item['id']; ?>" class="btn btn-sm btn-primary me-1" title="Editar">
                                             <i class="fas fa-edit"></i>
                                         </a>
                                         <form method="POST" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir este item?');">
+                                            <?php echo campo_csrf(); ?>
                                             <input type="hidden" name="delete_id" value="<?php echo $item['id']; ?>">
                                             <button type="submit" class="btn btn-sm btn-danger" title="Excluir">
                                                 <i class="fas fa-trash"></i>
@@ -149,13 +161,15 @@ $itens = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                         </form>
                                     </td>
                                 </tr>
-                                <?php endforeach; ?>
+                                <?php
+endforeach; ?>
                                 
                                 <?php if (empty($itens)): ?>
                                 <tr>
                                     <td colspan="5" class="text-center py-4">Nenhum item cadastrado neste grupo.</td>
                                 </tr>
-                                <?php endif; ?>
+                                <?php
+endif; ?>
                             </tbody>
                         </table>
                     </div>

@@ -7,7 +7,7 @@
     <div class="container-dashboard">
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
             <p class="mb-0" style="color: var(--gray-500); font-size: 0.875rem;">
-                &copy; <?php echo date('Y'); ?> PediMais. Todos os direitos reservados.
+                &copy; <?php echo date('Y'); ?> PedeMais. Todos os direitos reservados.
             </p>
             <div class="d-flex gap-3">
                 <a href="../index.php" class="text-decoration-none" style="color: var(--gray-500); font-size: 0.875rem;">

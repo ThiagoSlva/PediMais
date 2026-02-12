@@ -1,5 +1,7 @@
 <?php
 require_once '../includes/config.php';
+require_once '../includes/validar_senha.php';
+require_once '../includes/csrf.php';
 require_once 'includes/auth.php';
 
 verificar_login_cliente();
@@ -10,64 +12,77 @@ $msg_tipo = '';
 
 // Process form submissions
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $acao = $_POST['acao'] ?? '';
-    
-    if ($acao == 'atualizar_perfil') {
-        $nome = trim($_POST['nome']);
-        $email = trim($_POST['email']);
-        $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone']);
-        $cpf = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
-        
-        if (empty($nome)) {
-            $msg = 'O nome é obrigatório';
-            $msg_tipo = 'danger';
-        } else {
-            try {
-                // Check if CPF column exists, if not create it
-                $stmt = $pdo->query("SHOW COLUMNS FROM clientes LIKE 'cpf'");
-                if ($stmt->rowCount() == 0) {
-                    $pdo->exec("ALTER TABLE clientes ADD COLUMN cpf VARCHAR(14) NULL AFTER email");
-                }
-                
-                $stmt = $pdo->prepare("UPDATE clientes SET nome = ?, email = ?, telefone = ?, cpf = ? WHERE id = ?");
-                $stmt->execute([$nome, $email, $telefone, $cpf ?: null, $cliente_id]);
-                
-                $msg = 'Perfil atualizado com sucesso!';
-                $msg_tipo = 'success';
-                $_SESSION['cliente_nome'] = $nome;
-            } catch (PDOException $e) {
-                $msg = 'Erro ao atualizar: ' . $e->getMessage();
-                $msg_tipo = 'danger';
-            }
-        }
-    } elseif ($acao == 'alterar_senha') {
-        $senha_atual = $_POST['senha_atual'];
-        $nova_senha = $_POST['nova_senha'];
-        $confirma_senha = $_POST['confirma_senha'];
-        
-        if ($nova_senha !== $confirma_senha) {
-            $msg = 'As senhas não conferem!';
-            $msg_tipo = 'danger';
-        } elseif (strlen($nova_senha) < 6) {
-            $msg = 'A senha deve ter no mínimo 6 caracteres';
-            $msg_tipo = 'danger';
-        } else {
-            $stmt = $pdo->prepare("SELECT senha FROM clientes WHERE id = ?");
-            $stmt->execute([$cliente_id]);
-            $cliente_check = $stmt->fetch();
-            
-            if ($cliente_check && password_verify($senha_atual, $cliente_check['senha'])) {
-                $hash = password_hash($nova_senha, PASSWORD_DEFAULT);
-                $stmt = $pdo->prepare("UPDATE clientes SET senha = ? WHERE id = ?");
-                $stmt->execute([$hash, $cliente_id]);
-                $msg = 'Senha alterada com sucesso!';
-                $msg_tipo = 'success';
-            } else {
-                $msg = 'Senha atual incorreta!';
-                $msg_tipo = 'danger';
-            }
-        }
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_tipo = 'danger';
     }
+    else {
+        $acao = $_POST['acao'] ?? '';
+
+        if ($acao == 'atualizar_perfil') {
+            $nome = trim($_POST['nome']);
+            $email = trim($_POST['email']);
+            $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone']);
+            $cpf = preg_replace('/[^0-9]/', '', $_POST['cpf'] ?? '');
+
+            if (empty($nome)) {
+                $msg = 'O nome é obrigatório';
+                $msg_tipo = 'danger';
+            }
+            else {
+                try {
+                    // Check if CPF column exists, if not create it
+                    $stmt = $pdo->query("SHOW COLUMNS FROM clientes LIKE 'cpf'");
+                    if ($stmt->rowCount() == 0) {
+                        $pdo->exec("ALTER TABLE clientes ADD COLUMN cpf VARCHAR(14) NULL AFTER email");
+                    }
+
+                    $stmt = $pdo->prepare("UPDATE clientes SET nome = ?, email = ?, telefone = ?, cpf = ? WHERE id = ?");
+                    $stmt->execute([$nome, $email, $telefone, $cpf ?: null, $cliente_id]);
+
+                    $msg = 'Perfil atualizado com sucesso!';
+                    $msg_tipo = 'success';
+                    $_SESSION['cliente_nome'] = $nome;
+                }
+                catch (PDOException $e) {
+                    $msg = 'Erro ao atualizar: ' . $e->getMessage();
+                    $msg_tipo = 'danger';
+                }
+            }
+        }
+        elseif ($acao == 'alterar_senha') {
+            $senha_atual = $_POST['senha_atual'];
+            $nova_senha = $_POST['nova_senha'];
+            $confirma_senha = $_POST['confirma_senha'];
+
+            if ($nova_senha !== $confirma_senha) {
+                $msg = 'As senhas não conferem!';
+                $msg_tipo = 'danger';
+            }
+            elseif (!senha_atende_requisitos($nova_senha)) {
+                $erros_senha = validar_senha($nova_senha);
+                $msg = implode(' ', $erros_senha);
+                $msg_tipo = 'danger';
+            }
+            else {
+                $stmt = $pdo->prepare("SELECT senha FROM clientes WHERE id = ?");
+                $stmt->execute([$cliente_id]);
+                $cliente_check = $stmt->fetch();
+
+                if ($cliente_check && password_verify($senha_atual, $cliente_check['senha'])) {
+                    $hash = password_hash($nova_senha, PASSWORD_DEFAULT);
+                    $stmt = $pdo->prepare("UPDATE clientes SET senha = ? WHERE id = ?");
+                    $stmt->execute([$hash, $cliente_id]);
+                    $msg = 'Senha alterada com sucesso!';
+                    $msg_tipo = 'success';
+                }
+                else {
+                    $msg = 'Senha atual incorreta!';
+                    $msg_tipo = 'danger';
+                }
+            }
+        }
+    } // fecha else validar_csrf
 }
 
 // Get client data
@@ -112,7 +127,8 @@ include 'includes/header.php';
     <?php echo $msg; ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 </div>
-<?php endif; ?>
+<?php
+endif; ?>
 
 <div class="row g-4">
     <!-- Left Column - Profile Photo & Info -->
@@ -124,9 +140,11 @@ include 'includes/header.php';
                     <?php if (!empty($cliente['foto_perfil']) && file_exists('../' . $cliente['foto_perfil'])): ?>
                         <img src="../<?php echo htmlspecialchars($cliente['foto_perfil']); ?>" 
                              alt="Foto de perfil" class="avatar avatar-xl" id="avatarPreview">
-                    <?php else: ?>
+                    <?php
+else: ?>
                         <div class="avatar-initials xl" id="avatarInitials"><?php echo $initials; ?></div>
-                    <?php endif; ?>
+                    <?php
+endif; ?>
                     <div class="upload-overlay" onclick="document.getElementById('fotoInput').click();">
                         <i class="fa-solid fa-camera"></i>
                     </div>
@@ -173,6 +191,7 @@ include 'includes/header.php';
             </div>
             <div class="card-body">
                 <form method="POST" action="" class="form-premium">
+                    <?php echo campo_csrf(); ?>
                     <input type="hidden" name="acao" value="atualizar_perfil">
                     
                     <div class="row g-3">
@@ -220,6 +239,7 @@ include 'includes/header.php';
             </div>
             <div class="card-body">
                 <form method="POST" action="" class="form-premium" id="formSenha">
+                    <?php echo campo_csrf(); ?>
                     <input type="hidden" name="acao" value="alterar_senha">
                     
                     <div class="row g-3">
@@ -242,7 +262,7 @@ include 'includes/header.php';
                                     <i class="fa-solid fa-eye"></i>
                                 </button>
                             </div>
-                            <small style="color: var(--gray-500);">Mínimo 6 caracteres</small>
+                            <small style="color: var(--gray-500);">Mín 8 chars, maiúscula, minúscula e número</small>
                         </div>
                         
                         <div class="col-md-6">

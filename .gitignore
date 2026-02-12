@@ -1,4 +1,4 @@
-# PediMais - Arquivos ignorados pelo Git
+# PedeMais - Arquivos ignorados pelo Git
 
 # Arquivo de ambiente com credenciais sensíveis
 .env

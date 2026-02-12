@@ -1,63 +1,56 @@
 <?php
 require_once 'includes/header.php';
-
-// Gerar token CSRF se não existir
-if (!isset($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
+require_once __DIR__ . '/../includes/csrf.php';
 
 $msg = '';
 $msg_type = '';
 
 // Ações
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Deletar Todos
-    if (isset($_POST['action']) && $_POST['action'] === 'delete_all') {
-        if (isset($_POST['csrf_token']) && $_POST['csrf_token'] === $_SESSION['csrf_token']) {
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_type = 'danger';
+    }
+    else {
+        // Deletar Todos
+        if (isset($_POST['action']) && $_POST['action'] === 'delete_all') {
             try {
-                // Verificar se tem permissão (opcional, aqui assumimos admin)
-                
                 // Primeiro excluir notificações vinculadas (tabela dependente)
                 $pdo->exec("DELETE FROM cliente_notificacoes");
-
                 // Usar DELETE em vez de TRUNCATE para respeitar outras chaves estrangeiras
                 $pdo->exec("DELETE FROM clientes");
-                
                 $msg = 'Todos os clientes (sem pedidos ativos) foram excluídos com sucesso!';
                 $msg_type = 'success';
-            } catch (PDOException $e) {
-                // Verificar se é erro de integridade referencial (provavelmente pedidos)
+            }
+            catch (PDOException $e) {
                 if ($e->getCode() == '23000') {
-                     $msg = 'Não foi possível excluir todos os clientes pois existem pedidos vinculados. Apenas clientes sem pedidos ou notificações foram processados.';
-                } else {
-                     $msg = 'Erro ao excluir clientes: ' . $e->getMessage();
+                    $msg = 'Não foi possível excluir todos os clientes pois existem pedidos vinculados.';
+                }
+                else {
+                    $msg = 'Erro ao excluir clientes: ' . $e->getMessage();
                 }
                 $msg_type = 'danger';
             }
-        } else {
-            $msg = 'Token de segurança inválido.';
-            $msg_type = 'danger';
         }
-    }
-    // Deletar Individual
-    elseif (isset($_POST['action']) && $_POST['action'] === 'delete_single') {
-        if (isset($_POST['csrf_token']) && $_POST['csrf_token'] === $_SESSION['csrf_token']) {
+        // Deletar Individual
+        elseif (isset($_POST['action']) && $_POST['action'] === 'delete_single') {
             $id = (int)$_POST['id'];
             try {
                 $stmt = $pdo->prepare("DELETE FROM clientes WHERE id = ?");
                 $stmt->execute([$id]);
                 $msg = 'Cliente excluído com sucesso!';
                 $msg_type = 'success';
-            } catch (PDOException $e) {
+            }
+            catch (PDOException $e) {
                 $msg = 'Erro ao excluir cliente: ' . $e->getMessage();
                 $msg_type = 'danger';
             }
         }
-    }
-    // Toggle Status
-    elseif (isset($_POST['action']) && $_POST['action'] === 'toggle_status') {
-         // Implementar se houver coluna 'ativo'
-    }
+        // Toggle Status
+        elseif (isset($_POST['action']) && $_POST['action'] === 'toggle_status') {
+        // Implementar se houver coluna 'ativo'
+        }
+    } // fecha else validar_csrf
 }
 
 // Filtros
@@ -116,7 +109,8 @@ try {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $clientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
+}
+catch (PDOException $e) {
     // Fallback se subselects falharem (ex: colunas não existem)
     $sql = "SELECT * FROM clientes c $where ORDER BY nome ASC LIMIT $limite OFFSET $offset";
     $stmt = $pdo->prepare($sql);
@@ -146,7 +140,8 @@ try {
         <?php echo htmlspecialchars($msg); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <?php endif; ?>
+    <?php
+endif; ?>
 
     <div class="card radius-12">
         <div class="card-body p-24">
@@ -160,14 +155,15 @@ try {
                     </a>
                     <?php if ($total_registros > 0): ?>
                     <form action="clientes.php" method="POST" style="display:inline;" onsubmit="return confirm('⚠️ TEM CERTEZA QUE DESEJA DELETAR TODOS OS CLIENTES?\n\nEsta ação NÃO pode ser desfeita!');">
+                        <?php echo campo_csrf(); ?>
                         <input type="hidden" name="action" value="delete_all">
-                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                         <button type="submit" class="btn btn-outline-danger btn-sm d-flex align-items-center gap-2">
                             <iconify-icon icon="solar:trash-bin-trash-outline"></iconify-icon>
                             <span>Deletar Todos</span>
                         </button>
                     </form>
-                    <?php endif; ?>
+                    <?php
+endif; ?>
                 </div>
             </div>
             
@@ -215,15 +211,16 @@ try {
                             <tr>
                                 <td colspan="9" class="text-center py-4">Nenhum cliente encontrado</td>
                             </tr>
-                        <?php else: ?>
+                        <?php
+else: ?>
                             <?php foreach ($clientes as $cliente): ?>
                             <tr>
                                 <td>
-                                    <?php 
-                                    $foto = isset($cliente['foto']) && $cliente['foto'] ? '../uploads/clientes/' . $cliente['foto'] : '';
-                                    // SVG placeholder como data URI
-                                    $placeholder = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect fill='%23e0e0e0' width='40' height='40' rx='20'/%3E%3Cpath fill='%239e9e9e' d='M20 10a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 14c6.6 0 12 2.7 12 6v2H8v-2c0-3.3 5.4-6 12-6z'/%3E%3C/svg%3E";
-                                    ?>
+                                    <?php
+        $foto = isset($cliente['foto']) && $cliente['foto'] ? '../uploads/clientes/' . $cliente['foto'] : '';
+        // SVG placeholder como data URI
+        $placeholder = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect fill='%23e0e0e0' width='40' height='40' rx='20'/%3E%3Cpath fill='%239e9e9e' d='M20 10a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 14c6.6 0 12 2.7 12 6v2H8v-2c0-3.3 5.4-6 12-6z'/%3E%3C/svg%3E";
+?>
                                     <img src="<?php echo $foto ? htmlspecialchars($foto) : $placeholder; ?>" alt="Foto" class="w-40-px h-40-px rounded-circle object-fit-cover" onerror="this.src='<?php echo $placeholder; ?>'">
                                 </td>
                                 <td>
@@ -238,20 +235,23 @@ try {
                                 </td>
                                 <td>R$ <?php echo number_format(isset($cliente['total_gasto']) ? $cliente['total_gasto'] : 0, 2, ',', '.'); ?></td>
                                 <td>
-                                    <?php 
-                                    if (isset($cliente['ultimo_pedido']) && $cliente['ultimo_pedido']) {
-                                        echo date('d/m/Y', strtotime($cliente['ultimo_pedido']));
-                                    } else {
-                                        echo '-';
-                                    }
-                                    ?>
+                                    <?php
+        if (isset($cliente['ultimo_pedido']) && $cliente['ultimo_pedido']) {
+            echo date('d/m/Y', strtotime($cliente['ultimo_pedido']));
+        }
+        else {
+            echo '-';
+        }
+?>
                                 </td>
                                 <td>
                                     <?php if (isset($cliente['ativo']) && $cliente['ativo'] == 0): ?>
                                         <span class="badge bg-danger-focus text-danger-main">Inativo</span>
-                                    <?php else: ?>
+                                    <?php
+        else: ?>
                                         <span class="badge bg-success-focus text-success-main">Ativo</span>
-                                    <?php endif; ?>
+                                    <?php
+        endif; ?>
                                 </td>
                                 <td class="text-center bg-base" style="position: sticky; right: 0; z-index: 10;">
                                     <div class="d-flex align-items-center justify-content-center gap-2">
@@ -262,9 +262,9 @@ try {
                                             <iconify-icon icon="solar:bill-list-linear"></iconify-icon>
                                         </a>
                                         <form action="clientes.php" method="POST" style="display:inline;" onsubmit="return confirm('Tem certeza que deseja excluir este cliente?');">
+                                            <?php echo campo_csrf(); ?>
                                             <input type="hidden" name="action" value="delete_single">
                                             <input type="hidden" name="id" value="<?php echo $cliente['id']; ?>">
-                                            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                                             <button type="submit" class="btn btn-icon btn-sm btn-danger-light radius-8" title="Excluir">
                                                 <iconify-icon icon="solar:trash-bin-trash-linear"></iconify-icon>
                                             </button>
@@ -272,8 +272,10 @@ try {
                                     </div>
                                 </td>
                             </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
+                            <?php
+    endforeach; ?>
+                        <?php
+endif; ?>
                     </tbody>
                 </table>
             </div>
@@ -291,20 +293,19 @@ try {
                         <li class="page-item <?php echo $pagina == $i ? 'active' : ''; ?>">
                             <a class="page-link" href="?pagina=<?php echo $i; ?>&busca=<?php echo urlencode($busca); ?>&ativo=<?php echo urlencode($ativo_filtro); ?>"><?php echo $i; ?></a>
                         </li>
-                        <?php endfor; ?>
+                        <?php
+    endfor; ?>
                         <li class="page-item <?php echo $pagina >= $total_paginas ? 'disabled' : ''; ?>">
                             <a class="page-link" href="?pagina=<?php echo $pagina + 1; ?>&busca=<?php echo urlencode($busca); ?>&ativo=<?php echo urlencode($ativo_filtro); ?>">Próximo</a>
                         </li>
                     </ul>
                 </nav>
             </div>
-            <?php endif; ?>
+            <?php
+endif; ?>
         </div>
     </div>
 </div>
-
-<!-- Input oculto para CSRF -->
-<input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
 
 
 

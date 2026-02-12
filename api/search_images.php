@@ -5,7 +5,8 @@
  */
 
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
+$allowed_origin = defined('SITE_URL') ? SITE_URL : '*';
+header("Access-Control-Allow-Origin: $allowed_origin");
 
 // Termo de busca
 $query = isset($_GET['q']) ? trim($_GET['q']) : '';
@@ -40,11 +41,12 @@ echo json_encode([
 /**
  * Busca imagens no Bing
  */
-function searchBingImages($query) {
+function searchBingImages($query)
+{
     $images = [];
     $search_query = urlencode($query . ' food dish');
     $bing_url = "https://www.bing.com/images/search?q={$search_query}&first=1&count=30&qft=+filterui:photo-photo";
-    
+
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL => $bing_url,
@@ -58,29 +60,30 @@ function searchBingImages($query) {
         ],
         CURLOPT_SSL_VERIFYPEER => false,
     ]);
-    
+
     $html = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    
+
     if ($http_code === 200 && !empty($html)) {
         // Método 1: Extrair URLs do JSON embutido
         preg_match_all('/murl&quot;:&quot;(https?:\/\/[^&]+)&quot;/i', $html, $matches);
-        
+
         if (!empty($matches[1])) {
             $urls = array_unique($matches[1]);
             $count = 0;
             foreach ($urls as $url) {
-                if ($count >= 20) break;
-                
+                if ($count >= 20)
+                    break;
+
                 $decoded_url = html_entity_decode($url);
                 $decoded_url = str_replace('\\u002f', '/', $decoded_url);
-                
+
                 // Filtrar apenas imagens válidas e evitar placeholders
-                if (preg_match('/\.(jpg|jpeg|png|webp)/i', $decoded_url) && 
-                    strpos($decoded_url, 'placeholder') === false &&
-                    strpos($decoded_url, 'picsum') === false &&
-                    strpos($decoded_url, 'via.placeholder') === false) {
+                if (preg_match('/\.(jpg|jpeg|png|webp)/i', $decoded_url) &&
+                strpos($decoded_url, 'placeholder') === false &&
+                strpos($decoded_url, 'picsum') === false &&
+                strpos($decoded_url, 'via.placeholder') === false) {
                     $images[] = [
                         'url' => $decoded_url,
                         'thumb' => $decoded_url,
@@ -91,18 +94,19 @@ function searchBingImages($query) {
             }
         }
     }
-    
+
     return $images;
 }
 
 /**
  * Busca imagens no Pexels (scraping)
  */
-function searchPexels($query) {
+function searchPexels($query)
+{
     $images = [];
     $search_query = urlencode($query);
     $pexels_url = "https://www.pexels.com/search/{$search_query}/";
-    
+
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL => $pexels_url,
@@ -112,20 +116,21 @@ function searchPexels($query) {
         CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         CURLOPT_SSL_VERIFYPEER => false,
     ]);
-    
+
     $html = curl_exec($ch);
     curl_close($ch);
-    
+
     if (!empty($html)) {
         // Extrair URLs de imagens do Pexels
         preg_match_all('/https:\/\/images\.pexels\.com\/photos\/[^\s"\']+/i', $html, $matches);
-        
+
         if (!empty($matches[0])) {
             $urls = array_unique($matches[0]);
             $count = 0;
             foreach ($urls as $url) {
-                if ($count >= 20) break;
-                
+                if ($count >= 20)
+                    break;
+
                 // Limpar URL e pegar versão menor
                 $clean_url = preg_replace('/\?.*$/', '', $url);
                 if (strpos($clean_url, '.jpeg') !== false || strpos($clean_url, '.png') !== false) {
@@ -139,17 +144,18 @@ function searchPexels($query) {
             }
         }
     }
-    
+
     return $images;
 }
 
 /**
  * Fallback: Unsplash Source CDN (sempre funciona, sem API key)
  */
-function getUnsplashImages($query) {
+function getUnsplashImages($query)
+{
     $images = [];
     $search_terms = urlencode($query);
-    
+
     // Gerar várias imagens do Unsplash Source
     for ($i = 1; $i <= 20; $i++) {
         // Cada URL com sig diferente retorna imagem diferente
@@ -159,6 +165,6 @@ function getUnsplashImages($query) {
             'title' => $query . ' - Unsplash ' . $i
         ];
     }
-    
+
     return $images;
 }

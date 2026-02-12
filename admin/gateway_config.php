@@ -2,6 +2,7 @@
 include 'includes/auth.php';
 include '../includes/config.php';
 include '../includes/functions.php';
+require_once '../includes/csrf.php';
 
 verificar_login();
 
@@ -11,85 +12,97 @@ $msg_tipo = '';
 // Executar migration se tabelas não existirem
 try {
     $pdo->query("SELECT 1 FROM gateway_settings LIMIT 1");
-} catch (PDOException $e) {
+}
+catch (PDOException $e) {
     // Executar migration
     include '../migrations/create_asaas_tables.php';
 }
 
 // Processar formulário
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $acao = $_POST['acao'] ?? '';
-    
-    try {
-        if ($acao == 'salvar_gateway_ativo') {
-            $gateway_ativo = $_POST['gateway_ativo'] ?? 'none';
-            
-            $stmt = $pdo->prepare("UPDATE gateway_settings SET gateway_ativo = ? WHERE id = 1");
-            $stmt->execute([$gateway_ativo]);
-            
-            $msg = 'Gateway ativo atualizado com sucesso!';
-            $msg_tipo = 'success';
-            
-        } elseif ($acao == 'salvar_mercadopago') {
-            $ativo = isset($_POST['mp_ativo']) ? 1 : 0;
-            $nome = $_POST['mp_nome'];
-            $public_key = $_POST['mp_public_key'];
-            $access_token = $_POST['mp_access_token'];
-            $sandbox_mode = isset($_POST['mp_sandbox_mode']) ? 1 : 0;
-            $prazo = (int)$_POST['mp_prazo'];
+    if (!validar_csrf()) {
+        $msg = 'Token de segurança inválido. Recarregue a página.';
+        $msg_tipo = 'danger';
+    }
+    else {
+        $acao = $_POST['acao'] ?? '';
 
-            $stmt = $pdo->query("SELECT id FROM mercadopago_config LIMIT 1");
-            $config = $stmt->fetch(PDO::FETCH_ASSOC);
+        try {
+            if ($acao == 'salvar_gateway_ativo') {
+                $gateway_ativo = $_POST['gateway_ativo'] ?? 'none';
 
-            if ($config) {
-                $sql = "UPDATE mercadopago_config SET 
+                $stmt = $pdo->prepare("UPDATE gateway_settings SET gateway_ativo = ? WHERE id = 1");
+                $stmt->execute([$gateway_ativo]);
+
+                $msg = 'Gateway ativo atualizado com sucesso!';
+                $msg_tipo = 'success';
+
+            }
+            elseif ($acao == 'salvar_mercadopago') {
+                $ativo = isset($_POST['mp_ativo']) ? 1 : 0;
+                $nome = $_POST['mp_nome'];
+                $public_key = $_POST['mp_public_key'];
+                $access_token = $_POST['mp_access_token'];
+                $sandbox_mode = isset($_POST['mp_sandbox_mode']) ? 1 : 0;
+                $prazo = (int)$_POST['mp_prazo'];
+
+                $stmt = $pdo->query("SELECT id FROM mercadopago_config LIMIT 1");
+                $config = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($config) {
+                    $sql = "UPDATE mercadopago_config SET 
                         ativo = ?, nome = ?, public_key = ?, access_token = ?, 
                         sandbox_mode = ?, prazo_pagamento_minutos = ?, atualizado_em = NOW()
                         WHERE id = ?";
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute([$ativo, $nome, $public_key, $access_token, $sandbox_mode, $prazo, $config['id']]);
-            } else {
-                $sql = "INSERT INTO mercadopago_config (ativo, nome, public_key, access_token, sandbox_mode, prazo_pagamento_minutos) 
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute([$ativo, $nome, $public_key, $access_token, $sandbox_mode, $prazo, $config['id']]);
+                }
+                else {
+                    $sql = "INSERT INTO mercadopago_config (ativo, nome, public_key, access_token, sandbox_mode, prazo_pagamento_minutos) 
                         VALUES (?, ?, ?, ?, ?, ?)";
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute([$ativo, $nome, $public_key, $access_token, $sandbox_mode, $prazo]);
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute([$ativo, $nome, $public_key, $access_token, $sandbox_mode, $prazo]);
+                }
+
+                $msg = 'Configurações do Mercado Pago salvas!';
+                $msg_tipo = 'success';
+
             }
-            
-            $msg = 'Configurações do Mercado Pago salvas!';
-            $msg_tipo = 'success';
-            
-        } elseif ($acao == 'salvar_asaas') {
-            $ativo = isset($_POST['asaas_ativo']) ? 1 : 0;
-            $nome = $_POST['asaas_nome'];
-            $access_token = $_POST['asaas_access_token'];
-            $address_key = $_POST['asaas_address_key'];
-            $sandbox_mode = isset($_POST['asaas_sandbox_mode']) ? 1 : 0;
-            $prazo = (int)$_POST['asaas_prazo'];
+            elseif ($acao == 'salvar_asaas') {
+                $ativo = isset($_POST['asaas_ativo']) ? 1 : 0;
+                $nome = $_POST['asaas_nome'];
+                $access_token = $_POST['asaas_access_token'];
+                $address_key = $_POST['asaas_address_key'];
+                $sandbox_mode = isset($_POST['asaas_sandbox_mode']) ? 1 : 0;
+                $prazo = (int)$_POST['asaas_prazo'];
 
-            $stmt = $pdo->query("SELECT id FROM asaas_config LIMIT 1");
-            $config = $stmt->fetch(PDO::FETCH_ASSOC);
+                $stmt = $pdo->query("SELECT id FROM asaas_config LIMIT 1");
+                $config = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if ($config) {
-                $sql = "UPDATE asaas_config SET 
+                if ($config) {
+                    $sql = "UPDATE asaas_config SET 
                         ativo = ?, nome = ?, access_token = ?, address_key = ?, 
                         sandbox_mode = ?, prazo_pagamento_minutos = ?, atualizado_em = NOW()
                         WHERE id = ?";
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute([$ativo, $nome, $access_token, $address_key, $sandbox_mode, $prazo, $config['id']]);
-            } else {
-                $sql = "INSERT INTO asaas_config (ativo, nome, access_token, address_key, sandbox_mode, prazo_pagamento_minutos) 
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute([$ativo, $nome, $access_token, $address_key, $sandbox_mode, $prazo, $config['id']]);
+                }
+                else {
+                    $sql = "INSERT INTO asaas_config (ativo, nome, access_token, address_key, sandbox_mode, prazo_pagamento_minutos) 
                         VALUES (?, ?, ?, ?, ?, ?)";
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute([$ativo, $nome, $access_token, $address_key, $sandbox_mode, $prazo]);
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute([$ativo, $nome, $access_token, $address_key, $sandbox_mode, $prazo]);
+                }
+
+                $msg = 'Configurações do Asaas salvas!';
+                $msg_tipo = 'success';
             }
-            
-            $msg = 'Configurações do Asaas salvas!';
-            $msg_tipo = 'success';
         }
-    } catch (PDOException $e) {
-        $msg = 'Erro ao salvar: ' . $e->getMessage();
-        $msg_tipo = 'danger';
-    }
+        catch (PDOException $e) {
+            $msg = 'Erro ao salvar: ' . $e->getMessage();
+            $msg_tipo = 'danger';
+        }
+    } // fecha else validar_csrf
 }
 
 // Buscar configurações atuais
@@ -103,7 +116,8 @@ if (!$mp_config) {
 
 try {
     $asaas_config = $pdo->query("SELECT * FROM asaas_config LIMIT 1")->fetch(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
+}
+catch (PDOException $e) {
     $asaas_config = null;
 }
 if (!$asaas_config) {
@@ -188,11 +202,13 @@ include 'includes/header.php';
             <i class="fa-solid fa-circle-check"></i> 
             <?php echo $gateway_ativo === 'mercadopago' ? 'Mercado Pago' : 'Asaas'; ?> ATIVO
         </span>
-        <?php else: ?>
+        <?php
+else: ?>
         <span class="badge bg-warning-600 px-3 py-2">
             <i class="fa-solid fa-exclamation-triangle"></i> NENHUM GATEWAY ATIVO
         </span>
-        <?php endif; ?>
+        <?php
+endif; ?>
     </div>
     <ul class="d-flex align-items-center gap-2">
         <li class="fw-medium">
@@ -211,7 +227,8 @@ include 'includes/header.php';
     <?php echo $msg; ?>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 </div>
-<?php endif; ?>
+<?php
+endif; ?>
 
 <!-- Card: Selecionar Gateway Ativo -->
 <div class="card h-100 p-0 radius-12 mb-24">
@@ -227,6 +244,7 @@ include 'includes/header.php';
         </p>
         
         <form method="POST">
+            <?php echo campo_csrf(); ?>
             <input type="hidden" name="acao" value="salvar_gateway_ativo">
             
             <div class="gateway-selector mb-3">
@@ -284,6 +302,7 @@ include 'includes/header.php';
             <!-- Tab Mercado Pago -->
             <div class="tab-pane fade show active" id="mp-content" role="tabpanel">
                 <form method="POST">
+                    <?php echo campo_csrf(); ?>
                     <input type="hidden" name="acao" value="salvar_mercadopago">
                     
                     <div class="row gy-4">
@@ -340,6 +359,7 @@ include 'includes/header.php';
             <!-- Tab Asaas -->
             <div class="tab-pane fade" id="asaas-content" role="tabpanel">
                 <form method="POST">
+                    <?php echo campo_csrf(); ?>
                     <input type="hidden" name="acao" value="salvar_asaas">
                     
                     <div class="row gy-4">
