@@ -21,7 +21,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Upload de imagem
         $imagem = '';
         if (isset($_FILES['imagem']) && $_FILES['imagem']['error'] === 0) {
-            $upload_dir = __DIR__ . '/../uploads/categorias/';
+            // Modificação: Salvar em admin/uploads/
+            $upload_dir = __DIR__ . '/uploads/categorias/';
+
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+
             $file_base = $upload_dir . 'cat_' . time();
 
             // Comprimir e otimizar imagem

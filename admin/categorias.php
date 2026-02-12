@@ -241,7 +241,8 @@ else: ?>
                                     <?php
         // O caminho salvo no banco é 'uploads/categorias/xxx.jpg' (relativo à raiz)
         // No admin, precisamos de '../uploads/categorias/xxx.jpg'
-        $img_url = $cat['imagem'] ? str_replace('admin/', '', $cat['imagem']) : '';
+        // O caminho salvo no banco é 'admin/uploads/...' ou 'uploads/...'
+        $img_url = $cat['imagem'];
 
         if ($img_url) {
             if (!str_starts_with($img_url, 'http') && !str_starts_with($img_url, '../')) {

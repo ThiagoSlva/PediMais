@@ -287,9 +287,10 @@ else: ?>
                                     <td class="fw-bold text-primary-600"><?php echo $prod['ordem']; ?></td>
                                     <td>
                                         <?php
-        $img_url = $prod['imagem_path'] ? str_replace('admin/', '', $prod['imagem_path']) : 'assets/images/sem-foto.jpg';
-        // Correção para caminho relativo no admin
-        if ($img_url && strpos($img_url, 'uploads/') === 0) {
+        // Imagem: pode ser admin/uploads/... (novo) ou uploads/... (antigo)
+        $img_url = $prod['imagem_path'];
+
+        if ($img_url && !str_starts_with($img_url, 'http') && !str_starts_with($img_url, '../')) {
             $img_url = '../' . $img_url;
         }
 ?>
